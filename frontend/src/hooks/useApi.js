@@ -26,10 +26,12 @@ const useApi = () => {
         }
 
         try {
-            const response = await fetch(`${AppConfig.api.baseUrl}/${endpoint}`, config);
-            
+            // Remove leading slash from endpoint to avoid double slashes
+            const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+            const response = await fetch(`${AppConfig.api.baseUrl}/${cleanEndpoint}`, config);
+
             const responseData = await response.json().catch(() => ({
-                 // Fallback jika respons bukan JSON valid (misalnya error 500 dari PHP)
+                // Fallback jika respons bukan JSON valid (misalnya error 500 dari PHP)
                 message: `Server merespons dengan status ${response.status}, tetapi tidak ada pesan error yang bisa dibaca.`
             }));
 
@@ -38,15 +40,15 @@ const useApi = () => {
                 const errorMessage = responseData?.message || `HTTP error! status: ${response.status}`;
                 throw new Error(errorMessage);
             }
-            
+
             return responseData;
 
         } catch (e) {
             // Memberikan pesan yang lebih jelas untuk error jaringan
-            const finalError = e.message.includes("Failed to fetch") 
-                ? "Gagal terhubung ke server. Periksa koneksi internet Anda atau hubungi administrator." 
+            const finalError = e.message.includes("Failed to fetch")
+                ? "Gagal terhubung ke server. Periksa koneksi internet Anda atau hubungi administrator."
                 : e.message;
-                
+
             setError(finalError);
             console.error("API call failed:", finalError);
             return null;

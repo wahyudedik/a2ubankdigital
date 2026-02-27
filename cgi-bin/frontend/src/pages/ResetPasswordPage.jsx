@@ -50,7 +50,7 @@ const ResetPasswordPage = () => {
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
             <div className="w-full max-w-sm">
                 <div className="text-center mb-8">
-                     <img src="/logobank.png" alt="Bank Taskora Logo" className="w-48 mx-auto mb-4" />
+                    <img src="/a2u-logo.png" alt="Bank Taskora Logo" className="w-48 mx-auto mb-4" />
                 </div>
                 <div className="bg-white p-8 rounded-xl shadow-md">
                     {isSuccess ? (

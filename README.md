@@ -1,0 +1,242 @@
+# A2U Bank Digital - Banking System
+
+Sistem perbankan digital lengkap dengan fitur tabungan, deposito, pinjaman, transfer, dan pembayaran.
+
+## 📁 Struktur Proyek
+
+```
+a2ubankdigital.my.id/
+├── app/                    # Backend API (PHP)
+│   ├── helpers/           # Helper functions
+│   ├── templates/         # Email templates
+│   ├── utils/             # Utility functions
+│   ├── vendor/            # Composer dependencies
+│   ├── webhooks/          # Webhook handlers
+│   ├── config.php         # Database & config
+│   └── *.php              # API endpoints
+│
+├── cgi-bin/
+│   ├── frontend/          # Source code React (Development)
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   ├── pages/
+│   │   │   ├── contexts/
+│   │   │   ├── hooks/
+│   │   │   └── config/
+│   │   ├── package.json
+│   │   └── vite.config.js
+│   │
+│   └── backend/           # Backend config (Development)
+│       └── .env
+│
+├── assets/                # Frontend build output (Production)
+├── uploads/               # User uploaded files
+├── cache/                 # Cache files
+│
+├── .env                   # Environment config (Production)
+├── .htaccess              # Apache config
+├── index.html             # Frontend entry point
+└── manifest.webmanifest   # PWA manifest
+
+```
+
+## 🚀 Setup Development
+
+### Prerequisites
+- PHP 7.4+
+- MySQL/MariaDB
+- Node.js 18+
+- Composer
+- Web Server (Nginx/Apache)
+
+### Backend Setup
+
+1. Install PHP dependencies:
+```bash
+cd app
+composer install
+```
+
+2. Configure database:
+```bash
+# Import database
+mysql -u root -p < a2uj2723_au2.sql
+
+# Update .env file
+cp .env.example .env
+# Edit .env with your database credentials
+```
+
+3. Configure web server to point to project root
+
+### Frontend Setup
+
+1. Install dependencies:
+```bash
+cd cgi-bin/frontend
+npm install
+```
+
+2. Configure API endpoint:
+```javascript
+// Edit: cgi-bin/frontend/src/config/index.js
+api: {
+  baseUrl: "http://localhost/app"  // Your backend URL
+}
+```
+
+3. Run development server:
+```bash
+npm run dev
+# Access: http://localhost:5173
+```
+
+4. Build for production:
+```bash
+npm run build
+# Output will be in project root (index.html, assets/)
+```
+
+## 🔧 Configuration
+
+### Environment Variables (.env)
+
+```env
+# Database
+DB_HOST=localhost
+DB_USER=your_user
+DB_PASS=your_password
+DB_NAME=your_database
+
+# JWT
+JWT_SECRET=your_secret_key
+JWT_ISSUER=your_domain
+JWT_AUDIENCE=your_domain
+
+# Email (SMTP)
+MAIL_HOST=your_smtp_host
+MAIL_PORT=465
+MAIL_USERNAME=your_email
+MAIL_PASSWORD=your_password
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,https://yourdomain.com
+
+# Payment Gateway (Midtrans)
+MIDTRANS_SERVER_KEY=your_key
+MIDTRANS_CLIENT_KEY=your_key
+
+# Digital Products (Digiflazz)
+DIGIFLAZZ_USERNAME=your_username
+DIGIFLAZZ_API_KEY=your_key
+```
+
+## 📱 Features
+
+### Customer Features
+- ✅ Registration & KYC
+- ✅ Login with JWT authentication
+- ✅ Dashboard & Account overview
+- ✅ Internal & External transfers
+- ✅ Bill payments
+- ✅ Loan application & management
+- ✅ Deposit accounts
+- ✅ Card management
+- ✅ Transaction history
+- ✅ Notifications
+- ✅ Profile management
+
+### Admin Features
+- ✅ Customer management
+- ✅ Transaction monitoring
+- ✅ Loan approval & disbursement
+- ✅ Deposit management
+- ✅ Card requests approval
+- ✅ Staff management
+- ✅ Reports & analytics
+- ✅ Audit logs
+- ✅ Teller operations
+
+## 🔐 Security
+
+- JWT-based authentication
+- Password hashing with bcrypt
+- CORS protection
+- SQL injection prevention (PDO prepared statements)
+- XSS protection
+- CSRF protection
+
+## 📊 Database
+
+Database schema includes:
+- users
+- accounts (savings, loans, deposits)
+- transactions
+- loan_installments
+- cards
+- notifications
+- audit_logs
+- And more...
+
+## 🧪 Testing
+
+Test backend connection:
+```
+http://localhost/app/test_connection.php
+```
+
+Test simple endpoint:
+```
+http://localhost/app/test_simple.php
+```
+
+## 📝 API Documentation
+
+### Authentication
+- POST `/app/auth_login.php` - Login
+- POST `/app/auth_register_request_otp.php` - Register (request OTP)
+- POST `/app/auth_register_verify_otp.php` - Verify OTP
+- POST `/app/auth_forgot_password_request.php` - Forgot password
+- POST `/app/auth_forgot_password_reset.php` - Reset password
+
+### Customer Endpoints
+- GET `/app/dashboard_summary.php` - Dashboard data
+- GET `/app/user_get_transaction_history.php` - Transaction history
+- POST `/app/transfer_internal_execute.php` - Internal transfer
+- POST `/app/user_loan_application_create.php` - Apply for loan
+- And 100+ more endpoints...
+
+### Admin Endpoints
+- GET `/app/admin_get_customers.php` - Customer list
+- GET `/app/admin_get_transactions.php` - All transactions
+- POST `/app/admin_loan_disburse.php` - Disburse loan
+- And 90+ more endpoints...
+
+## 🛠️ Tech Stack
+
+### Frontend
+- React 19
+- React Router v7
+- Vite
+- TailwindCSS
+- Axios
+- Chart.js
+- Lucide Icons
+
+### Backend
+- PHP 8+
+- MySQL/MariaDB
+- Composer packages:
+  - vlucas/phpdotenv
+  - firebase/php-jwt
+  - phpmailer/phpmailer
+  - spomky-labs/otphp
+  - minishlink/web-push
+
+## 📄 License
+
+Proprietary - A2U Bank Digital
+
+## 👥 Support
+
+For support, email: support@a2ubankdigital.my.id

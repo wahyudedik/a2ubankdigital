@@ -6,96 +6,66 @@ Sistem perbankan digital lengkap dengan fitur tabungan, deposito, pinjaman, tran
 
 ```
 a2ubankdigital.my.id/
-├── app/                    # Backend API (PHP)
+├── app/                    # Backend API (PHP) - Production
 │   ├── helpers/           # Helper functions
 │   ├── templates/         # Email templates
 │   ├── utils/             # Utility functions
 │   ├── vendor/            # Composer dependencies
 │   ├── webhooks/          # Webhook handlers
+│   ├── crons/             # Cron jobs
 │   ├── config.php         # Database & config
-│   └── *.php              # API endpoints
+│   └── *.php              # 190+ API endpoints
 │
 ├── cgi-bin/
-│   ├── frontend/          # Source code React (Development)
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   ├── pages/
-│   │   │   ├── contexts/
-│   │   │   ├── hooks/
-│   │   │   └── config/
-│   │   ├── package.json
-│   │   └── vite.config.js
-│   │
-│   └── backend/           # Backend config (Development)
-│       └── .env
+│   └── frontend/          # Frontend Source Code (Development)
+│       ├── src/
+│       │   ├── components/  # React components
+│       │   ├── pages/       # Page components
+│       │   ├── contexts/    # React contexts
+│       │   ├── hooks/       # Custom hooks
+│       │   └── config/      # Frontend config
+│       ├── package.json
+│       └── vite.config.js
 │
 ├── assets/                # Frontend build output (Production)
-├── uploads/               # User uploaded files
-├── cache/                 # Cache files
+│   ├── index-*.js         # Bundled JavaScript
+│   └── index-*.css        # Bundled CSS
 │
-├── .env                   # Environment config (Production)
-├── .htaccess              # Apache config
-├── index.html             # Frontend entry point
-└── manifest.webmanifest   # PWA manifest
+├── uploads/               # User uploaded files
+│   ├── documents/         # KYC documents
+│   └── proofs/            # Payment proofs
+│
+├── cache/                 # Application cache
+│
+├── .env                   # Environment config (Backend)
+├── .htaccess              # Apache rewrite rules
+├── index.html             # Frontend entry point (Production)
+├── manifest.webmanifest   # PWA manifest
+└── sw.js                  # Service worker
 
 ```
 
-## 🚀 Setup Development
+## 🚀 Quick Start
 
-### Prerequisites
-- PHP 7.4+
-- MySQL/MariaDB
-- Node.js 18+
-- Composer
-- Web Server (Nginx/Apache)
-
-### Backend Setup
-
-1. Install PHP dependencies:
 ```bash
-cd app
-composer install
-```
+# 1. Import database
+mysql -u root -p a2uj2723_au2 < a2uj2723_au2.sql
 
-2. Configure database:
-```bash
-# Import database
-mysql -u root -p < a2uj2723_au2.sql
-
-# Update .env file
+# 2. Configure .env (di root project)
 cp .env.example .env
-# Edit .env with your database credentials
-```
+# Edit database credentials
 
-3. Configure web server to point to project root
+# 3. Install backend dependencies
+cd app && composer install && cd ..
 
-### Frontend Setup
-
-1. Install dependencies:
-```bash
+# 4. Install frontend dependencies & run dev server
 cd cgi-bin/frontend
 npm install
-```
-
-2. Configure API endpoint:
-```javascript
-// Edit: cgi-bin/frontend/src/config/index.js
-api: {
-  baseUrl: "http://localhost/app"  // Your backend URL
-}
-```
-
-3. Run development server:
-```bash
 npm run dev
 # Access: http://localhost:5173
 ```
 
-4. Build for production:
-```bash
-npm run build
-# Output will be in project root (index.html, assets/)
-```
+📖 **Detailed guide:** [QUICKSTART.md](QUICKSTART.md) | [SETUP.md](SETUP.md)
 
 ## 🔧 Configuration
 

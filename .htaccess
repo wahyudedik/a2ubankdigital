@@ -1,0 +1,35 @@
+# File: .htaccess
+# Lokasi: Direktori root situs Anda (sejajar dengan folder 'app' dan 'uploads')
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 1. Teruskan header Authorization ke PHP (PENTING untuk API)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # 2. Aturan untuk React Router (Single Page Application)
+    # Arahkan semua permintaan ke index.html JIKA...
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # ...permintaan BUKAN untuk direktori /app/ (API kita)
+    RewriteCond %{REQUEST_URI} !^/app/
+    # ...permintaan BUKAN untuk direktori /uploads/ (file gambar, dll.)
+    RewriteCond %{REQUEST_URI} !^/uploads/
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# 3. Keamanan Tambahan
+# Mencegah akses langsung ke file-file sensitif
+<Files ".env">
+    Require all denied
+</Files>
+<Files "composer.json">
+    Require all denied
+</Files>
+<Files "composer.lock">
+    Require all denied
+</Files>
+
+# 4. Mencegah listing isi direktori
+Options -Indexes

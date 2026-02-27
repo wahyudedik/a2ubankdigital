@@ -1,0 +1,63 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+vendor/
+cgi-bin/frontend/node_modules/
+app/vendor/
+
+# Build outputs
+dist/
+build/
+cgi-bin/frontend/dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+app/error_log
+
+# Cache
+cache/*
+!cache/.gitkeep
+app/cache/*
+!app/cache/.gitkeep
+
+# Uploads (user files)
+uploads/documents/*
+uploads/proofs/*
+!uploads/.gitkeep
+app/uploads/*
+!app/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.zip
+*.sql
+app/backup_*.zip
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package manager locks (optional, uncomment if needed)
+# package-lock.json
+# composer.lock

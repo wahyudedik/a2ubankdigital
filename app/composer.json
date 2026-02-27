@@ -1,0 +1,11 @@
+{
+    "require": {
+        "vlucas/phpdotenv": "^5.5",
+        "firebase/php-jwt": "^6.9",
+        "phpmailer/phpmailer": "^6.8",
+        "spomky-labs/otphp": "^11.3",
+        "chillerlan/php-qrcode": "^5.0",
+        "minishlink/web-push": "^7.0"
+    }
+}
+

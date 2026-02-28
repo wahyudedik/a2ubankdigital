@@ -3,7 +3,7 @@
 // Penjelasan: Menyesuaikan path vendor sesuai struktur server.
 
 // --- 1. Aktifkan Error Reporting (HAPUS DI PRODUKSI) ---
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // --- 2. Definisikan Path Root Proyek ---
@@ -11,9 +11,14 @@ error_reporting(E_ALL);
 define('BASE_PATH', dirname(__DIR__));
 
 // --- 3. Autoloader Composer ---
-// PERBAIKAN UTAMA: Menggunakan path yang benar menuju folder vendor
-// yang berada di dalam folder 'app'.
-require_once __DIR__ . '/vendor/autoload.php';
+// Cek apakah vendor ada di app/ atau di parent directory
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+} elseif (file_exists(BASE_PATH . '/vendor/autoload.php')) {
+    require_once BASE_PATH . '/vendor/autoload.php';
+} else {
+    die('Error: Composer autoload not found. Please run "composer install"');
+}
 
 // --- 4. Memuat Variabel Lingkungan (.env) ---
 // Path ke file .env sudah benar karena .env ada di root (BASE_PATH).

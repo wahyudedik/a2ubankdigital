@@ -12,7 +12,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
-import ResetPasswordPage from './pages/ResetPasswordPage.jsx'; 
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 
 // Halaman Nasabah (Dilindungi)
 import DashboardPage from './pages/DashboardPage.jsx';
@@ -64,7 +64,8 @@ import AdminWithdrawalRequestsPage from './pages/AdminWithdrawalRequestsPage.jsx
 import AdminAuditLogPage from './pages/AdminAuditLogPage.jsx';
 import AdminTellerDepositPage from './pages/AdminTellerDepositPage.jsx';
 import AdminTellerLoanPaymentPage from './pages/AdminTellerLoanPaymentPage.jsx';
-import PrintableReceiptPage from './pages/PrintableReceiptPage.jsx'; // <-- 1. Impor halaman baru
+import PrintableReceiptPage from './pages/PrintableReceiptPage.jsx';
+import AdminBuildPage from './pages/AdminBuildPage.jsx';
 
 // Komponen helper untuk memeriksa status otentikasi
 const useAuth = () => {
@@ -83,21 +84,26 @@ const useAuth = () => {
 // Komponen "Penjaga Gerbang" untuk Rute Terlindungi
 const ProtectedRoute = ({ children, adminOnly = false }) => {
     const { isAuthenticated, user } = useAuth();
-    
+
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
-    
-    if (adminOnly && user.roleId === 9) {
+
+    // Convert roleId to number untuk memastikan perbandingan benar
+    const roleId = Number(user.roleId);
+
+    // Jika route untuk admin only, tapi user adalah customer (role 9)
+    if (adminOnly && roleId === 9) {
         return <Navigate to="/dashboard" replace />;
     }
 
-    if (!adminOnly && user.roleId !== 9) {
+    // Jika route untuk customer only, tapi user adalah admin/staff (bukan role 9)
+    if (!adminOnly && roleId !== 9) {
         return <Navigate to="/admin/dashboard" replace />;
     }
 
     return children;
-};
+}
 
 // Komponen "Penjaga Gerbang" untuk Rute Publik
 const PublicRoute = ({ children }) => {
@@ -132,81 +138,84 @@ const CustomerLayoutWrapper = () => {
 
 
 function App() {
-  return (
-    <ModalProvider>
-      <NotificationProvider>
-        <Routes>
-          {/* Rute Publik */}
-          <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
-          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
-          <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+    return (
+        <ModalProvider>
+            <NotificationProvider>
+                <Routes>
+                    {/* Rute Publik */}
+                    <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
+                    <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                    <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+                    <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+                    <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
 
-          {/* Rute Nasabah */}
-          <Route element={<ProtectedRoute><CustomerLayoutWrapper /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/payment" element={<PaymentPage />} />
-              <Route path="/bills" element={<BillPaymentPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/info" element={<ProfileInfoPage />} />
-              <Route path="/profile/change-pin" element={<ChangePinPage />} />
-              <Route path="/profile/change-password" element={<ChangePasswordPage />} />
-              <Route path="/profile/beneficiaries" element={<BeneficiaryListPage />} />
-              <Route path="/profile/cards" element={<CardsPage />} />
-              <Route path="/profile/withdrawal-accounts" element={<WithdrawalAccountsPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/transfer" element={<TransferPage />} />
-              <Route path="/loan-products" element={<LoanProductsListPage />} />
-              <Route path="/loan-application/:productId" element={<LoanApplicationPage />} />
-              <Route path="/my-loans" element={<MyLoansPage />} />
-              <Route path="/my-loans/:loanId" element={<MyLoanDetailPage />} />
-              <Route path="/deposits" element={<DepositsPage />} />
-              <Route path="/deposits/open" element={<OpenDepositPage />} />
-              <Route path="/deposits/:depositId" element={<DepositDetailPage />} />
-              <Route path="/topup" element={<TopUpPage />} />
-              <Route path="/withdrawal" element={<WithdrawalPage />} />
-              <Route path="/investments" element={<InvestmentPage />} />
-          </Route>
+                    {/* Rute Nasabah */}
+                    <Route element={<ProtectedRoute><CustomerLayoutWrapper /></ProtectedRoute>}>
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/history" element={<HistoryPage />} />
+                        <Route path="/payment" element={<PaymentPage />} />
+                        <Route path="/bills" element={<BillPaymentPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/profile/info" element={<ProfileInfoPage />} />
+                        <Route path="/profile/change-pin" element={<ChangePinPage />} />
+                        <Route path="/profile/change-password" element={<ChangePasswordPage />} />
+                        <Route path="/profile/beneficiaries" element={<BeneficiaryListPage />} />
+                        <Route path="/profile/cards" element={<CardsPage />} />
+                        <Route path="/profile/withdrawal-accounts" element={<WithdrawalAccountsPage />} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
+                        <Route path="/transfer" element={<TransferPage />} />
+                        <Route path="/loan-products" element={<LoanProductsListPage />} />
+                        <Route path="/loan-application/:productId" element={<LoanApplicationPage />} />
+                        <Route path="/my-loans" element={<MyLoansPage />} />
+                        <Route path="/my-loans/:loanId" element={<MyLoanDetailPage />} />
+                        <Route path="/deposits" element={<DepositsPage />} />
+                        <Route path="/deposits/open" element={<OpenDepositPage />} />
+                        <Route path="/deposits/:depositId" element={<DepositDetailPage />} />
+                        <Route path="/topup" element={<TopUpPage />} />
+                        <Route path="/withdrawal" element={<WithdrawalPage />} />
+                        <Route path="/investments" element={<InvestmentPage />} />
+                    </Route>
 
-          {/* Rute Admin */}
-          <Route path="/admin" element={<ProtectedRoute adminOnly={true}><AdminLayoutWrapper /></ProtectedRoute>}>
-              <Route path="dashboard" element={<AdminDashboardPage />} />
-              <Route path="customers" element={<CustomerListPage />} />
-              <Route path="customers/add" element={<CustomerAddPage />} />
-              <Route path="customers/:customerId" element={<CustomerDetailPage />} />
-              <Route path="customers/edit/:customerId" element={<CustomerEditPage />} />
-              <Route path="topup-requests" element={<AdminTopUpRequestsPage />} />
-              <Route path="withdrawal-requests" element={<AdminWithdrawalRequestsPage />} />
-              <Route path="transactions" element={<TransactionListPage />} />
-              <Route path="loan-products" element={<LoanProductsPage />} />
-              <Route path="deposit-products" element={<DepositProductsPage />} />
-              <Route path="deposit-accounts" element={<AdminDepositsListPage />} />
-              <Route path="loan-applications" element={<LoanApplicationsPage />} />
-              <Route path="loan-applications/:loanId" element={<LoanApplicationDetailPage />} />
-              <Route path="loan-accounts" element={<AdminLoansListPage />} />
-              <Route path="units" element={<AdminUnitsPage />} />
-              <Route path="card-requests" element={<CardRequestsPage />} />
-              <Route path="staff" element={<StaffListPage />} />
-              <Route path="staff/:staffId/edit" element={<StaffEditPage />} />
-              <Route path="reports" element={<ReportsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="notifications" element={<AdminNotificationsPage />} />
-              <Route path="audit-log" element={<AdminAuditLogPage />} />
-              <Route path="teller-deposit" element={<AdminTellerDepositPage />} />
-              <Route path="teller-loan-payment" element={<AdminTellerLoanPaymentPage />} />
-          </Route>
-          
-          {/* Rute Khusus Cetak (di luar layout utama) */}
-          <Route path="/admin/print-receipt/:transactionId" element={<ProtectedRoute adminOnly={true}><PrintableReceiptPage /></ProtectedRoute>} /> {/* <-- 2. Daftarkan rute baru */}
+                    {/* Rute Admin */}
+                    <Route path="/admin" element={<ProtectedRoute adminOnly={true}><AdminLayoutWrapper /></ProtectedRoute>}>
+                        <Route path="dashboard" element={<AdminDashboardPage />} />
+                        <Route path="customers" element={<CustomerListPage />} />
+                        <Route path="customers/add" element={<CustomerAddPage />} />
+                        <Route path="customers/:customerId" element={<CustomerDetailPage />} />
+                        <Route path="customers/edit/:customerId" element={<CustomerEditPage />} />
+                        <Route path="topup-requests" element={<AdminTopUpRequestsPage />} />
+                        <Route path="withdrawal-requests" element={<AdminWithdrawalRequestsPage />} />
+                        <Route path="transactions" element={<TransactionListPage />} />
+                        <Route path="loan-products" element={<LoanProductsPage />} />
+                        <Route path="deposit-products" element={<DepositProductsPage />} />
+                        <Route path="deposit-accounts" element={<AdminDepositsListPage />} />
+                        <Route path="loan-applications" element={<LoanApplicationsPage />} />
+                        <Route path="loan-applications/:loanId" element={<LoanApplicationDetailPage />} />
+                        <Route path="loan-accounts" element={<AdminLoansListPage />} />
+                        <Route path="units" element={<AdminUnitsPage />} />
+                        <Route path="card-requests" element={<CardRequestsPage />} />
+                        <Route path="staff" element={<StaffListPage />} />
+                        <Route path="staff/:staffId/edit" element={<StaffEditPage />} />
+                        <Route path="reports" element={<ReportsPage />} />
+                        <Route path="settings" element={<SettingsPage />} />
+                        <Route path="notifications" element={<AdminNotificationsPage />} />
+                        <Route path="audit-log" element={<AdminAuditLogPage />} />
+                        <Route path="teller-deposit" element={<AdminTellerDepositPage />} />
+                        <Route path="teller-loan-payment" element={<AdminTellerLoanPaymentPage />} />
+                    </Route>
 
-          {/* Fallback untuk rute yang tidak ditemukan */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </NotificationProvider>
-    </ModalProvider>
-  );
+                    {/* Rute Khusus Cetak (di luar layout utama) */}
+                    <Route path="/admin/print-receipt/:transactionId" element={<ProtectedRoute adminOnly={true}><PrintableReceiptPage /></ProtectedRoute>} />
+
+                    {/* Rute Build Frontend (Super Admin Only) */}
+                    <Route path="/admin/build" element={<ProtectedRoute adminOnly={true}><AdminBuildPage /></ProtectedRoute>} />
+
+                    {/* Fallback untuk rute yang tidak ditemukan */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </NotificationProvider>
+        </ModalProvider>
+    );
 }
 
 export default App;

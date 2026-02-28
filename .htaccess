@@ -1,6 +1,9 @@
 # Enable Rewrite Engine
 RewriteEngine On
 
+# Serve index.html from frontend/dist/ for root
+DirectoryIndex frontend/dist/index.html
+
 # Allow direct access to backend folder
 RewriteCond %{REQUEST_URI} ^/backend/ [NC]
 RewriteRule ^ - [L]
@@ -9,6 +12,7 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/backend/
+RewriteCond %{REQUEST_URI} !^/frontend/
 RewriteRule ^(.*)$ /frontend/dist/$1 [L]
 
 # Prevent directory listing

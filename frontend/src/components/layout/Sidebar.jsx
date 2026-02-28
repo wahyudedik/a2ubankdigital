@@ -195,6 +195,20 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout, user }) => {
                             <Settings size={20} />
                             <span className="mx-4">Pengaturan</span>
                         </Link>
+
+                        {/* Build Frontend - Admin/Staff Only */}
+                        {user?.roleId !== 9 && (
+                            <Link
+                                to="/admin/build"
+                                onClick={() => setIsOpen(false)}
+                                className={`flex items-center py-4 px-6 w-full text-left text-gray-600 hover:text-green-600 hover:bg-green-50 ${isActive('/admin/build') ? 'bg-green-50 text-green-600 font-semibold' : ''
+                                    }`}
+                            >
+                                <Database size={20} />
+                                <span className="mx-4">Build Frontend</span>
+                            </Link>
+                        )}
+
                         <button
                             onClick={onLogout}
                             className="flex items-center py-4 px-6 w-full text-left text-gray-600 hover:text-red-600 hover:bg-red-50"

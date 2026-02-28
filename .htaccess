@@ -13,6 +13,3 @@ RewriteRule ^(.*)$ /frontend/dist/$1 [L]
 
 # Prevent directory listing
 Options -Indexes
-
-# Allow .htaccess override
-AllowOverride All

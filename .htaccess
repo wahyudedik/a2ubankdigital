@@ -1,0 +1,18 @@
+# Enable Rewrite Engine
+RewriteEngine On
+
+# Allow direct access to backend folder
+RewriteCond %{REQUEST_URI} ^/backend/ [NC]
+RewriteRule ^ - [L]
+
+# Redirect all other requests to frontend/dist/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/backend/
+RewriteRule ^(.*)$ /frontend/dist/$1 [L]
+
+# Prevent directory listing
+Options -Indexes
+
+# Allow .htaccess override
+AllowOverride All

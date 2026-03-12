@@ -1,0 +1,41 @@
+{
+    "project": "A2U Bank Digital API",
+    "baseUrl": "http://backend-laravel.test/api",
+    "credentials": {
+        "admin": {
+            "email": "aauasiarecords@gmail.com",
+            "password": "admin123"
+        },
+        "teller": {
+            "email": "novitaanisa635@gmail.com",
+            "password": "teller123"
+        },
+        "customer": {
+            "email": "andrealditam@gmail.com",
+            "password": "customer123"
+        }
+    },
+    "endpoints": {
+        "auth": {
+            "login": "POST /auth/login",
+            "logout": "POST /user/logout"
+        },
+        "public": {
+            "systemStatus": "GET /utility/system-status",
+            "faq": "GET /utility/faq",
+            "publicConfig": "GET /utility/public-config"
+        },
+        "admin": {
+            "dashboard": "GET /admin/dashboard/summary",
+            "customers": "GET /admin/customers",
+            "loans": "GET /admin/loans",
+            "reports": "GET /admin/reports/daily"
+        },
+        "user": {
+            "profile": "GET /user/profile",
+            "accounts": "GET /user/accounts",
+            "transactions": "GET /user/transactions",
+            "loans": "GET /user/loans"
+        }
+    }
+}

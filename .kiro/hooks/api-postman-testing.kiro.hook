@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "API Postman Testing",
+  "description": "Monitors API source code changes and automatically runs Postman collection tests",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend-laravel/app/Http/Controllers/**/*.php",
+      "backend-laravel/routes/*.php",
+      "backend-laravel/app/Models/*.php"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "API source code has been modified. Please check the .postman.json file and test the affected API endpoints to ensure they still work correctly."
+  }
+}

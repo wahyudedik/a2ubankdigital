@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AppConfig } from '../config';
+import { convertEndpoint } from '../utils/endpointMapping';
 
 const useApi = () => {
     const [loading, setLoading] = useState(false);
@@ -12,6 +13,7 @@ const useApi = () => {
         const token = localStorage.getItem('authToken');
         const headers = {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
         };
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -20,15 +22,18 @@ const useApi = () => {
         const config = {
             method,
             headers,
+            // credentials: 'include', // Disable for token-based auth
         };
         if (body) {
             config.body = JSON.stringify(body);
         }
 
         try {
-            // Remove leading slash from endpoint to avoid double slashes
-            const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-            const response = await fetch(`${AppConfig.api.baseUrl}/${cleanEndpoint}`, config);
+            // Convert old PHP endpoint to new Laravel endpoint
+            const convertedEndpoint = convertEndpoint(endpoint);
+            // Add leading slash if not present
+            const finalEndpoint = convertedEndpoint.startsWith('/') ? convertedEndpoint : `/${convertedEndpoint}`;
+            const response = await fetch(`${AppConfig.api.baseUrl}${finalEndpoint}`, config);
 
             const responseData = await response.json().catch(() => ({
                 // Fallback jika respons bukan JSON valid (misalnya error 500 dari PHP)

@@ -10,7 +10,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [localError, setLocalError] = useState(''); 
+  const [localError, setLocalError] = useState('');
 
   // State untuk memicu navigasi setelah data tersimpan aman
   const [loginSuccess, setLoginSuccess] = useState(null);
@@ -49,7 +49,7 @@ export default function LoginPage() {
 
     try {
       // 1. Panggil API
-      const response = await callApi('/auth_login.php', 'POST', {
+      const response = await callApi('auth/login', 'POST', {
         email,
         password
       });
@@ -99,6 +99,11 @@ export default function LoginPage() {
             daftar rekening baru
           </Link>
         </p>
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-xs text-blue-800 font-medium mb-1">Test Credentials:</p>
+          <p className="text-xs text-blue-700">Admin: aauasiarecords@gmail.com / admin123</p>
+          <p className="text-xs text-blue-700">Customer: andrealditam@gmail.com / customer123</p>
+        </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

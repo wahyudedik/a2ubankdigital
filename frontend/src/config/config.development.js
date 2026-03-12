@@ -13,7 +13,7 @@ export const AppConfig = {
     api: {
         // Backend URL untuk development (Laravel Herd)
         // Sesuaikan dengan link Laravel Herd kamu
-        baseUrl: "http://a2ubankdigital.test/app"
+        baseUrl: "http://backend-laravel.test/api"
     },
     theme: {
         colors: {

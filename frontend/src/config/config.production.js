@@ -16,7 +16,7 @@ export const AppConfig = {
         // ============================================
         // Ganti dengan domain production kamu
         // Format: https://domain.com/backend/app (tanpa trailing slash!)
-        baseUrl: "https://coba.a2ubankdigital.my.id/backend/app"
+        baseUrl: "https://coba.a2ubankdigital.my.id/api"
     },
     theme: {
         colors: {

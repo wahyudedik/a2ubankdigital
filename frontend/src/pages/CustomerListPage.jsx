@@ -31,7 +31,7 @@ const CustomerListPage = () => {
     useEffect(() => {
         fetchCustomers(page, debouncedSearchTerm);
     }, [page, debouncedSearchTerm, fetchCustomers]);
-    
+
     const handleSearchChange = (e) => {
         setSearchTerm(e.target.value);
         setPage(1);
@@ -43,18 +43,18 @@ const CustomerListPage = () => {
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Manajemen Nasabah</h1>
                 <div className="w-full md:w-auto flex items-center gap-2">
                     <div className="relative flex-grow">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Cari nama, email, atau ID..."
                             value={searchTerm}
                             onChange={handleSearchChange}
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bpn-blue-700"
                         />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20}/>
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     </div>
                     {/* --- PERBAIKAN UTAMA ADA DI SINI --- */}
                     {/* Mengganti <Link> dengan komponen <Button> agar warnanya konsisten */}
-                    <Button 
+                    <Button
                         onClick={() => navigate('/admin/customers/add')}
                         className="flex items-center gap-2 px-4 py-2"
                     >
@@ -70,7 +70,7 @@ const CustomerListPage = () => {
                     <table className="w-full min-w-max">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                {['ID Bank', 'Nama Lengkap', 'Email', 'Status', 'Tgl. Daftar', 'Aksi'].map(head => 
+                                {['ID Bank', 'Nama Lengkap', 'Email', 'Status', 'Tgl. Daftar', 'Aksi'].map(head =>
                                     <th key={head} className="text-left text-sm font-semibold text-gray-600 px-6 py-3">{head}</th>
                                 )}
                             </tr>
@@ -89,11 +89,10 @@ const CustomerListPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{customer.full_name}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{customer.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                                customer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
-                                                customer.status === 'DORMANT' ? 'bg-yellow-100 text-yellow-800' :
-                                                'bg-red-100 text-red-800'
-                                            }`}>
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${customer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                                                    customer.status === 'DORMANT' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                }`}>
                                                 {customer.status}
                                             </span>
                                         </td>
@@ -116,13 +115,13 @@ const CustomerListPage = () => {
                 {/* Paginasi */}
                 <div className="flex justify-between items-center px-6 py-3 border-t border-gray-200">
                     <button onClick={() => setPage(page - 1)} disabled={page <= 1 || loading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <ChevronLeft size={16}/> Sebelumnya
+                        <ChevronLeft size={16} /> Sebelumnya
                     </button>
                     <span className="text-sm text-gray-700">
                         Halaman {pagination.current_page || 0} dari {pagination.total_pages || 0}
                     </span>
                     <button onClick={() => setPage(page + 1)} disabled={page >= pagination.total_pages || loading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Berikutnya <ChevronRight size={16}/>
+                        Berikutnya <ChevronRight size={16} />
                     </button>
                 </div>
             </div>

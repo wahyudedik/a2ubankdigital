@@ -1,78 +1,51 @@
-# Environment files
+# Laravel
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
 .env
-.env.local
-.env.*.local
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
 
-# IMPORTANT: Keep template files
-!.env.example
-!.env.development
-!.env.production
-
-# Backend environment
-backend/.env
-backend/.env.local
-
-# Frontend environment (if any)
-frontend/.env
-frontend/.env.local
-
-# Dependencies
-node_modules/
-vendor/
-frontend/node_modules/
-backend/vendor/
-
-# Build outputs
-dist/
-build/
-frontend/dist/
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-backend/error_log
-frontend/error_log
 
 # Cache
-cache/*
-!cache/.gitkeep
-backend/cache/*
-!backend/cache/.gitkeep
+bootstrap/cache/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
 
-# Uploads (user files)
-uploads/documents/*
-uploads/proofs/*
-!uploads/.gitkeep
-backend/uploads/documents/*
-backend/uploads/proofs/*
-!backend/uploads/.gitkeep
+# Keep .gitkeep files
+!storage/app/.gitkeep
+!storage/app/public/.gitkeep
+!storage/framework/.gitkeep
+!storage/framework/cache/.gitkeep
+!storage/framework/cache/data/.gitkeep
+!storage/framework/sessions/.gitkeep
+!storage/framework/testing/.gitkeep
+!storage/framework/views/.gitkeep
+!storage/logs/.gitkeep
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# OS
-Thumbs.db
-desktop.ini
-
-# Backup files
-*.bak
-*.backup
-*.zip
-*.sql
-backend/backup_*.zip
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-
-# Package manager locks (optional, uncomment if needed)
-# package-lock.json
-# composer.lock
+# Uploads
+storage/app/public/documents/*
+storage/app/public/proofs/*
+!storage/app/public/documents/.gitkeep
+!storage/app/public/proofs/.gitkeep

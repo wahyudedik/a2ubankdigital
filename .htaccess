@@ -1,19 +1,19 @@
-# Enable Rewrite Engine
-RewriteEngine On
+# Laravel Backend .htaccess
+# Redirect all requests to public folder
 
-# Serve index.html from frontend/dist/ for root
-DirectoryIndex frontend/dist/index.html
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
 
-# Allow direct access to backend folder
-RewriteCond %{REQUEST_URI} ^/backend/ [NC]
-RewriteRule ^ - [L]
+# Prevent access to sensitive files
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>
 
-# Redirect all other requests to frontend/dist/
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/backend/
-RewriteCond %{REQUEST_URI} !^/frontend/
-RewriteRule ^(.*)$ /frontend/dist/$1 [L]
+<FilesMatch "composer\.(json|lock)">
+    Require all denied
+</FilesMatch>
 
 # Prevent directory listing
 Options -Indexes

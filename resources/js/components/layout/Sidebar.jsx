@@ -79,11 +79,21 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout, user }) => {
                 ]
             },
             transactions: { type: 'link', icon: <CreditCard size={20} />, text: 'Semua Transaksi', path: '/admin/transactions' },
-            loanMgmt: {
+            // Full loan management (produk + pengajuan + daftar) - untuk role 1,2,3
+            loanMgmtFull: {
                 type: 'group', icon: <PiggyBank size={20} />, text: 'Manajemen Pinjaman',
                 activePaths: ['/admin/loan-products', '/admin/loan-applications', '/admin/loan-accounts'],
                 subLinks: [
                     { text: 'Produk Pinjaman', path: '/admin/loan-products' },
+                    { text: 'Pengajuan Baru', path: '/admin/loan-applications' },
+                    { text: 'Daftar Pinjaman', path: '/admin/loan-accounts' },
+                ]
+            },
+            // Loan review only (pengajuan + daftar, tanpa produk) - untuk role 7 (analis)
+            loanReview: {
+                type: 'group', icon: <PiggyBank size={20} />, text: 'Pinjaman',
+                activePaths: ['/admin/loan-applications', '/admin/loan-accounts'],
+                subLinks: [
                     { text: 'Pengajuan Baru', path: '/admin/loan-applications' },
                     { text: 'Daftar Pinjaman', path: '/admin/loan-accounts' },
                 ]
@@ -108,14 +118,24 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout, user }) => {
             auditLog: { type: 'link', icon: <ShieldCheck size={20} />, text: 'Log Audit', path: '/admin/audit-log' }
         };
 
+        // Role permissions matching routes/web.php exactly
         const rolesConfig = {
-            1: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmt, allLinks.depositMgmt, allLinks.orgStructure, allLinks.reports, allLinks.auditLog],
-            2: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmt, allLinks.depositMgmt, allLinks.orgStructure, allLinks.reports, allLinks.auditLog],
-            3: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmt, allLinks.depositMgmt, allLinks.reports],
-            5: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests],
-            6: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests],
-            7: [allLinks.dashboard, allLinks.loanMgmt],
-            8: [allLinks.dashboard, allLinks.reports],
+            // Super Admin - semua
+            1: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmtFull, allLinks.depositMgmt, allLinks.orgStructure, allLinks.reports, allLinks.auditLog],
+            // Kepala Cabang - semua
+            2: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmtFull, allLinks.depositMgmt, allLinks.orgStructure, allLinks.reports, allLinks.auditLog],
+            // Kepala Unit - tanpa org structure & audit
+            3: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmtFull, allLinks.depositMgmt, allLinks.reports],
+            // Marketing - dashboard, nasabah, transaksi, laporan
+            4: [allLinks.dashboard, allLinks.customers, allLinks.transactions, allLinks.reports],
+            // Teller - dashboard, nasabah, teller ops, permintaan, transaksi
+            5: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions],
+            // CS - sama seperti teller
+            6: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions],
+            // Analis Kredit - dashboard, nasabah, transaksi, review pinjaman (tanpa produk)
+            7: [allLinks.dashboard, allLinks.customers, allLinks.transactions, allLinks.loanReview],
+            // Debt Collector - dashboard, nasabah, transaksi
+            8: [allLinks.dashboard, allLinks.customers, allLinks.transactions],
         };
 
         return rolesConfig[roleId] || [allLinks.dashboard];
@@ -157,14 +177,16 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout, user }) => {
                     </nav>
 
                     <div className="border-t">
-                        <Link
-                            href="/admin/settings"
-                            onClick={() => setIsOpen(false)}
-                            className={`flex items-center py-4 px-6 w-full text-left text-gray-600 hover:${AppConfig.theme.textPrimary} hover:bg-blue-50 ${isActive('/admin/settings') ? `bg-blue-50 ${AppConfig.theme.textPrimary} font-semibold` : ''}`}
-                        >
-                            <Settings size={20} />
-                            <span className="mx-4">Pengaturan</span>
-                        </Link>
+                        {user && [1, 2].includes(user.roleId) && (
+                            <Link
+                                href="/admin/settings"
+                                onClick={() => setIsOpen(false)}
+                                className={`flex items-center py-4 px-6 w-full text-left text-gray-600 hover:${AppConfig.theme.textPrimary} hover:bg-blue-50 ${isActive('/admin/settings') ? `bg-blue-50 ${AppConfig.theme.textPrimary} font-semibold` : ''}`}
+                            >
+                                <Settings size={20} />
+                                <span className="mx-4">Pengaturan</span>
+                            </Link>
+                        )}
 
                         <button
                             onClick={onLogout}

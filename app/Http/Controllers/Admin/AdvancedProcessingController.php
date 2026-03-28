@@ -115,7 +115,7 @@ class AdvancedProcessingController extends Controller
                 // Get user's account
                 $account = DB::table('accounts')
                     ->where('user_id', $user->id)
-                    ->where('type', 'current')
+                    ->where('account_type', 'TABUNGAN')
                     ->first();
 
                 if (!$account) {
@@ -127,17 +127,15 @@ class AdvancedProcessingController extends Controller
                 }
 
                 // Create credit transaction
-                $transactionId = DB::table('transactions')->insertGetId([
-                    'user_id' => $user->id,
-                    'account_id' => $account->id,
-                    'type' => 'topup',
+                $txCode = 'TRX-' . time() . '-' . rand(100000, 999999);
+                DB::table('transactions')->insert([
+                    'transaction_code' => $txCode,
+                    'to_account_id' => $account->id,
+                    'transaction_type' => 'TOPUP',
                     'amount' => $topupRequest->amount,
-                    'fee_amount' => 0,
+                    'fee' => 0,
                     'description' => "Top-up via {$topupRequest->payment_method}",
-                    'reference_number' => 'TR-' . $topupRequest->id,
-                    'status' => 'completed',
-                    'processed_by' => $admin->id,
-                    'processed_at' => now(),
+                    'status' => 'SUCCESS',
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);
@@ -148,25 +146,11 @@ class AdvancedProcessingController extends Controller
                     ->increment('balance', $topupRequest->amount);
 
                 $status = 'approved';
-                $message = 'Top-up request approved and processed';
-                
-                // Send notification to customer
-                $this->notificationService->notifyUser(
-                    $user->id,
-                    'Top-up Processed',
-                    "Your top-up request of " . number_format($topupRequest->amount, 0, ',', '.') . " has been processed successfully."
-                );
+                $message = 'Permintaan isi saldo berhasil disetujui.';
 
             } else {
                 $status = 'rejected';
-                $message = 'Top-up request rejected';
-                
-                // Send notification to customer
-                $this->notificationService->notifyUser(
-                    $user->id,
-                    'Top-up Rejected',
-                    'Your top-up request has been rejected. ' . ($request->admin_notes ?? '')
-                );
+                $message = 'Permintaan isi saldo ditolak.';
             }
 
             // Update top-up request
@@ -196,14 +180,8 @@ class AdvancedProcessingController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => $message,
-                'data' => [
-                    'request_id' => $request->request_id,
-                    'status' => $status,
-                    'processed_at' => now()->toISOString(),
-                    'transaction_id' => $transactionId ?? null
-                ]
             ]);
 
         } catch (\Exception $e) {
@@ -211,8 +189,8 @@ class AdvancedProcessingController extends Controller
             $this->logService->log('topup_processing_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to process: ' . $e->getMessage() . ' at line ' . $e->getLine()
+                'status' => 'error',
+                'message' => 'Gagal memproses: ' . $e->getMessage()
             ], 500);
         }
     }

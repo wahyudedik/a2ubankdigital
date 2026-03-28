@@ -116,7 +116,7 @@ function CustomerDetailPage() {
         setExpandedLoanId(prevId => (prevId === loanId ? null : loanId));
     };
 
-    const handleForcePay = async (installment, customerName) => {
+    const handleForcePay = async (installment, customerName, loanId) => {
         const totalDue = parseFloat(installment.amount_due) + parseFloat(installment.penalty_amount || 0);
         const confirmed = await modal.showConfirmation({
             title: "Konfirmasi Potong Saldo",
@@ -124,7 +124,7 @@ function CustomerDetailPage() {
             confirmText: "Ya, Potong Saldo"
         });
         if (confirmed) {
-            const result = await callApi('admin_force_pay_installment.php', 'POST', { installment_id: installment.id });
+            const result = await callApi('admin_force_pay_installment.php', 'POST', { installment_id: installment.id, loan_id: loanId });
             if (result && result.status === 'success') {
                 modal.showAlert({ title: "Berhasil", message: result.message, type: 'success' });
                 refreshCustomer();
@@ -263,7 +263,7 @@ function CustomerDetailPage() {
                                                                         <span className={`flex items-center gap-1 font-semibold ${isOverdue ? 'text-red-600' : 'text-yellow-600'}`}>
                                                                             <Clock size={14} /> {inst.status}
                                                                         </span>
-                                                                        <button onClick={() => handleForcePay(inst, customer.full_name)} title={buttonTitle} disabled={loading || !canForcePay}
+                                                                        <button onClick={() => handleForcePay(inst, customer.full_name, loan.id)} title={buttonTitle} disabled={loading || !canForcePay}
                                                                             className={`p-1.5 rounded-md transition ${canForcePay ? 'text-white bg-red-600 hover:bg-red-700' : 'text-gray-400 bg-gray-200 cursor-not-allowed'}`}>
                                                                             <Scissors size={14} />
                                                                         </button>

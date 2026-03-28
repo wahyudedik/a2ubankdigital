@@ -87,19 +87,16 @@ class TicketController extends Controller
             // Create ticket
             $ticket = Ticket::create([
                 'user_id' => Auth::id(),
-                'ticket_number' => 'TKT-' . time() . '-' . rand(1000, 9999),
+                'ticket_code' => 'TKT-' . time() . '-' . rand(1000, 9999),
                 'subject' => $request->subject,
-                'category' => $request->category,
-                'priority' => $request->priority,
-                'status' => 'OPEN'
+                'status' => 'open'
             ]);
 
             // Create first message
             TicketMessage::create([
                 'ticket_id' => $ticket->id,
-                'sender_id' => Auth::id(),
-                'message' => $request->message,
-                'is_from_customer' => true
+                'user_id' => Auth::id(),
+                'message' => $request->message
             ]);
 
             // Notify CS staff
@@ -138,7 +135,7 @@ class TicketController extends Controller
         $ticket = Ticket::where('user_id', Auth::id())
             ->findOrFail($id);
 
-        if ($ticket->status === 'CLOSED') {
+        if ($ticket->status === 'closed') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Tidak dapat membalas tiket yang sudah ditutup.'
@@ -150,14 +147,13 @@ class TicketController extends Controller
             // Create message
             $message = TicketMessage::create([
                 'ticket_id' => $ticket->id,
-                'sender_id' => Auth::id(),
-                'message' => $request->message,
-                'is_from_customer' => true
+                'user_id' => Auth::id(),
+                'message' => $request->message
             ]);
 
-            // Update ticket status to open if it was waiting
-            if ($ticket->status === 'WAITING_CUSTOMER') {
-                $ticket->update(['status' => 'OPEN']);
+            // Update ticket status to open if it was in_progress
+            if ($ticket->status === 'in_progress') {
+                $ticket->update(['status' => 'open']);
             }
 
             // Notify CS staff
@@ -192,7 +188,7 @@ class TicketController extends Controller
         $ticket = Ticket::where('user_id', Auth::id())
             ->findOrFail($id);
 
-        if ($ticket->status === 'CLOSED') {
+        if ($ticket->status === 'closed') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Tiket sudah ditutup.'
@@ -200,8 +196,7 @@ class TicketController extends Controller
         }
 
         $ticket->update([
-            'status' => 'CLOSED',
-            'closed_at' => now()
+            'status' => 'closed'
         ]);
 
         return response()->json([

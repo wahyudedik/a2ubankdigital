@@ -116,7 +116,7 @@ class CardController extends Controller
         ]);
 
         $card = Card::where('user_id', Auth::id())
-            ->where('status', 'ACTIVE')
+            ->where('status', 'active')
             ->findOrFail($id);
 
         $card->update([
@@ -136,7 +136,7 @@ class CardController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:ACTIVE,BLOCKED'
+            'status' => 'required|in:active,blocked'
         ]);
 
         $card = Card::where('user_id', Auth::id())
@@ -146,7 +146,7 @@ class CardController extends Controller
             'status' => $request->status
         ]);
 
-        $statusText = $request->status === 'ACTIVE' ? 'diaktifkan' : 'diblokir';
+        $statusText = $request->status === 'active' ? 'diaktifkan' : 'diblokir';
 
         return response()->json([
             'status' => 'success',

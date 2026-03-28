@@ -24,8 +24,12 @@ return new class extends Migration
                 'BILL_PAYMENT',
                 'DIGITAL_PRODUCT',
                 'TOPUP',
+                'TOPUP_EWALLET',
                 'INTEREST_CREDIT',
-                'FEE_DEBIT'
+                'FEE_DEBIT',
+                'PEMBUKAAN_DEPOSITO',
+                'PENCAIRAN_DEPOSITO',
+                'REVERSED'
             ]);
             $table->decimal('amount', 20, 2);
             $table->decimal('fee', 20, 2)->default(0);

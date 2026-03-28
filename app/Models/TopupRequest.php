@@ -47,7 +47,7 @@ class TopupRequest extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('status', 'PENDING');
+        return $query->where('status', 'pending');
     }
 
     /**
@@ -55,7 +55,7 @@ class TopupRequest extends Model
      */
     public function scopeApproved($query)
     {
-        return $query->where('status', 'APPROVED');
+        return $query->where('status', 'approved');
     }
 
     /**
@@ -63,6 +63,6 @@ class TopupRequest extends Model
      */
     public function scopeRejected($query)
     {
-        return $query->where('status', 'REJECTED');
+        return $query->where('status', 'rejected');
     }
 }

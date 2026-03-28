@@ -162,7 +162,9 @@ class ExternalTransferController extends Controller
                 'fee' => $transferFee,
                 'description' => $description,
                 'status' => 'SUCCESS',
-                'external_ref_id' => 'EXT-' . time() . '-' . rand(100000, 999999)
+                'reference_number' => 'EXT-' . time() . '-' . rand(100000, 999999),
+                'external_bank_code' => $request->to_bank_code,
+                'external_account_number' => $request->to_account_number
             ]);
 
             // Log the transfer
@@ -188,7 +190,7 @@ class ExternalTransferController extends Controller
                 'data' => [
                     'transaction_id' => $transaction->id,
                     'transaction_code' => $transaction->transaction_code,
-                    'external_ref_id' => $transaction->external_ref_id,
+                    'reference_number' => $transaction->reference_number,
                     'amount' => $request->amount,
                     'fee' => $transferFee,
                     'total_debit' => $totalAmount,

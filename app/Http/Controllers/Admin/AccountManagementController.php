@@ -86,7 +86,7 @@ class AccountManagementController extends Controller
                 // Check for active loans
                 $activeLoans = DB::table('loans')
                     ->where('user_id', $user->id)
-                    ->where('status', 'active')
+                    ->where('status', 'ACTIVE')
                     ->count();
 
                 if ($activeLoans > 0) {
@@ -103,15 +103,14 @@ class AccountManagementController extends Controller
                         if ($account->balance > 0) {
                             // Create final withdrawal transaction
                             Transaction::create([
-                                'user_id' => $user->id,
-                                'account_id' => $account->id,
-                                'type' => 'withdrawal',
+                                'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
+                                'from_account_id' => $account->id,
+                                'transaction_type' => 'WITHDRAWAL',
                                 'amount' => $account->balance,
+                                'fee' => 0,
                                 'description' => 'Final withdrawal - Account closure',
-                                'status' => 'completed',
-                                'reference_number' => 'CLOSURE_' . time() . '_' . $account->id,
-                                'processed_by' => $admin->id,
-                                'processed_at' => now()
+                                'status' => 'SUCCESS',
+                                'reference_number' => 'CLOSURE_' . time() . '_' . $account->id
                             ]);
 
                             // Update account balance to zero
@@ -122,16 +121,12 @@ class AccountManagementController extends Controller
 
                 // Close all accounts
                 Account::where('user_id', $user->id)->update([
-                    'status' => 'closed',
-                    'closed_at' => now(),
-                    'closed_by' => $admin->id,
-                    'closure_reason' => $request->closure_reason
+                    'status' => 'CLOSED',
                 ]);
 
                 // Deactivate user
                 $user->update([
-                    'status' => 'closed',
-                    'closed_at' => now()
+                    'status' => 'BLOCKED',
                 ]);
 
                 $status = 'approved';
@@ -165,7 +160,6 @@ class AccountManagementController extends Controller
                     'status' => $status,
                     'processed_by' => $admin->id,
                     'processed_at' => now(),
-                    'admin_notes' => $request->admin_notes,
                     'updated_at' => now()
                 ]);
 

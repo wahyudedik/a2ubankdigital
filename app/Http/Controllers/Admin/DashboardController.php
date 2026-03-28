@@ -31,8 +31,8 @@ class DashboardController extends Controller
             ->count();
 
         // Pending Tasks
-        $pendingTopups = DB::table('topup_requests')->where('status', 'PENDING')->count();
-        $pendingWithdrawals = DB::table('withdrawal_requests')->where('status', 'PENDING')->count();
+        $pendingTopups = DB::table('topup_requests')->where('status', 'pending')->count();
+        $pendingWithdrawals = DB::table('withdrawal_requests')->where('status', 'pending')->count();
         $pendingLoans = Loan::where('status', 'SUBMITTED')->count();
         $pendingLoanDisbursements = Loan::where('status', 'APPROVED')->count();
         $pendingWithdrawalDisbursements = DB::table('withdrawal_requests')->where('status', 'APPROVED')->count();

@@ -15,7 +15,7 @@ const AdminWithdrawalRequestsPage = () => {
     const { requests, filters } = usePage().props;
     const { loading, error, callApi } = useApi();
     const modal = useModal();
-    const [activeTab, setActiveTab] = useState(filters?.status || 'PENDING');
+    const [activeTab, setActiveTab] = useState(filters?.status || 'pending');
 
     const handleTabChange = (tab) => { setActiveTab(tab); router.get(window.location.pathname, { status: tab }, { preserveState: true }); };
 
@@ -41,26 +41,26 @@ const AdminWithdrawalRequestsPage = () => {
         <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Permintaan Penarikan Dana</h1>
             <div className="flex border-b mb-4">
-                <TabButton id="PENDING" activeTab={activeTab} setActiveTab={handleTabChange}>Menunggu Persetujuan</TabButton>
-                <TabButton id="APPROVED" activeTab={activeTab} setActiveTab={handleTabChange}>Siap Dicairkan</TabButton>
-                <TabButton id="COMPLETED" activeTab={activeTab} setActiveTab={handleTabChange}>Selesai</TabButton>
-                <TabButton id="REJECTED" activeTab={activeTab} setActiveTab={handleTabChange}>Ditolak</TabButton>
+                <TabButton id="pending" activeTab={activeTab} setActiveTab={handleTabChange}>Menunggu Persetujuan</TabButton>
+                <TabButton id="approved" activeTab={activeTab} setActiveTab={handleTabChange}>Siap Dicairkan</TabButton>
+                <TabButton id="completed" activeTab={activeTab} setActiveTab={handleTabChange}>Selesai</TabButton>
+                <TabButton id="rejected" activeTab={activeTab} setActiveTab={handleTabChange}>Ditolak</TabButton>
             </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-50"><tr><th className="p-4 text-left text-sm font-semibold text-gray-600">Nasabah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Jumlah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Rekening Tujuan</th><th className="p-4 text-left text-sm font-semibold text-gray-600">{activeTab === 'PENDING' ? 'Tanggal Request' : 'Tanggal Proses'}</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Aksi</th></tr></thead>
+                        <thead className="bg-gray-50"><tr><th className="p-4 text-left text-sm font-semibold text-gray-600">Nasabah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Jumlah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Rekening Tujuan</th><th className="p-4 text-left text-sm font-semibold text-gray-600">{activeTab === 'pending' ? 'Tanggal Request' : 'Tanggal Proses'}</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Aksi</th></tr></thead>
                         <tbody className="divide-y">
                             {(requests || []).length > 0 ? (requests || []).map(req => (
                                 <tr key={req.id}>
                                     <td className="p-4 font-medium">{req.customer_name}</td>
                                     <td className="p-4">{formatCurrency(req.amount)}</td>
                                     <td className="p-4 text-sm">{req.bank_name} - {req.account_number} (a/n {req.account_name})</td>
-                                    <td className="p-4 text-sm">{new Date(activeTab === 'PENDING' ? req.created_at : req.processed_at).toLocaleString('id-ID')}</td>
+                                    <td className="p-4 text-sm">{new Date(activeTab === 'pending' ? req.created_at : req.processed_at).toLocaleString('id-ID')}</td>
                                     <td className="p-4">
-                                        {activeTab === 'PENDING' && (<div className="flex gap-2"><Button onClick={() => handleProcess(req.id, 'APPROVE')} title="Setujui" className="py-1 px-3 text-sm bg-green-600 hover:bg-green-700"><CheckCircle size={16} /></Button><Button onClick={() => handleProcess(req.id, 'REJECT')} title="Tolak" className="py-1 px-3 text-sm bg-red-600 hover:bg-red-700"><XCircle size={16} /></Button></div>)}
-                                        {activeTab === 'APPROVED' && (<Button onClick={() => handleDisburse(req.id)} title="Cairkan Dana" className="py-1 px-3 text-sm bg-blue-600 hover:bg-blue-700"><DollarSign size={16} /> Cairkan</Button>)}
-                                        {(activeTab === 'COMPLETED' || activeTab === 'REJECTED') && (<span className="text-xs text-gray-500 italic">Selesai</span>)}
+                                        {activeTab === 'pending' && (<div className="flex gap-2"><Button onClick={() => handleProcess(req.id, 'APPROVE')} title="Setujui" className="py-1 px-3 text-sm bg-green-600 hover:bg-green-700"><CheckCircle size={16} /></Button><Button onClick={() => handleProcess(req.id, 'REJECT')} title="Tolak" className="py-1 px-3 text-sm bg-red-600 hover:bg-red-700"><XCircle size={16} /></Button></div>)}
+                                        {activeTab === 'approved' && (<Button onClick={() => handleDisburse(req.id)} title="Cairkan Dana" className="py-1 px-3 text-sm bg-blue-600 hover:bg-blue-700"><DollarSign size={16} /> Cairkan</Button>)}
+                                        {(activeTab === 'completed' || activeTab === 'rejected') && (<span className="text-xs text-gray-500 italic">Selesai</span>)}
                                     </td>
                                 </tr>
                             )) : (<tr><td colSpan="5" className="p-8 text-center text-gray-500">Tidak ada permintaan pada kategori ini.</td></tr>)}
@@ -73,3 +73,4 @@ const AdminWithdrawalRequestsPage = () => {
 };
 
 export default AdminWithdrawalRequestsPage;
+

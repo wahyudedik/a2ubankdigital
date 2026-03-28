@@ -56,7 +56,7 @@ class TransactionReversalController extends Controller
             }
 
             // Check if transaction is already reversed
-            $existingReversal = Transaction::where('external_ref_id', 'REVERSAL-' . $originalTransaction->id)->first();
+            $existingReversal = Transaction::where('reference_number', 'REVERSAL-' . $originalTransaction->id)->first();
             if ($existingReversal) {
                 throw new \Exception("Transaksi ini sudah pernah di-reverse.");
             }
@@ -135,7 +135,7 @@ class TransactionReversalController extends Controller
             ->whereNotExists(function($q) {
                 $q->select(DB::raw(1))
                   ->from('transactions as t2')
-                  ->whereRaw('t2.external_ref_id = CONCAT("REVERSAL-", transactions.id)');
+                  ->whereRaw('t2.reference_number = CONCAT("REVERSAL-", transactions.id)');
             });
 
         if ($transactionType) {
@@ -183,16 +183,16 @@ class TransactionReversalController extends Controller
                 $this->reverseExternalTransfer($originalTransaction, $reversalDescription, $reversedBy);
                 break;
             
-            case 'SETOR_TUNAI':
+            case 'TOPUP':
                 $this->reverseCashDeposit($originalTransaction, $reversalDescription, $reversedBy);
                 break;
             
-            case 'TARIK_TUNAI':
+            case 'WITHDRAWAL':
                 $this->reverseCashWithdrawal($originalTransaction, $reversalDescription, $reversedBy);
                 break;
             
-            case 'BAYAR_CICILAN':
-            case 'BAYAR_CICILAN_TUNAI':
+            case 'LOAN_PAYMENT':
+            case 'LOAN_PAYMENT':
                 $this->reverseLoanPayment($originalTransaction, $reversalDescription, $reversedBy);
                 break;
             
@@ -222,13 +222,12 @@ class TransactionReversalController extends Controller
             'transaction_code' => 'REV-' . time() . '-' . rand(100000, 999999),
             'from_account_id' => $original->to_account_id,
             'to_account_id' => $original->from_account_id,
-            'transaction_type' => 'REVERSAL_TRANSFER',
+            'transaction_type' => 'REVERSED',
             'amount' => $original->amount,
-            'fee' => -$original->fee, // Refund fee
+            'fee' => 0,
             'description' => $description,
             'status' => 'SUCCESS',
-            'processed_by' => $reversedBy,
-            'external_ref_id' => 'REVERSAL-' . $original->id
+            'reference_number' => 'REVERSAL-' . $original->id
         ]);
     }
 
@@ -244,13 +243,12 @@ class TransactionReversalController extends Controller
             'transaction_code' => 'REV-' . time() . '-' . rand(100000, 999999),
             'from_account_id' => null,
             'to_account_id' => $original->from_account_id,
-            'transaction_type' => 'REVERSAL_EXTERNAL',
+            'transaction_type' => 'REVERSED',
             'amount' => $original->amount,
-            'fee' => -$original->fee,
+            'fee' => 0,
             'description' => $description,
             'status' => 'SUCCESS',
-            'processed_by' => $reversedBy,
-            'external_ref_id' => 'REVERSAL-' . $original->id
+            'reference_number' => 'REVERSAL-' . $original->id
         ]);
     }
 
@@ -266,13 +264,12 @@ class TransactionReversalController extends Controller
             'transaction_code' => 'REV-' . time() . '-' . rand(100000, 999999),
             'from_account_id' => $original->to_account_id,
             'to_account_id' => null,
-            'transaction_type' => 'REVERSAL_DEPOSIT',
+            'transaction_type' => 'REVERSED',
             'amount' => $original->amount,
             'fee' => 0,
             'description' => $description,
             'status' => 'SUCCESS',
-            'processed_by' => $reversedBy,
-            'external_ref_id' => 'REVERSAL-' . $original->id
+            'reference_number' => 'REVERSAL-' . $original->id
         ]);
     }
 
@@ -288,13 +285,12 @@ class TransactionReversalController extends Controller
             'transaction_code' => 'REV-' . time() . '-' . rand(100000, 999999),
             'from_account_id' => null,
             'to_account_id' => $original->from_account_id,
-            'transaction_type' => 'REVERSAL_WITHDRAWAL',
+            'transaction_type' => 'REVERSED',
             'amount' => $original->amount,
             'fee' => 0,
             'description' => $description,
             'status' => 'SUCCESS',
-            'processed_by' => $reversedBy,
-            'external_ref_id' => 'REVERSAL-' . $original->id
+            'reference_number' => 'REVERSAL-' . $original->id
         ]);
     }
 
@@ -306,13 +302,12 @@ class TransactionReversalController extends Controller
             'transaction_code' => 'REV-' . time() . '-' . rand(100000, 999999),
             'from_account_id' => null,
             'to_account_id' => $original->from_account_id,
-            'transaction_type' => 'REVERSAL_LOAN_PAYMENT',
+            'transaction_type' => 'REVERSED',
             'amount' => $original->amount,
             'fee' => 0,
             'description' => $description,
             'status' => 'SUCCESS',
-            'processed_by' => $reversedBy,
-            'external_ref_id' => 'REVERSAL-' . $original->id
+            'reference_number' => 'REVERSAL-' . $original->id
         ]);
     }
 
@@ -328,13 +323,12 @@ class TransactionReversalController extends Controller
             'transaction_code' => 'REV-' . time() . '-' . rand(100000, 999999),
             'from_account_id' => null,
             'to_account_id' => $original->from_account_id,
-            'transaction_type' => 'REVERSAL_TOPUP',
+            'transaction_type' => 'REVERSED',
             'amount' => $original->amount,
-            'fee' => -$original->fee,
+            'fee' => 0,
             'description' => $description,
             'status' => 'SUCCESS',
-            'processed_by' => $reversedBy,
-            'external_ref_id' => 'REVERSAL-' . $original->id
+            'reference_number' => 'REVERSAL-' . $original->id
         ]);
     }
 
@@ -359,3 +353,4 @@ class TransactionReversalController extends Controller
         }
     }
 }
+

@@ -2,39 +2,32 @@
 
 namespace App\Services;
 
+use App\Jobs\SendEmailJob;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Log;
 
 class EmailService
 {
     /**
-     * Send email using template
-     *
-     * @param string $toEmail
-     * @param string $toName
-     * @param string $subject
-     * @param string $templateName
-     * @param array $templateData
-     * @return bool
+     * Send email using template (dispatched to queue)
      */
     public function send(string $toEmail, string $toName, string $subject, string $templateName, array $templateData): bool
     {
         try {
-            Mail::send("emails.{$templateName}", $templateData, function ($message) use ($toEmail, $toName, $subject) {
-                $message->to($toEmail, $toName)
-                    ->subject($subject)
-                    ->from(config('mail.from.address'), config('mail.from.name'));
-            });
-
+            SendEmailJob::dispatch($toEmail, $toName, $subject, $templateName, $templateData);
             return true;
         } catch (\Exception $e) {
-            Log::error('Email sending failed', [
-                'to' => $toEmail,
-                'subject' => $subject,
-                'error' => $e->getMessage()
-            ]);
-            return false;
+            Log::error('Email dispatch failed', ['to' => $toEmail, 'subject' => $subject, 'error' => $e->getMessage()]);
+            // Fallback: send synchronously
+            try {
+                Mail::send("emails.{$templateName}", $templateData, function ($message) use ($toEmail, $toName, $subject) {
+                    $message->to($toEmail, $toName)->subject($subject)->from(config('mail.from.address'), config('mail.from.name'));
+                });
+                return true;
+            } catch (\Exception $e2) {
+                Log::error('Email sync fallback also failed', ['error' => $e2->getMessage()]);
+                return false;
+            }
         }
     }
 

@@ -37,7 +37,7 @@ class SecurityController extends Controller
 
         $user = Auth::user();
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (!Hash::check($request->current_password, $user->password_hash)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Password lama tidak sesuai.'
@@ -45,7 +45,7 @@ class SecurityController extends Controller
         }
 
         $user->update([
-            'password' => Hash::make($request->new_password)
+            'password_hash' => Hash::make($request->new_password)
         ]);
 
         // Log password change

@@ -10,45 +10,35 @@ class Card extends Model
 
     protected $fillable = [
         'user_id',
-        'card_number',
+        'account_id',
+        'card_number_masked',
         'card_type',
         'status',
         'daily_limit',
-        'monthly_limit',
-        'issued_at',
-        'expires_at'
+        'requested_at',
+        'activated_at',
+        'expiry_date'
     ];
 
     protected $casts = [
         'daily_limit' => 'decimal:2',
-        'monthly_limit' => 'decimal:2',
-        'issued_at' => 'datetime',
-        'expires_at' => 'datetime'
+        'requested_at' => 'datetime',
+        'activated_at' => 'datetime',
+        'expiry_date' => 'date'
     ];
 
-    protected $hidden = [
-        'card_number' // Hide full card number for security
-    ];
+    protected $hidden = [];
 
-    protected $appends = [
-        'masked_card_number'
-    ];
+    protected $appends = [];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get masked card number
-     */
-    public function getMaskedCardNumberAttribute(): string
+    public function account()
     {
-        if (!$this->card_number) {
-            return '';
-        }
-
-        return substr($this->card_number, 0, 4) . ' **** **** ' . substr($this->card_number, -4);
+        return $this->belongsTo(Account::class);
     }
 
     /**
@@ -56,7 +46,7 @@ class Card extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('status', 'ACTIVE');
+        return $query->where('status', 'active');
     }
 
     /**

@@ -12,6 +12,21 @@ use Illuminate\Support\Facades\DB;
 |--------------------------------------------------------------------------
 */
 
+// Shared routes - all authenticated users (notifications, push)
+Route::middleware(['auth:web'])->prefix('user')->group(function () {
+    Route::get('/notifications', [App\Http\Controllers\User\NotificationController::class, 'index']);
+    Route::put('/notifications/mark-all-read', [App\Http\Controllers\User\NotificationController::class, 'markAllAsRead']);
+    // Push notification subscribe
+    Route::post('/push-notification/subscribe', function(Request $request) {
+        $data = $request->validate(['endpoint' => 'required|url', 'keys' => 'required|array', 'keys.p256dh' => 'required|string', 'keys.auth' => 'required|string']);
+        DB::table('push_subscriptions')->updateOrInsert(
+            ['user_id' => auth()->id(), 'endpoint' => $data['endpoint']],
+            ['p256dh' => $data['keys']['p256dh'], 'auth' => $data['keys']['auth'], 'updated_at' => now(), 'created_at' => now()]
+        );
+        return response()->json(['status' => 'success', 'message' => 'Langganan push notification berhasil disimpan.']);
+    });
+});
+
 // Public auth routes (register, forgot password)
 Route::prefix('auth')->group(function () {
     Route::post('/register/request-otp', [App\Http\Controllers\Auth\RegisterController::class, 'requestOtp']);
@@ -31,8 +46,8 @@ Route::prefix('utility')->group(function () {
     Route::get('/nearest-units', [App\Http\Controllers\UtilityServicesController::class, 'getNearestUnits']);
 });
 
-// Authenticated user routes (for interactive flows)
-Route::middleware(['auth:web'])->prefix('user')->group(function () {
+// Authenticated user routes (for interactive flows) - Customer only
+Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function () {
     // Transfer inquiry/execute
     Route::post('/transfer/internal/inquiry', [App\Http\Controllers\User\TransactionController::class, 'internalTransferInquiry']);
     Route::post('/transfer/internal/execute', [App\Http\Controllers\User\TransactionController::class, 'internalTransferExecute']);
@@ -52,16 +67,13 @@ Route::middleware(['auth:web'])->prefix('user')->group(function () {
         DB::table('topup_requests')->insert([
             'user_id' => $user->id, 'amount' => $request->amount,
             'payment_method' => $request->payment_method, 'proof_of_payment_url' => $proofPath ? '/storage/' . $proofPath : null,
-            'status' => 'PENDING', 'created_at' => now(), 'updated_at' => now(),
+            'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
         ]);
         return response()->json(['status' => 'success', 'message' => 'Permintaan isi saldo berhasil dikirim.']);
     });
     // Security
     Route::post('/security/update-password', [App\Http\Controllers\User\SecurityController::class, 'updatePassword']);
     Route::post('/security/update-pin', [App\Http\Controllers\User\SecurityController::class, 'updatePin']);
-    // Notifications
-    Route::get('/notifications', [App\Http\Controllers\User\NotificationController::class, 'index']);
-    Route::put('/notifications/mark-all-read', [App\Http\Controllers\User\NotificationController::class, 'markAllAsRead']);
     // Withdrawal accounts
     Route::get('/withdrawal-accounts', [App\Http\Controllers\User\WithdrawalController::class, 'getAccounts']);
     Route::post('/withdrawal-accounts', [App\Http\Controllers\User\WithdrawalController::class, 'addAccount']);
@@ -116,8 +128,8 @@ Route::middleware(['auth:web'])->prefix('user')->group(function () {
     Route::get('/dashboard/summary', [App\Http\Controllers\User\DashboardController::class, 'summary']);
 });
 
-// Admin routes (for interactive flows)
-Route::middleware(['auth:web'])->prefix('admin')->group(function () {
+// Admin routes (for interactive flows) - Staff only
+Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,cs,analyst,debt_collector'])->prefix('admin')->group(function () {
     // Teller operations
     Route::post('/teller/deposit', [App\Http\Controllers\Admin\TellerController::class, 'deposit']);
     Route::post('/teller/pay-installment', [App\Http\Controllers\Admin\TellerController::class, 'payInstallment']);

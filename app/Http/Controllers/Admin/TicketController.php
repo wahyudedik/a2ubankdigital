@@ -91,8 +91,7 @@ class TicketController extends Controller
         $ticket = Ticket::findOrFail($id);
 
         $ticket->update([
-            'assigned_to' => $request->assigned_to,
-            'status' => 'IN_PROGRESS'
+            'status' => 'in_progress'
         ]);
 
         // Notify assigned staff
@@ -120,7 +119,7 @@ class TicketController extends Controller
 
         $ticket = Ticket::findOrFail($id);
 
-        if ($ticket->status === 'CLOSED') {
+        if ($ticket->status === 'closed') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Tidak dapat membalas tiket yang sudah ditutup.'
@@ -132,15 +131,13 @@ class TicketController extends Controller
             // Create message
             $message = TicketMessage::create([
                 'ticket_id' => $ticket->id,
-                'sender_id' => Auth::id(),
-                'message' => $request->message,
-                'is_from_customer' => false
+                'user_id' => Auth::id(),
+                'message' => $request->message
             ]);
 
             // Update ticket status
             $ticket->update([
-                'status' => 'WAITING_CUSTOMER',
-                'assigned_to' => Auth::id()
+                'status' => 'in_progress'
             ]);
 
             // Notify customer
@@ -178,7 +175,7 @@ class TicketController extends Controller
 
         $ticket = Ticket::findOrFail($id);
 
-        if ($ticket->status === 'CLOSED') {
+        if ($ticket->status === 'closed') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Tiket sudah ditutup.'
@@ -188,17 +185,15 @@ class TicketController extends Controller
         DB::beginTransaction();
         try {
             $ticket->update([
-                'status' => 'CLOSED',
-                'closed_at' => now()
+                'status' => 'closed'
             ]);
 
             // Add resolution message if provided
             if ($request->resolution) {
                 TicketMessage::create([
                     'ticket_id' => $ticket->id,
-                    'sender_id' => Auth::id(),
-                    'message' => 'Tiket ditutup. Resolusi: ' . $request->resolution,
-                    'is_from_customer' => false
+                    'user_id' => Auth::id(),
+                    'message' => 'Tiket ditutup. Resolusi: ' . $request->resolution
                 ]);
             }
 
@@ -232,12 +227,9 @@ class TicketController extends Controller
     {
         $stats = [
             'total_tickets' => Ticket::count(),
-            'open_tickets' => Ticket::where('status', 'OPEN')->count(),
-            'in_progress_tickets' => Ticket::where('status', 'IN_PROGRESS')->count(),
-            'waiting_customer_tickets' => Ticket::where('status', 'WAITING_CUSTOMER')->count(),
-            'closed_tickets' => Ticket::where('status', 'CLOSED')->count(),
-            'high_priority_tickets' => Ticket::where('priority', 'HIGH')->whereIn('status', ['OPEN', 'IN_PROGRESS'])->count(),
-            'unassigned_tickets' => Ticket::whereNull('assigned_to')->whereIn('status', ['OPEN', 'IN_PROGRESS'])->count()
+            'open_tickets' => Ticket::where('status', 'open')->count(),
+            'in_progress_tickets' => Ticket::where('status', 'in_progress')->count(),
+            'closed_tickets' => Ticket::where('status', 'closed')->count(),
         ];
 
         return response()->json([

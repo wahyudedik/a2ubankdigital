@@ -24,6 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);
+
+        // Exclude all AJAX routes from CSRF verification
+        // These are protected by auth session middleware, not public endpoints
+        $middleware->validateCsrfTokens(except: [
+            'ajax/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

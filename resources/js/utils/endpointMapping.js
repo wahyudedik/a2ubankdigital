@@ -5,6 +5,7 @@ export const endpointMapping = {
     'auth_register_request_otp.php': 'auth/register/request-otp',
     'auth_register_verify_otp.php': 'auth/register/verify-otp',
     'auth_forgot_password_reset.php': 'auth/forgot-password/reset',
+    'auth_forgot_password_request.php': 'auth/forgot-password/request',
 
     // User endpoints
     'user_profile_get.php': 'user/profile',
@@ -123,6 +124,16 @@ export const endpointMapping = {
 
     // Public config
     'utility_get_public_config.php': 'utility/public-config',
+    'utility_get_billers.php': 'user/bill-payment/billers',
+    'utility_get_market_data.php': 'utility/market-data',
+
+    // Beneficiaries
+    'beneficiaries_get_list.php': 'user/beneficiaries',
+    'beneficiaries_add.php': 'user/beneficiaries',
+    'beneficiaries_delete.php': 'user/beneficiaries',
+
+    // Admin build
+    'admin_trigger_build.php': 'admin/trigger-build',
 
     // Push notification
     'push_notification_subscribe.php': 'user/push-notification/subscribe',
@@ -163,47 +174,51 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
         }
 
         // Handle body-based ID for PUT/POST
-        if (body && body.id) {
+        if (body) {
+            const bodyId = body.id || body.loan_id || body.request_id || body.staff_id || body.card_id || body.deposit_id || body.installment_id;
+
             if (endpointPath === 'admin_edit_customer.php' && method === 'PUT') {
                 mappedEndpoint = `admin/customers/${body.id}`;
-            } else if (endpointPath === 'admin_update_customer_status.php' && method === 'PUT') {
+            } else if (endpointPath === 'admin_update_customer_status.php') {
                 mappedEndpoint = `admin/customers/${body.customer_id || body.id}/status`;
-            } else if (endpointPath === 'admin_update_staff_status.php' && method === 'PUT') {
-                mappedEndpoint = `admin/staff/${body.id}/status`;
-            } else if (endpointPath === 'admin_loan_application_update_status.php' && method === 'PUT') {
-                mappedEndpoint = `admin/loans/${body.id}/status`;
-            } else if (endpointPath === 'admin_loan_disburse.php' && method === 'POST') {
-                mappedEndpoint = `admin/loans/${body.id}/disburse`;
-            } else if (endpointPath === 'admin_process_card_request.php' && method === 'PUT') {
-                mappedEndpoint = `admin/card-requests/${body.id}/process`;
-            } else if (endpointPath === 'admin_process_withdrawal_request.php' && method === 'PUT') {
-                mappedEndpoint = `admin/withdrawal-requests/${body.id}/process`;
-            } else if (endpointPath === 'admin_disburse_withdrawal.php' && method === 'POST') {
-                mappedEndpoint = `admin/withdrawal-requests/${body.id}/disburse`;
-            } else if (endpointPath === 'admin_reset_staff_password.php' && method === 'POST') {
-                mappedEndpoint = `admin/staff/${body.staff_id || body.id}/reset-password`;
-            } else if (endpointPath === 'admin_update_staff_assignment.php' && (body.staff_id || body.id)) {
-                mappedEndpoint = `admin/staff/${body.staff_id || body.id}/assignment`;
-            } else if (endpointPath === 'admin_update_staff_status.php' && (body.staff_id || body.id)) {
+            } else if (endpointPath === 'admin_update_staff_status.php') {
                 mappedEndpoint = `admin/staff/${body.staff_id || body.id}/status`;
-            } else if (endpointPath === 'admin_edit_staff.php' && (body.staff_id || body.id)) {
+            } else if (endpointPath === 'admin_loan_application_update_status.php') {
+                mappedEndpoint = `admin/loans/${body.loan_id || body.id}/status`;
+            } else if (endpointPath === 'admin_loan_disburse.php') {
+                mappedEndpoint = `admin/loans/${body.loan_id || body.id}/disburse`;
+            } else if (endpointPath === 'admin_process_card_request.php') {
+                mappedEndpoint = `admin/card-requests/${body.card_id || body.id}/process`;
+            } else if (endpointPath === 'admin_process_withdrawal_request.php') {
+                mappedEndpoint = `admin/withdrawal-requests/${body.request_id || body.id}/process`;
+            } else if (endpointPath === 'admin_disburse_withdrawal.php') {
+                mappedEndpoint = `admin/withdrawal-requests/${body.request_id || body.id}/disburse`;
+            } else if (endpointPath === 'admin_process_topup_request.php') {
+                mappedEndpoint = `admin/processing/process-topup`;
+            } else if (endpointPath === 'admin_reset_staff_password.php') {
+                mappedEndpoint = `admin/staff/${body.staff_id || body.id}/reset-password`;
+            } else if (endpointPath === 'admin_update_staff_assignment.php') {
+                mappedEndpoint = `admin/staff/${body.staff_id || body.id}/assignment`;
+            } else if (endpointPath === 'admin_edit_staff.php') {
                 mappedEndpoint = `admin/staff/${body.staff_id || body.id}`;
-            } else if (endpointPath === 'admin_update_deposit_product.php') {
+            } else if (endpointPath === 'admin_update_deposit_product.php' && body.id) {
                 mappedEndpoint = `admin/deposit-products/${body.id}`;
-            } else if (endpointPath === 'admin_loan_products_edit.php') {
+            } else if (endpointPath === 'admin_loan_products_edit.php' && body.id) {
                 mappedEndpoint = `admin/loan-products/${body.id}`;
-            } else if (endpointPath === 'admin_loan_products_delete.php') {
+            } else if (endpointPath === 'admin_loan_products_delete.php' && body.id) {
                 mappedEndpoint = `admin/loan-products/${body.id}`;
-            } else if (endpointPath === 'admin_force_pay_installment.php' && body.installment_id) {
+            } else if (endpointPath === 'admin_force_pay_installment.php') {
                 mappedEndpoint = `admin/loans/${body.loan_id || body.installment_id}/force-pay-installment`;
-            } else if (endpointPath === 'user_pay_installment.php' && body.loan_id) {
-                mappedEndpoint = `user/loans/${body.loan_id}/pay-installment`;
-            } else if ((endpointPath === 'user_set_card_limit.php' || endpointPath === 'card_set_limit.php') && body.card_id) {
-                mappedEndpoint = `user/cards/${body.card_id}/limit`;
-            } else if (endpointPath === 'user_update_card_status.php' && body.card_id) {
-                mappedEndpoint = `user/cards/${body.card_id}/status`;
-            } else if (endpointPath === 'deposit_account_disburse.php' && body.deposit_id) {
-                mappedEndpoint = `user/deposits/${body.deposit_id}/disburse`;
+            } else if (endpointPath === 'user_pay_installment.php') {
+                mappedEndpoint = `user/loans/${body.loan_id || body.installment_id}/pay-installment`;
+            } else if (endpointPath === 'user_set_card_limit.php' || endpointPath === 'card_set_limit.php') {
+                mappedEndpoint = `user/cards/${body.card_id || body.id}/limit`;
+            } else if (endpointPath === 'user_update_card_status.php') {
+                mappedEndpoint = `user/cards/${body.card_id || body.id}/status`;
+            } else if (endpointPath === 'deposit_account_disburse.php') {
+                mappedEndpoint = `user/deposits/${body.deposit_id || body.id}/disburse`;
+            } else if (endpointPath === 'beneficiaries_delete.php' && body.id) {
+                mappedEndpoint = `user/beneficiaries/${body.id}`;
             }
         }
 

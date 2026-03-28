@@ -101,7 +101,11 @@ const RegisterPage = () => {
         try {
             const response = await fetch(`${AppConfig.api.baseUrl}/auth/register/request-otp`, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                },
                 credentials: 'same-origin',
                 body: apiFormData,
             });

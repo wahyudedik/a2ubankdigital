@@ -71,7 +71,7 @@ class ScheduledTransferController extends Controller
                 'amount' => $request->amount,
                 'description' => $request->description ?? 'Transfer Terjadwal',
                 'scheduled_date' => $request->scheduled_date,
-                'status' => 'PENDING'
+                'status' => 'pending'
             ]);
 
             // Log the scheduling
@@ -145,7 +145,7 @@ class ScheduledTransferController extends Controller
 
         $scheduledTransfer = ScheduledTransfer::where('id', $id)
             ->where('user_id', $user->id)
-            ->where('status', 'PENDING')
+            ->where('status', 'pending')
             ->first();
 
         if (!$scheduledTransfer) {
@@ -163,7 +163,7 @@ class ScheduledTransferController extends Controller
             ], 400);
         }
 
-        $scheduledTransfer->update(['status' => 'FAILED', 'failure_reason' => 'Dibatalkan oleh pengguna']);
+        $scheduledTransfer->update(['status' => 'failed', 'failure_reason' => 'Dibatalkan oleh pengguna']);
 
         // Log the cancellation
         $this->logService->logAudit('SCHEDULED_TRANSFER_CANCELLED', 'scheduled_transfers', $scheduledTransfer->id);
@@ -192,7 +192,7 @@ class ScheduledTransferController extends Controller
             'to_bank_code' => 'sometimes|string|max:10',
             'amount' => 'required|numeric|min:1',
             'description' => 'sometimes|string|max:255',
-            'frequency' => 'required|in:MONTHLY,WEEKLY',
+            'frequency' => 'required|in:monthly,weekly',
             'execution_day' => 'required|integer|min:1|max:31',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'sometimes|date|after:start_date'
@@ -214,14 +214,14 @@ class ScheduledTransferController extends Controller
         }
 
         // Validate execution day based on frequency
-        if ($request->frequency === 'WEEKLY' && ($request->execution_day < 0 || $request->execution_day > 6)) {
+        if ($request->frequency === 'weekly' && ($request->execution_day < 0 || $request->execution_day > 6)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Hari eksekusi untuk mingguan harus antara 0-6 (0=Minggu, 6=Sabtu).'
             ], 400);
         }
 
-        if ($request->frequency === 'MONTHLY' && ($request->execution_day < 1 || $request->execution_day > 31)) {
+        if ($request->frequency === 'monthly' && ($request->execution_day < 1 || $request->execution_day > 31)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Hari eksekusi untuk bulanan harus antara 1-31.'
@@ -240,7 +240,7 @@ class ScheduledTransferController extends Controller
                 'execution_day' => $request->execution_day,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
-                'status' => 'ACTIVE'
+                'status' => 'active'
             ]);
 
             // Log the creation
@@ -311,7 +311,7 @@ class ScheduledTransferController extends Controller
     public function updateStandingInstructionStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:ACTIVE,PAUSED,ENDED'
+            'status' => 'required|in:active,paused,ended'
         ]);
 
         $user = Auth::user();
@@ -338,9 +338,9 @@ class ScheduledTransferController extends Controller
 
         // Notify user
         $statusText = [
-            'ACTIVE' => 'diaktifkan',
-            'PAUSED' => 'dijeda',
-            'ENDED' => 'dihentikan'
+            'active' => 'diaktifkan',
+            'paused' => 'dijeda',
+            'ended' => 'dihentikan'
         ];
 
         $this->notificationService->notifyUser(

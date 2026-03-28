@@ -141,7 +141,7 @@ class BillPaymentController extends Controller
                 'amount' => $request->amount,
                 'fee' => $request->admin_fee,
                 'description' => "Pembayaran {$request->biller_id} - {$request->customer_number}",
-                'status' => 'PROCESSING'
+                'status' => 'PENDING'
             ]);
 
             // Deduct balance

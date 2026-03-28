@@ -58,7 +58,7 @@ class ScheduledTransfer extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('status', 'PENDING');
+        return $query->where('status', 'pending');
     }
 
     /**
@@ -66,7 +66,7 @@ class ScheduledTransfer extends Model
      */
     public function scopeExecuted($query)
     {
-        return $query->where('status', 'EXECUTED');
+        return $query->where('status', 'executed');
     }
 
     /**
@@ -74,7 +74,7 @@ class ScheduledTransfer extends Model
      */
     public function scopeFailed($query)
     {
-        return $query->where('status', 'FAILED');
+        return $query->where('status', 'failed');
     }
 
     /**
@@ -83,6 +83,6 @@ class ScheduledTransfer extends Model
     public function scopeDue($query)
     {
         return $query->where('scheduled_date', '<=', now()->toDateString())
-                    ->where('status', 'PENDING');
+                    ->where('status', 'pending');
     }
 }

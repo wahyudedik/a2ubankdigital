@@ -1,138 +1,444 @@
-# Banking Platform API
+# A2U Bank Digital
 
-A comprehensive digital banking platform built with Laravel, providing enterprise-grade banking operations, security, and administrative features.
+Platform perbankan digital monolith dibangun dengan Laravel 12 + Inertia.js + React.
 
-## Features
+## Tech Stack
 
-### 🏦 Core Banking Operations
-- Account Management (Current, Savings, Loans, Deposits)
-- Transaction Processing (Transfers, Payments, Reversals)
-- Loan Management (Applications, Approvals, Collections)
-- Card Management (Requests, Issuance, Controls)
+- Laravel 12 (PHP 8.2+)
+- Inertia.js v3
+- React 19
+- Tailwind CSS 3
+- MySQL 8
+- Vite
 
-### 💳 Digital Banking Services
-- QR Payment System
-- E-wallet Integration
-- Bill Payment Services
-- External Bank Transfers 
+## Struktur Proyek
 
-### 🔒 Security & Compliance
-- Multi-factor Authentication (2FA, PIN, Biometric)
-- Device Management & Approval
-- Comprehensive Audit Logging
-- Security Activity Monitoring
-
-### 👥 User Experience
-- Goal Savings with Progress Tracking
-- Loyalty Points System
-- Secure Messaging
-- Real-time Notifications
-
-### 🎛️ Administrative Platform
-- Staff & Teller Management
-- Branch/Unit Management
-- Product Management
-- Customer Management with KYC
-
-### 📊 Business Intelligence
-- Advanced Reporting & Analytics
-- Performance Dashboards
-- Marketing Analytics
-- Daily Reconciliation
-
-## Requirements
-
-- PHP 8.1+
-- Laravel 11.x
-- MySQL 8.0+
-- Composer
-
-## Installation
-
-1. Clone the repository
-```bash
-git clone <repository-url>
-cd backend-laravel
+```
+├── app/Http/Controllers/Inertia/   # Controller halaman Inertia
+├── app/Http/Controllers/Admin/     # Controller logic admin
+├── app/Http/Controllers/User/      # Controller logic user
+├── resources/js/Pages/             # 54 halaman React
+├── resources/js/components/        # Komponen React
+├── resources/js/Layouts/           # Layout (Customer & Admin)
+├── routes/web.php                  # Route halaman Inertia + form actions
+├── routes/ajax.php                 # Route AJAX (interactive flows)
+└── routes/api.php                  # Kosong (tidak dipakai)
 ```
 
-2. Install dependencies
+## Akun Testing
+
+| ID | Role | Email | Password |
+|----|------|-------|----------|
+| 1 | Super Admin | admin@a2ubank.com | admin123 |
+| 2 | Kepala Cabang | kacab@a2ubank.com | kacab123 |
+| 3 | Kepala Unit | kaunit@a2ubank.com | kaunit123 |
+| 4 | Marketing | marketing@a2ubank.com | marketing123 |
+| 5 | Teller | teller@a2ubank.com | teller123 |
+| 6 | Customer Service | cs@a2ubank.com | cs123 |
+| 7 | Analis Kredit | analis@a2ubank.com | analis123 |
+| 8 | Debt Collector | collector@a2ubank.com | collector123 |
+| 9 | Nasabah | customer1@example.com | customer123 |
+
+---
+
+## Deploy ke VPS dengan aaPanel
+
+### Prasyarat
+
+- VPS dengan Ubuntu 20.04/22.04 (minimal 1GB RAM)
+- Domain sudah pointing ke IP VPS
+- aaPanel sudah terinstall
+
+---
+
+### Langkah 1: Install Software di aaPanel
+
+Login ke aaPanel, masuk ke App Store, install:
+
+- Nginx (versi terbaru)
+- MySQL 8.0
+- PHP 8.2 (atau 8.3)
+- phpMyAdmin
+
+Setelah PHP terinstall, masuk ke **App Store > PHP 8.2 > Settings > Install Extensions**, install:
+
+- fileinfo
+- opcache
+- redis (opsional)
+- exif
+
+---
+
+### Langkah 2: Buat Database
+
+1. Di aaPanel, klik **Database > Add Database**
+2. Isi:
+   - Database name: `a2ubank`
+   - Username: `a2ubank`
+   - Password: (buat password kuat, catat)
+3. Klik Submit
+
+---
+
+### Langkah 3: Buat Website
+
+1. Di aaPanel, klik **Website > Add Site**
+2. Isi:
+   - Domain: `a2ubankdigital.my.id` (domain kamu)
+   - Root Directory: `/www/wwwroot/a2ubankdigital.my.id`
+   - PHP Version: PHP 8.2
+   - Database: Tidak perlu (sudah dibuat manual)
+3. Klik Submit
+
+---
+
+### Langkah 4: Upload Proyek
+
+**Opsi A: Via Git (Recommended)**
+
+SSH ke VPS:
+
 ```bash
-composer install
+cd /www/wwwroot/a2ubankdigital.my.id
+rm -rf .* * 2>/dev/null
+git clone <repository-url> .
 ```
 
-3. Configure environment
+**Opsi B: Via ZIP Upload**
+
+1. Di lokal, compress proyek (tanpa `node_modules`, `vendor`, `.git`):
 ```bash
+# Di Windows PowerShell
+Compress-Archive -Path app,bootstrap,config,database,public,resources,routes,storage,.env.example,artisan,composer.json,composer.lock,package.json,package-lock.json,vite.config.js,tailwind.config.js,postcss.config.js -DestinationPath deploy.zip
+```
+2. Upload `deploy.zip` via aaPanel File Manager ke `/www/wwwroot/a2ubankdigital.my.id/`
+3. Extract di sana
+
+---
+
+### Langkah 5: Install Dependencies
+
+SSH ke VPS:
+
+```bash
+cd /www/wwwroot/a2ubankdigital.my.id
+
+# Install PHP dependencies
+composer install --no-dev --optimize-autoloader
+
+# Install Node.js (jika belum ada)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install JS dependencies & build
+npm install
+npm run build
+```
+
+---
+
+### Langkah 6: Konfigurasi Environment
+
+```bash
+cd /www/wwwroot/a2ubankdigital.my.id
+
+# Buat .env dari template
 cp .env.example .env
-# Edit .env with your database and other configurations
+
+# Edit .env
+nano .env
 ```
 
-4. Generate application key
+Ubah nilai-nilai ini di `.env`:
+
+```env
+APP_NAME="A2U Bank Digital"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://a2ubankdigital.my.id
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=a2ubank
+DB_USERNAME=a2ubank
+DB_PASSWORD=password_yang_kamu_buat
+
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=emailkamu@gmail.com
+MAIL_PASSWORD=app_password_gmail
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@a2ubankdigital.my.id
+MAIL_FROM_NAME="A2U Bank Digital"
+```
+
+Lalu generate key dan jalankan migrasi:
+
 ```bash
 php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
 ```
 
-5. Run migrations and seeders
+---
+
+### Langkah 7: Set Permission
+
 ```bash
+cd /www/wwwroot/a2ubankdigital.my.id
+
+# Set ownership
+chown -R www:www .
+chmod -R 755 .
+chmod -R 775 storage bootstrap/cache
+```
+
+---
+
+### Langkah 8: Konfigurasi Nginx
+
+Di aaPanel, klik **Website > a2ubankdigital.my.id > Settings > Config**
+
+Ganti seluruh isi config Nginx dengan:
+
+```nginx
+server {
+    listen 80;
+    server_name a2ubankdigital.my.id;
+    
+    # Redirect ke HTTPS (aktifkan setelah SSL dipasang)
+    # return 301 https://$host$request_uri;
+    
+    root /www/wwwroot/a2ubankdigital.my.id/public;
+    index index.php;
+
+    charset utf-8;
+    client_max_body_size 20M;
+
+    # Gzip
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Build assets (Vite)
+    location /build/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Laravel routing
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # PHP processing
+    location ~ \.php$ {
+        fastcgi_pass unix:/tmp/php-cgi-82.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_buffer_size 128k;
+        fastcgi_buffers 4 256k;
+    }
+
+    # Block hidden files
+    location ~ /\. {
+        deny all;
+    }
+
+    # Block sensitive files
+    location ~ \.(env|log|md)$ {
+        deny all;
+    }
+
+    access_log /www/wwwlogs/a2ubankdigital.my.id.log;
+    error_log /www/wwwlogs/a2ubankdigital.my.id.error.log;
+}
+```
+
+Klik Save, lalu Restart Nginx.
+
+---
+
+### Langkah 9: Pasang SSL (HTTPS)
+
+Di aaPanel:
+
+1. Klik **Website > a2ubankdigital.my.id > SSL**
+2. Pilih **Let's Encrypt**
+3. Centang domain
+4. Klik Apply
+5. Aktifkan **Force HTTPS**
+
+Setelah SSL aktif, uncomment redirect di Nginx config:
+
+```nginx
+return 301 https://$host$request_uri;
+```
+
+---
+
+### Langkah 10: Optimasi Production
+
+SSH ke VPS:
+
+```bash
+cd /www/wwwroot/a2ubankdigital.my.id
+
+# Cache config, routes, views
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Optimize autoloader
+composer dump-autoload --optimize
+```
+
+---
+
+### Langkah 11: Setup Cron Job & Queue Worker
+
+**Cron Job (Scheduler):**
+
+Di aaPanel, klik **Cron > Add Cron Job**:
+
+- Type: Shell Script
+- Name: Laravel Scheduler
+- Period: Every 1 minute
+- Script:
+```bash
+cd /www/wwwroot/a2ubankdigital.my.id && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Scheduler menjalankan:
+- `transfers:process-scheduled` - Proses transfer terjadwal (setiap hari 00:05)
+- `transfers:process-standing` - Proses standing instruction (setiap hari 00:10)
+- `loans:check-overdue` - Cek angsuran jatuh tempo (setiap hari 01:00)
+
+**Queue Worker (untuk email & notifikasi):**
+
+Di aaPanel, klik **Cron > Add Cron Job**:
+
+- Type: Shell Script
+- Name: Laravel Queue Worker
+- Period: Every 1 minute
+- Script:
+```bash
+cd /www/wwwroot/a2ubankdigital.my.id && php artisan queue:work database --stop-when-empty --max-time=55 >> /dev/null 2>&1
+```
+
+Atau untuk production yang lebih stabil, install Supervisor:
+```bash
+sudo apt install supervisor
+
+# Buat config
+sudo nano /etc/supervisor/conf.d/a2ubank-worker.conf
+```
+
+Isi:
+```ini
+[program:a2ubank-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /www/wwwroot/a2ubankdigital.my.id/artisan queue:work database --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/www/wwwroot/a2ubankdigital.my.id/storage/logs/worker.log
+stopwaitsecs=3600
+```
+
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start a2ubank-worker:*
+```
+
+---
+
+### Troubleshooting
+
+**500 Internal Server Error:**
+```bash
+# Cek log
+tail -f storage/logs/laravel.log
+
+# Fix permission
+chown -R www:www storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+```
+
+**Halaman blank / asset tidak muncul:**
+```bash
+# Pastikan build sudah jalan
+npm run build
+
+# Pastikan APP_URL benar di .env
+# Pastikan Nginx root mengarah ke /public
+```
+
+**Login tidak bisa / session error:**
+```bash
+# Pastikan sessions table ada
 php artisan migrate
-php artisan db:seed
+
+# Clear cache
+php artisan cache:clear
+php artisan config:clear
 ```
 
-6. Start the development server
+**Upload file gagal:**
 ```bash
-php artisan serve
+# Pastikan storage link ada
+php artisan storage:link
+
+# Pastikan permission benar
+chmod -R 775 storage/app/public
 ```
 
-## API Documentation
+---
 
-The API provides 197 endpoints covering all banking operations:
+### Update Proyek
 
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register/request-otp` - Registration OTP
-- `POST /api/auth/register/verify-otp` - Verify registration
+Setiap kali ada update kode:
 
-### User Operations
-- Account management and statements
-- Transaction history and transfers
-- Loan applications and payments
-- Digital services (QR, bills, e-wallet)
+```bash
+cd /www/wwwroot/a2ubankdigital.my.id
 
-### Admin Operations
-- Customer and staff management
-- Product and unit management
-- Reports and analytics
-- System configuration
+# Pull kode terbaru
+git pull origin main
 
-## Security
+# Install dependencies
+composer install --no-dev --optimize-autoloader
+npm install && npm run build
 
-- Token-based authentication using Laravel Sanctum
-- Role-based access control (RBAC)
-- Input validation and sanitization
-- Comprehensive audit logging
-- Rate limiting and security monitoring
+# Jalankan migrasi
+php artisan migrate --force
 
-## Configuration
+# Clear & rebuild cache
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 
-Key configuration files:
-- `config/database.php` - Database settings
-- `config/auth.php` - Authentication settings
-- `config/sanctum.php` - API token settings
-- `config/mail.php` - Email configuration
-
-## Deployment
-
-For production deployment:
-
-1. Set `APP_ENV=production` in `.env`
-2. Configure database and cache settings
-3. Set up proper file permissions
-4. Configure web server (Apache/Nginx)
-5. Set up SSL certificates
-6. Configure backup and monitoring
-
-## Support
-
-This is a complete banking platform with enterprise-grade features. All core banking operations, security features, and administrative tools are fully implemented and production-ready.
+# Restart PHP
+sudo systemctl restart php8.2-fpm
+```
 
 ## License
 

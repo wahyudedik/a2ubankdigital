@@ -31,7 +31,7 @@ const AdminTopUpRequestsPage = () => {
     const { loading, error, callApi } = useApi();
     const modal = useModal();
     const [selectedRequest, setSelectedRequest] = useState(null);
-    const [activeTab, setActiveTab] = useState(filters?.status || 'PENDING');
+    const [activeTab, setActiveTab] = useState(filters?.status || 'pending');
     const [isRejectionModalOpen, setRejectionModalOpen] = useState(false);
     const [requestToReject, setRequestToReject] = useState(null);
 
@@ -52,21 +52,21 @@ const AdminTopUpRequestsPage = () => {
         <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Permintaan Isi Saldo</h1>
             <div className="flex border-b mb-4">
-                <TabButton id="PENDING" activeTab={activeTab} setActiveTab={handleTabChange}>Menunggu Persetujuan</TabButton>
-                <TabButton id="APPROVED" activeTab={activeTab} setActiveTab={handleTabChange}>Disetujui</TabButton>
-                <TabButton id="REJECTED" activeTab={activeTab} setActiveTab={handleTabChange}>Ditolak</TabButton>
+                <TabButton id="pending" activeTab={activeTab} setActiveTab={handleTabChange}>Menunggu Persetujuan</TabButton>
+                <TabButton id="approved" activeTab={activeTab} setActiveTab={handleTabChange}>Disetujui</TabButton>
+                <TabButton id="rejected" activeTab={activeTab} setActiveTab={handleTabChange}>Ditolak</TabButton>
             </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-50"><tr><th className="p-4 text-left text-sm font-semibold text-gray-600">Nasabah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Jumlah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Metode</th><th className="p-4 text-left text-sm font-semibold text-gray-600">{activeTab === 'PENDING' ? 'Tanggal Request' : 'Tanggal Proses'}</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Aksi</th></tr></thead>
+                        <thead className="bg-gray-50"><tr><th className="p-4 text-left text-sm font-semibold text-gray-600">Nasabah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Jumlah</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Metode</th><th className="p-4 text-left text-sm font-semibold text-gray-600">{activeTab === 'pending' ? 'Tanggal Request' : 'Tanggal Proses'}</th><th className="p-4 text-left text-sm font-semibold text-gray-600">Aksi</th></tr></thead>
                         <tbody className="divide-y">
                             {(requests || []).length > 0 ? (requests || []).map(req => (
                                 <tr key={req.id}>
                                     <td className="p-4 font-medium">{req.customer_name}</td>
                                     <td className="p-4">{formatCurrency(req.amount)}</td>
                                     <td className="p-4">{req.payment_method}</td>
-                                    <td className="p-4 text-sm">{new Date(activeTab === 'PENDING' ? req.created_at : req.processed_at).toLocaleString('id-ID')}</td>
+                                    <td className="p-4 text-sm">{new Date(activeTab === 'pending' ? req.created_at : (req.processed_at || req.created_at)).toLocaleString('id-ID')}</td>
                                     <td className="p-4"><Button onClick={() => setSelectedRequest(req)} className="py-1 px-3 text-sm flex items-center gap-1"><Eye size={16} /> Lihat Detail</Button></td>
                                 </tr>
                             )) : (<tr><td colSpan="5" className="p-8 text-center text-gray-500">Tidak ada permintaan pada kategori ini.</td></tr>)}

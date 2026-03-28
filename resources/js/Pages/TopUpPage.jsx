@@ -77,9 +77,14 @@ const TopUpPage = () => {
         const baseUrl = AppConfig.api.baseUrl;
 
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const response = await fetch(`${baseUrl}/user/topup-requests`, {
                 method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
                 credentials: 'same-origin',
                 body: apiFormData
             });

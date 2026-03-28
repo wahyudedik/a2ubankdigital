@@ -6,36 +6,31 @@ use Illuminate\Database\Eloquent\Model;
 
 class Ticket extends Model
 {
-    protected $table = 'tickets';
+    protected $table = 'support_tickets';
 
     protected $fillable = [
         'user_id',
-        'ticket_number',
+        'ticket_code',
         'subject',
-        'category',
-        'priority',
         'status',
-        'assigned_to',
-        'closed_at'
+        'created_by_staff_id'
     ];
 
-    protected $casts = [
-        'closed_at' => 'datetime'
-    ];
+    protected $casts = [];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    public function assignedTo()
+    public function createdByStaff()
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsTo(User::class, 'created_by_staff_id');
     }
 
     public function messages()
     {
-        return $this->hasMany(TicketMessage::class)->orderBy('created_at');
+        return $this->hasMany(TicketMessage::class, 'ticket_id')->orderBy('created_at');
     }
 
     /**
@@ -43,7 +38,7 @@ class Ticket extends Model
      */
     public function scopeOpen($query)
     {
-        return $query->where('status', 'OPEN');
+        return $query->where('status', 'open');
     }
 
     /**
@@ -51,22 +46,6 @@ class Ticket extends Model
      */
     public function scopeClosed($query)
     {
-        return $query->where('status', 'CLOSED');
-    }
-
-    /**
-     * Scope for specific priority
-     */
-    public function scopePriority($query, $priority)
-    {
-        return $query->where('priority', $priority);
-    }
-
-    /**
-     * Scope for specific category
-     */
-    public function scopeCategory($query, $category)
-    {
-        return $query->where('category', $category);
+        return $query->where('status', 'closed');
     }
 }

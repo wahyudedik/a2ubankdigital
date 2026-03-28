@@ -23,7 +23,7 @@ const StaffListPage = () => {
     const handleOpenAssignModal = (staff) => { setSelectedStaff(staff); setAssignModalOpen(true); };
 
     const handleUpdateStatus = async (staffId, currentStatus) => {
-        const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        const newStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
         const actionText = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan';
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi Status`, message: `Apakah Anda yakin ingin ${actionText} akun staf ini?`, confirmText: `Ya, ${actionText}` });
         if (confirmed) {

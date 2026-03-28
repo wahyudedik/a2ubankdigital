@@ -140,60 +140,24 @@ class SystemConfigController extends Controller
     public function getPaymentMethods(Request $request)
     {
         try {
-            $type = $request->input('type', 'all'); // all, digital, bank_transfer, ewallet
+            $configs = DB::table('system_configurations')
+                ->whereIn('config_key', ['payment_qris_image_url', 'payment_bank_accounts'])
+                ->pluck('config_value', 'config_key');
 
-            // Get payment methods from database
-            $query = DB::table('payment_methods')
-                ->where('is_active', true)
-                ->orderBy('sort_order');
-
-            if ($type !== 'all') {
-                $query->where('type', $type);
-            }
-
-            $paymentMethods = $query->get()->map(function ($method) {
-                return [
-                    'id' => $method->id,
-                    'code' => $method->code,
-                    'name' => $method->name,
-                    'type' => $method->type,
-                    'description' => $method->description,
-                    'icon_url' => $method->icon_url,
-                    'fee_type' => $method->fee_type, // fixed, percentage
-                    'fee_amount' => $method->fee_amount,
-                    'min_amount' => $method->min_amount,
-                    'max_amount' => $method->max_amount,
-                    'processing_time' => $method->processing_time,
-                    'is_realtime' => (bool) $method->is_realtime,
-                    'supported_banks' => json_decode($method->supported_banks ?? '[]', true),
-                    'additional_info' => json_decode($method->additional_info ?? '{}', true)
-                ];
-            });
-
-            // Group by type
-            $groupedMethods = $paymentMethods->groupBy('type');
-
-            // Get payment method statistics
-            $stats = [
-                'total_methods' => $paymentMethods->count(),
-                'by_type' => $groupedMethods->map->count(),
-                'realtime_methods' => $paymentMethods->where('is_realtime', true)->count(),
-                'most_used' => $this->getMostUsedPaymentMethods()
-            ];
+            $bankAccounts = json_decode($configs['payment_bank_accounts'] ?? '[]', true);
+            if (!is_array($bankAccounts)) $bankAccounts = [];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
-                    'payment_methods' => $paymentMethods,
-                    'grouped_methods' => $groupedMethods,
-                    'statistics' => $stats
+                    'qris_image_url' => $configs['payment_qris_image_url'] ?? null,
+                    'bank_accounts' => $bankAccounts,
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch payment methods'
+                'status' => 'error',
+                'message' => 'Gagal memuat metode pembayaran.'
             ], 500);
         }
     }

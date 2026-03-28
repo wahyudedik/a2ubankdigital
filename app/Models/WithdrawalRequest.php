@@ -12,18 +12,15 @@ class WithdrawalRequest extends Model
         'user_id',
         'withdrawal_account_id',
         'amount',
-        'purpose',
         'status',
         'processed_by',
         'processed_at',
-        'cancelled_at',
         'rejection_reason'
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'processed_at' => 'datetime',
-        'cancelled_at' => 'datetime'
+        'processed_at' => 'datetime'
     ];
 
     public function user()
@@ -46,7 +43,7 @@ class WithdrawalRequest extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('status', 'PENDING');
+        return $query->where('status', 'pending');
     }
 
     /**
@@ -54,14 +51,14 @@ class WithdrawalRequest extends Model
      */
     public function scopeApproved($query)
     {
-        return $query->where('status', 'APPROVED');
+        return $query->where('status', 'approved');
     }
 
     /**
-     * Scope for processed requests
+     * Scope for completed requests
      */
-    public function scopeProcessed($query)
+    public function scopeCompleted($query)
     {
-        return $query->where('status', 'PROCESSED');
+        return $query->where('status', 'completed');
     }
 }

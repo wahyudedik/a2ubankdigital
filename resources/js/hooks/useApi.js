@@ -15,9 +15,8 @@ const useApi = () => {
         setLoading(true);
         setError(null);
 
-        // Get CSRF token from meta tag or cookie
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-            || getCookie('XSRF-TOKEN');
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
         const headers = {
             'Content-Type': 'application/json',
@@ -27,7 +26,7 @@ const useApi = () => {
 
         // Add CSRF token for non-GET requests
         if (csrfToken && method !== 'GET') {
-            headers['X-XSRF-TOKEN'] = decodeURIComponent(csrfToken);
+            headers['X-CSRF-TOKEN'] = csrfToken;
         }
 
         const config = {
@@ -81,13 +80,5 @@ const useApi = () => {
 
     return { loading, error, callApi, setLoading, setError };
 };
-
-// Helper to get cookie value
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
-}
 
 export default useApi;

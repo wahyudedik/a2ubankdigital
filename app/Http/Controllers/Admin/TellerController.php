@@ -68,12 +68,13 @@ class TellerController extends Controller
             // Create transaction record
             $description = "Setor tunai oleh Teller #" . $user->id;
             $transaction = Transaction::create([
+                'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
                 'to_account_id' => $account->id,
-                'transaction_type' => 'SETOR_TUNAI',
+                'transaction_type' => 'TOPUP',
                 'amount' => $amount,
+                'fee' => 0,
                 'description' => $description,
-                'status' => 'SUCCESS',
-                'processed_by' => $user->id
+                'status' => 'SUCCESS'
             ]);
 
             // Log audit
@@ -159,12 +160,13 @@ class TellerController extends Controller
             // Create transaction record
             $description = "Tarik tunai oleh Teller #" . $user->id;
             $transaction = Transaction::create([
+                'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
                 'from_account_id' => $account->id,
-                'transaction_type' => 'TARIK_TUNAI',
+                'transaction_type' => 'WITHDRAWAL',
                 'amount' => $amount,
+                'fee' => 0,
                 'description' => $description,
-                'status' => 'SUCCESS',
-                'processed_by' => $user->id
+                'status' => 'SUCCESS'
             ]);
 
             // Log audit
@@ -247,12 +249,13 @@ class TellerController extends Controller
             // Create transaction record
             $description = "Bayar Angsuran Tunai Pinjaman #" . $installment->loan_id . " ke-" . $installment->installment_number . " via Teller #" . $user->id;
             $transaction = Transaction::create([
+                'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
                 'to_account_id' => null,
-                'transaction_type' => 'BAYAR_CICILAN_TUNAI',
+                'transaction_type' => 'LOAN_PAYMENT',
                 'amount' => $totalDue,
+                'fee' => 0,
                 'description' => $description,
-                'status' => 'SUCCESS',
-                'processed_by' => $user->id
+                'status' => 'SUCCESS'
             ]);
 
             // Update installment status

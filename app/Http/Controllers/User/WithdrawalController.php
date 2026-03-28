@@ -27,7 +27,6 @@ class WithdrawalController extends Controller
     public function getAccounts(): JsonResponse
     {
         $accounts = WithdrawalAccount::where('user_id', Auth::id())
-            ->where('is_active', true)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -43,15 +42,14 @@ class WithdrawalController extends Controller
     public function addAccount(Request $request): JsonResponse
     {
         $request->validate([
-            'bank_code' => 'required|string|size:3',
-            'bank_name' => 'required|string',
-            'account_number' => 'required|string|min:8|max:20',
-            'account_holder_name' => 'required|string|max:255'
+            'bank_name' => 'required|string|max:100',
+            'account_number' => 'required|string|min:8|max:50',
+            'account_name' => 'required|string|max:100'
         ]);
 
         // Check if account already exists
         $existing = WithdrawalAccount::where('user_id', Auth::id())
-            ->where('bank_code', $request->bank_code)
+            ->where('bank_name', $request->bank_name)
             ->where('account_number', $request->account_number)
             ->first();
 
@@ -64,11 +62,9 @@ class WithdrawalController extends Controller
 
         $account = WithdrawalAccount::create([
             'user_id' => Auth::id(),
-            'bank_code' => $request->bank_code,
             'bank_name' => $request->bank_name,
             'account_number' => $request->account_number,
-            'account_holder_name' => $request->account_holder_name,
-            'is_active' => true
+            'account_name' => $request->account_name
         ]);
 
         return response()->json([
@@ -92,7 +88,6 @@ class WithdrawalController extends Controller
         // Verify withdrawal account belongs to user
         $withdrawalAccount = WithdrawalAccount::where('id', $request->withdrawal_account_id)
             ->where('user_id', Auth::id())
-            ->where('is_active', true)
             ->first();
 
         if (!$withdrawalAccount) {
@@ -116,7 +111,7 @@ class WithdrawalController extends Controller
 
         // Check for pending withdrawal requests
         $pendingRequest = WithdrawalRequest::where('user_id', Auth::id())
-            ->where('status', 'PENDING')
+            ->where('status', 'pending')
             ->first();
 
         if ($pendingRequest) {
@@ -132,8 +127,7 @@ class WithdrawalController extends Controller
                 'user_id' => Auth::id(),
                 'withdrawal_account_id' => $request->withdrawal_account_id,
                 'amount' => $request->amount,
-                'purpose' => $request->purpose,
-                'status' => 'PENDING'
+                'status' => 'pending'
             ]);
 
             // Notify admin staff
@@ -195,7 +189,7 @@ class WithdrawalController extends Controller
     {
         $withdrawalRequest = WithdrawalRequest::where('user_id', Auth::id())
             ->where('id', $id)
-            ->where('status', 'PENDING')
+            ->where('status', 'pending')
             ->first();
 
         if (!$withdrawalRequest) {
@@ -206,8 +200,8 @@ class WithdrawalController extends Controller
         }
 
         $withdrawalRequest->update([
-            'status' => 'CANCELLED',
-            'cancelled_at' => now()
+            'status' => 'rejected',
+            'rejection_reason' => 'Dibatalkan oleh pengguna'
         ]);
 
         return response()->json([

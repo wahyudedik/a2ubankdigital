@@ -72,13 +72,13 @@ class RegisterController extends Controller
 
             // Create user
             $user = User::create([
+                'bank_id' => date('Ymd') . str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT),
                 'role_id' => 9, // Customer
                 'full_name' => $request->full_name,
                 'email' => $request->email,
-                'password' => Hash::make($request->password),
+                'password_hash' => Hash::make($request->password),
                 'phone_number' => $request->phone_number,
-                'status' => 'PENDING_VERIFICATION',
-                'unit_id' => $request->unit_id
+                'status' => 'PENDING_VERIFICATION'
             ]);
 
             // Create customer profile
@@ -261,7 +261,7 @@ class RegisterController extends Controller
 
             // Update password
             $user->update([
-                'password' => Hash::make($request->new_password)
+                'password_hash' => Hash::make($request->new_password)
             ]);
 
             DB::commit();

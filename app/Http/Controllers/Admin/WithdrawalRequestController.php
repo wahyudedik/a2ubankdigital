@@ -173,7 +173,7 @@ class WithdrawalRequestController extends Controller
             
             // Get the withdrawal request
             $withdrawalRequest = WithdrawalRequest::where('id', $id)
-                ->where('status', 'PENDING')
+                ->where('status', 'pending')
                 ->first();
 
             if (!$withdrawalRequest) {
@@ -205,7 +205,7 @@ class WithdrawalRequestController extends Controller
                     ], 400);
                 }
 
-                $status = 'APPROVED';
+                $status = 'approved';
                 $message = 'Withdrawal request approved';
                 
                 // Send notification to customer
@@ -216,7 +216,7 @@ class WithdrawalRequestController extends Controller
                 );
 
             } else {
-                $status = 'REJECTED';
+                $status = 'rejected';
                 $message = 'Withdrawal request rejected';
                 
                 // Send notification to customer
@@ -232,8 +232,6 @@ class WithdrawalRequestController extends Controller
                 'status' => $status,
                 'processed_by' => $admin->id,
                 'processed_at' => now(),
-                'admin_notes' => $request->admin_notes,
-                'fee_amount' => $request->input('fee_amount', 0)
             ]);
 
             DB::commit();
@@ -296,7 +294,7 @@ class WithdrawalRequestController extends Controller
             
             // Get the withdrawal request
             $withdrawalRequest = WithdrawalRequest::where('id', $id)
-                ->where('status', 'APPROVED')
+                ->where('status', 'approved')
                 ->first();
 
             if (!$withdrawalRequest) {
@@ -319,7 +317,7 @@ class WithdrawalRequestController extends Controller
             // Get user's account
             $account = DB::table('accounts')
                 ->where('user_id', $user->id)
-                ->where('type', 'current')
+                ->where('account_type', 'TABUNGAN')
                 ->first();
 
             if (!$account) {
@@ -330,7 +328,7 @@ class WithdrawalRequestController extends Controller
                 ], 404);
             }
 
-            $netAmount = $withdrawalRequest->amount - ($withdrawalRequest->fee_amount ?? 0);
+            $netAmount = $withdrawalRequest->amount;
 
             // Check if account has sufficient balance
             if ($account->balance < $netAmount) {
@@ -342,17 +340,16 @@ class WithdrawalRequestController extends Controller
             }
 
             // Create debit transaction
+            $txCode = 'TRX-' . time() . '-' . rand(100000, 999999);
             $transactionId = DB::table('transactions')->insertGetId([
-                'user_id' => $user->id,
-                'account_id' => $account->id,
-                'type' => 'withdrawal',
-                'amount' => -$netAmount, // Negative for debit
-                'fee_amount' => $withdrawalRequest->fee_amount ?? 0,
-                'description' => "Withdrawal to {$withdrawalRequest->withdrawalAccount->bank_name} - {$withdrawalRequest->withdrawalAccount->account_number}",
+                'transaction_code' => $txCode,
+                'from_account_id' => $account->id,
+                'transaction_type' => 'WITHDRAWAL',
+                'amount' => $netAmount,
+                'fee' => 0,
+                'description' => "Withdrawal disbursement - Request #{$id}",
+                'status' => 'SUCCESS',
                 'reference_number' => $request->transaction_reference ?? 'WD-' . time(),
-                'status' => 'completed',
-                'processed_by' => $admin->id,
-                'processed_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
@@ -364,11 +361,9 @@ class WithdrawalRequestController extends Controller
 
             // Update withdrawal request
             $withdrawalRequest->update([
-                'status' => 'COMPLETED',
-                'disbursed_by' => $admin->id,
-                'disbursed_at' => now(),
-                'transaction_reference' => $request->transaction_reference ?? 'WD-' . time(),
-                'admin_notes' => $request->admin_notes
+                'status' => 'completed',
+                'processed_by' => $admin->id,
+                'processed_at' => now(),
             ]);
 
             DB::commit();

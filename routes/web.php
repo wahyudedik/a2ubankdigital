@@ -25,10 +25,10 @@ Route::post('/logout', [AuthPageController::class, 'logout'])->middleware('auth'
 
 /*
 |--------------------------------------------------------------------------
-| Customer Routes
+| Customer Routes (role: Nasabah = 9)
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/dashboard', [UserPageController::class, 'dashboard']);
     Route::get('/history', [UserPageController::class, 'history']);
     Route::get('/payment', [UserPageController::class, 'payment']);
@@ -66,53 +66,90 @@ Route::middleware('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Admin Routes
+| Admin Routes (all staff roles: 1-8)
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->prefix('admin')->group(function () {
+Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,analyst,debt_collector'])->prefix('admin')->group(function () {
+    // Dashboard - semua staff
     Route::get('/dashboard', [AdminPageController::class, 'dashboard']);
-    Route::get('/customers', [AdminPageController::class, 'customers']);
-    Route::get('/customers/add', [AdminPageController::class, 'customerAdd']);
-    Route::post('/customers', [ActionController::class, 'storeCustomer']);
-    Route::get('/customers/{customerId}', [AdminPageController::class, 'customerDetail']);
-    Route::get('/customers/edit/{customerId}', [AdminPageController::class, 'customerEdit']);
-    Route::put('/customers/{id}', [ActionController::class, 'updateCustomer']);
-    Route::put('/customers/{id}/status', [ActionController::class, 'updateCustomerStatus']);
-    Route::get('/topup-requests', [AdminPageController::class, 'topupRequests']);
-    Route::get('/withdrawal-requests', [AdminPageController::class, 'withdrawalRequests']);
-    Route::get('/transactions', [AdminPageController::class, 'transactions']);
-    Route::get('/loan-products', [AdminPageController::class, 'loanProducts']);
-    Route::post('/loan-products', [ActionController::class, 'storeLoanProduct']);
-    Route::put('/loan-products/{id}', [ActionController::class, 'updateLoanProduct']);
-    Route::delete('/loan-products/{id}', [ActionController::class, 'deleteLoanProduct']);
-    Route::get('/deposit-products', [AdminPageController::class, 'depositProducts']);
-    Route::post('/deposit-products', [ActionController::class, 'storeDepositProduct']);
-    Route::put('/deposit-products/{id}', [ActionController::class, 'updateDepositProduct']);
-    Route::get('/deposit-accounts', [AdminPageController::class, 'depositsAccounts']);
-    Route::get('/loan-applications', [AdminPageController::class, 'loanApplications']);
-    Route::get('/loan-applications/{loanId}', [AdminPageController::class, 'loanApplicationDetail']);
-    Route::put('/loans/{id}/status', [ActionController::class, 'updateLoanStatus']);
-    Route::post('/loans/{id}/disburse', [ActionController::class, 'disburseLoan']);
-    Route::get('/loan-accounts', [AdminPageController::class, 'loanAccounts']);
-    Route::get('/units', [AdminPageController::class, 'units']);
-    Route::post('/units', [ActionController::class, 'storeUnit']);
-    Route::put('/units/{id}', [ActionController::class, 'updateUnit']);
-    Route::delete('/units/{id}', [ActionController::class, 'deleteUnit']);
-    Route::get('/card-requests', [AdminPageController::class, 'cardRequests']);
-    Route::get('/staff', [AdminPageController::class, 'staff']);
-    Route::post('/staff', [ActionController::class, 'storeStaff']);
-    Route::get('/staff/{staffId}/edit', [AdminPageController::class, 'staffEdit']);
-    Route::put('/staff/{id}', [ActionController::class, 'updateStaff']);
-    Route::put('/staff/{id}/status', [ActionController::class, 'updateStaffStatus']);
-    Route::post('/staff/{id}/reset-password', [ActionController::class, 'resetStaffPassword']);
-    Route::get('/reports', [AdminPageController::class, 'reports']);
-    Route::get('/settings', [AdminPageController::class, 'settings']);
     Route::get('/notifications', [AdminPageController::class, 'notifications']);
-    Route::get('/audit-log', [AdminPageController::class, 'auditLog']);
-    Route::get('/teller-deposit', [AdminPageController::class, 'tellerDeposit']);
-    Route::get('/teller-loan-payment', [AdminPageController::class, 'tellerLoanPayment']);
-    Route::get('/print-receipt/{transactionId}', [AdminPageController::class, 'printReceipt']);
-    Route::get('/build', [AdminPageController::class, 'build']);
+
+    // Nasabah - semua staff bisa lihat
+    Route::get('/customers', [AdminPageController::class, 'customers']);
+    Route::get('/customers/{customerId}', [AdminPageController::class, 'customerDetail'])->where('customerId', '[0-9]+');
+
+    // Teller operations - teller & cs
+    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
+        Route::get('/teller-deposit', [AdminPageController::class, 'tellerDeposit']);
+        Route::get('/teller-loan-payment', [AdminPageController::class, 'tellerLoanPayment']);
+        Route::get('/print-receipt/{transactionId}', [AdminPageController::class, 'printReceipt']);
+    });
+
+    // Permintaan - teller, cs, manager ke atas
+    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
+        Route::get('/topup-requests', [AdminPageController::class, 'topupRequests']);
+        Route::get('/withdrawal-requests', [AdminPageController::class, 'withdrawalRequests']);
+        Route::get('/card-requests', [AdminPageController::class, 'cardRequests']);
+    });
+
+    // Transaksi - semua staff bisa lihat
+    Route::get('/transactions', [AdminPageController::class, 'transactions']);
+
+    // Pinjaman - manager ke atas + analis kredit
+    Route::middleware('role:super_admin,admin,manager,analyst')->group(function () {
+        Route::get('/loan-applications', [AdminPageController::class, 'loanApplications']);
+        Route::get('/loan-applications/{loanId}', [AdminPageController::class, 'loanApplicationDetail']);
+        Route::put('/loans/{id}/status', [ActionController::class, 'updateLoanStatus']);
+        Route::post('/loans/{id}/disburse', [ActionController::class, 'disburseLoan']);
+        Route::get('/loan-accounts', [AdminPageController::class, 'loanAccounts']);
+    });
+
+    // Produk & Deposito - manager ke atas
+    Route::middleware('role:super_admin,admin,manager')->group(function () {
+        Route::get('/loan-products', [AdminPageController::class, 'loanProducts']);
+        Route::post('/loan-products', [ActionController::class, 'storeLoanProduct']);
+        Route::put('/loan-products/{id}', [ActionController::class, 'updateLoanProduct']);
+        Route::delete('/loan-products/{id}', [ActionController::class, 'deleteLoanProduct']);
+        Route::get('/deposit-products', [AdminPageController::class, 'depositProducts']);
+        Route::post('/deposit-products', [ActionController::class, 'storeDepositProduct']);
+        Route::put('/deposit-products/{id}', [ActionController::class, 'updateDepositProduct']);
+        Route::get('/deposit-accounts', [AdminPageController::class, 'depositsAccounts']);
+    });
+
+    // Tambah/edit nasabah - teller, cs, manager ke atas
+    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
+        Route::get('/customers/add', [AdminPageController::class, 'customerAdd']);
+        Route::post('/customers', [ActionController::class, 'storeCustomer']);
+        Route::get('/customers/edit/{customerId}', [AdminPageController::class, 'customerEdit']);
+        Route::put('/customers/{id}', [ActionController::class, 'updateCustomer']);
+        Route::put('/customers/{id}/status', [ActionController::class, 'updateCustomerStatus']);
+    });
+
+    // Struktur organisasi - admin ke atas
+    Route::middleware('role:super_admin,admin')->group(function () {
+        Route::get('/units', [AdminPageController::class, 'units']);
+        Route::post('/units', [ActionController::class, 'storeUnit']);
+        Route::put('/units/{id}', [ActionController::class, 'updateUnit']);
+        Route::delete('/units/{id}', [ActionController::class, 'deleteUnit']);
+        Route::get('/staff', [AdminPageController::class, 'staff']);
+        Route::post('/staff', [ActionController::class, 'storeStaff']);
+        Route::get('/staff/{staffId}/edit', [AdminPageController::class, 'staffEdit']);
+        Route::put('/staff/{id}', [ActionController::class, 'updateStaff']);
+        Route::put('/staff/{id}/status', [ActionController::class, 'updateStaffStatus']);
+        Route::post('/staff/{id}/reset-password', [ActionController::class, 'resetStaffPassword']);
+    });
+
+    // Laporan - manager ke atas + marketing
+    Route::middleware('role:super_admin,admin,manager,marketing')->group(function () {
+        Route::get('/reports', [AdminPageController::class, 'reports']);
+    });
+
+    // Pengaturan & Audit - super admin & admin saja
+    Route::middleware('role:super_admin,admin')->group(function () {
+        Route::get('/settings', [AdminPageController::class, 'settings']);
+        Route::get('/audit-log', [AdminPageController::class, 'auditLog']);
+        Route::get('/build', [AdminPageController::class, 'build']);
+    });
 });
 
 /*

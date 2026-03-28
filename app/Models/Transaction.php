@@ -19,9 +19,10 @@ class Transaction extends Model
         'fee',
         'description',
         'status',
-        'processed_by',
-        'external_ref_id',
-        'external_sn'
+        'reference_number',
+        'external_bank_code',
+        'external_account_number',
+        'external_account_name'
     ];
 
     protected $casts = [
@@ -43,14 +44,6 @@ class Transaction extends Model
     public function toAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'to_account_id');
-    }
-
-    /**
-     * Get the staff who processed the transaction
-     */
-    public function processor(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'processed_by');
     }
 
     /**

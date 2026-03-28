@@ -124,12 +124,12 @@ class StaffController extends Controller
         DB::beginTransaction();
         try {
             $staff = User::create([
+                'bank_id' => date('Ymd') . str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT),
                 'role_id' => $request->role_id,
                 'full_name' => $request->full_name,
                 'email' => $request->email,
-                'password' => Hash::make('password123'), // Default password
-                'phone_number' => $request->phone_number,
-                'unit_id' => $request->unit_id,
+                'password_hash' => Hash::make('password123'), // Default password
+                'phone_number' => $request->phone_number ?? '',
                 'status' => 'ACTIVE'
             ]);
 
@@ -202,7 +202,7 @@ class StaffController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:ACTIVE,INACTIVE,SUSPENDED'
+            'status' => 'required|in:ACTIVE,BLOCKED,SUSPENDED'
         ]);
 
         $staff = User::where('role_id', '!=', 9)->findOrFail($id);
@@ -225,8 +225,8 @@ class StaffController extends Controller
             ['status' => $request->status]
         );
 
-        // Notify staff if status changed to inactive/suspended
-        if (in_array($request->status, ['INACTIVE', 'SUSPENDED'])) {
+        // Notify staff if status changed to blocked/suspended
+        if (in_array($request->status, ['BLOCKED', 'SUSPENDED'])) {
             $this->notificationService->notifyUser(
                 $staff->id,
                 'Status Akun Diperbarui',
@@ -258,7 +258,7 @@ class StaffController extends Controller
 
         $newPassword = 'password123';
         $staff->update([
-            'password' => Hash::make($newPassword)
+            'password_hash' => Hash::make($newPassword)
         ]);
 
         // Log password reset

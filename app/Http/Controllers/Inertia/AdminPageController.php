@@ -28,11 +28,11 @@ class AdminPageController extends Controller
         $feeRevenueMonthly = (float) (Transaction::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->where('status', 'SUCCESS')->sum('fee') ?? 0);
         $newCustomersMonthly = User::where('role_id', 9)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
 
-        $pendingTopups = DB::table('topup_requests')->where('status', 'PENDING')->count();
-        $pendingWithdrawals = DB::table('withdrawal_requests')->where('status', 'PENDING')->count();
+        $pendingTopups = DB::table('topup_requests')->where('status', 'pending')->count();
+        $pendingWithdrawals = DB::table('withdrawal_requests')->where('status', 'pending')->count();
         $pendingLoans = Loan::where('status', 'SUBMITTED')->count();
         $pendingLoanDisbursements = Loan::where('status', 'APPROVED')->count();
-        $pendingWithdrawalDisbursements = DB::table('withdrawal_requests')->where('status', 'APPROVED')->count();
+        $pendingWithdrawalDisbursements = DB::table('withdrawal_requests')->where('status', 'approved')->count();
 
         $recentActivities = DB::table('transactions as t')
             ->leftJoin('accounts as from_acc', 't.from_account_id', '=', 'from_acc.id')
@@ -247,7 +247,7 @@ class AdminPageController extends Controller
 
     public function topupRequests(Request $request)
     {
-        $status = $request->input('status', 'PENDING');
+        $status = $request->input('status', 'pending');
         $requests = DB::table('topup_requests as tr')
             ->join('users as u', 'tr.user_id', '=', 'u.id')
             ->select(['tr.*', 'u.full_name as customer_name'])
@@ -257,7 +257,7 @@ class AdminPageController extends Controller
 
     public function withdrawalRequests(Request $request)
     {
-        $status = $request->input('status', 'PENDING');
+        $status = $request->input('status', 'pending');
         $requests = DB::table('withdrawal_requests as wr')
             ->join('users as u', 'wr.user_id', '=', 'u.id')
             ->leftJoin('withdrawal_accounts as wa', 'wr.withdrawal_account_id', '=', 'wa.id')

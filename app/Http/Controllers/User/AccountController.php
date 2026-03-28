@@ -49,7 +49,7 @@ class AccountController extends Controller
             $user = Auth::user();
             
             // Verify password
-            if (!password_verify($request->confirmation_password, $user->password)) {
+            if (!password_verify($request->confirmation_password, $user->password_hash)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid password confirmation'
@@ -57,7 +57,7 @@ class AccountController extends Controller
             }
 
             // Check if user has active loans
-            $activeLoans = $user->loans()->where('status', 'active')->count();
+            $activeLoans = $user->loans()->where('status', 'ACTIVE')->count();
             if ($activeLoans > 0) {
                 return response()->json([
                     'success' => false,
@@ -67,7 +67,7 @@ class AccountController extends Controller
 
             // Check if user has pending transactions
             $pendingTransactions = $user->transactions()
-                ->whereIn('status', ['pending', 'processing'])
+                ->whereIn('status', ['PENDING'])
                 ->count();
             
             if ($pendingTransactions > 0) {
@@ -83,10 +83,6 @@ class AccountController extends Controller
             $closureRequest = DB::table('account_closure_requests')->insertGetId([
                 'user_id' => $user->id,
                 'reason' => $request->reason,
-                'requested_closure_date' => $request->closure_date,
-                'transfer_remaining_balance' => $request->transfer_remaining_balance,
-                'transfer_account_number' => $request->transfer_account_number,
-                'current_balance' => $user->account->balance,
                 'status' => 'pending',
                 'requested_at' => now(),
                 'created_at' => now(),

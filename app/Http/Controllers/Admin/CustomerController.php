@@ -313,15 +313,14 @@ class CustomerController extends Controller
                 if ($closureRequest->transfer_remaining_balance && $account->balance > 0) {
                     // Create transfer transaction
                     Transaction::create([
-                        'user_id' => $user->id,
-                        'account_id' => $account->id,
-                        'type' => 'transfer_out',
+                        'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
+                        'from_account_id' => $account->id,
+                        'transaction_type' => 'WITHDRAWAL',
                         'amount' => $account->balance,
+                        'fee' => 0,
                         'description' => 'Account closure - balance transfer',
-                        'recipient_account' => $closureRequest->transfer_account_number,
-                        'status' => 'completed',
-                        'reference_number' => 'AC' . time() . rand(1000, 9999),
-                        'processed_at' => now()
+                        'status' => 'SUCCESS',
+                        'reference_number' => 'AC' . time() . rand(1000, 9999)
                     ]);
 
                     // Update account balance
@@ -330,15 +329,12 @@ class CustomerController extends Controller
 
                 // Close the account
                 $account->update([
-                    'status' => 'closed',
-                    'closed_at' => now(),
-                    'closed_by' => $admin->id
+                    'status' => 'CLOSED',
                 ]);
 
                 // Deactivate user
                 $user->update([
-                    'status' => 'inactive',
-                    'account_closed_at' => now()
+                    'status' => 'BLOCKED',
                 ]);
 
                 $status = 'approved';
@@ -373,8 +369,6 @@ class CustomerController extends Controller
                     'status' => $status,
                     'processed_by' => $admin->id,
                     'processed_at' => now(),
-                    'admin_notes' => $request->admin_notes,
-                    'rejection_reason' => $request->rejection_reason,
                     'updated_at' => now()
                 ]);
 

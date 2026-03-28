@@ -140,8 +140,7 @@ class EWalletController extends Controller
                 'fee' => $fee,
                 'description' => $description,
                 'status' => 'SUCCESS',
-                'external_ref_id' => 'EWALLET-' . time() . '-' . rand(100000, 999999),
-                'external_sn' => 'SN' . time() . rand(1000, 9999) // Serial number from provider
+                'reference_number' => 'EWALLET-' . time() . '-' . rand(100000, 999999)
             ]);
 
             // Log the top-up
@@ -167,8 +166,7 @@ class EWalletController extends Controller
                 'data' => [
                     'transaction_id' => $transaction->id,
                     'transaction_code' => $transaction->transaction_code,
-                    'external_ref_id' => $transaction->external_ref_id,
-                    'serial_number' => $transaction->external_sn,
+                    'reference_number' => $transaction->reference_number,
                     'provider' => $request->ewallet_provider,
                     'phone_number' => $request->phone_number,
                     'amount' => $request->amount,

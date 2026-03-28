@@ -97,17 +97,24 @@ class CardRequestController extends Controller
 
                 // Generate card number
                 $cardNumber = $this->generateCardNumber();
+                $maskedCardNumber = substr($cardNumber, 0, 4) . '-****-****-' . substr($cardNumber, -4);
+
+                // Get user's savings account
+                $userAccount = \App\Models\Account::where('user_id', $cardRequest->user_id)
+                    ->where('account_type', 'TABUNGAN')
+                    ->first();
 
                 // Create card
                 Card::create([
                     'user_id' => $cardRequest->user_id,
-                    'card_number' => $cardNumber,
-                    'card_type' => $cardRequest->card_type,
-                    'status' => 'ACTIVE',
+                    'account_id' => $userAccount ? $userAccount->id : null,
+                    'card_number_masked' => $maskedCardNumber,
+                    'card_type' => strtolower($cardRequest->card_type),
+                    'status' => 'active',
                     'daily_limit' => $cardRequest->card_type === 'DEBIT' ? 5000000 : 10000000,
-                    'monthly_limit' => $cardRequest->card_type === 'DEBIT' ? 50000000 : 100000000,
-                    'issued_at' => now(),
-                    'expires_at' => now()->addYears(3)
+                    'requested_at' => $cardRequest->created_at,
+                    'activated_at' => now(),
+                    'expiry_date' => now()->addYears(3)->toDateString()
                 ]);
 
                 // Notify customer
@@ -162,7 +169,7 @@ class CardRequestController extends Controller
         do {
             // Generate 16-digit card number starting with 4 (Visa-like)
             $cardNumber = '4' . str_pad(rand(0, 999999999999999), 15, '0', STR_PAD_LEFT);
-        } while (Card::where('card_number', $cardNumber)->exists());
+        } while (Card::where('card_number_masked', 'LIKE', substr($cardNumber, 0, 4) . '%' . substr($cardNumber, -4))->exists());
 
         return $cardNumber;
     }

@@ -15,6 +15,7 @@
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10",
+        "minishlink/web-push": "^10.0",
         "spatie/laravel-permission": "^6.0"
     },
     "require-dev": {

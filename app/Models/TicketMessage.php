@@ -6,42 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class TicketMessage extends Model
 {
-    protected $table = 'ticket_messages';
+    protected $table = 'support_ticket_replies';
 
     protected $fillable = [
         'ticket_id',
-        'sender_id',
-        'message',
-        'is_from_customer'
+        'user_id',
+        'message'
     ];
 
-    protected $casts = [
-        'is_from_customer' => 'boolean'
-    ];
+    protected $casts = [];
 
     public function ticket()
     {
         return $this->belongsTo(Ticket::class);
     }
 
-    public function sender()
+    public function user()
     {
-        return $this->belongsTo(User::class, 'sender_id');
-    }
-
-    /**
-     * Scope for customer messages
-     */
-    public function scopeFromCustomer($query)
-    {
-        return $query->where('is_from_customer', true);
-    }
-
-    /**
-     * Scope for staff messages
-     */
-    public function scopeFromStaff($query)
-    {
-        return $query->where('is_from_customer', false);
+        return $this->belongsTo(User::class);
     }
 }

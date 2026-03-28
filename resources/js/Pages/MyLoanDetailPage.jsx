@@ -18,7 +18,7 @@ const MyLoanDetailPage = () => {
         const totalDue = parseFloat(installment.amount_due) + parseFloat(installment.penalty_amount || 0);
         const confirmed = await modal.showConfirmation({ title: "Konfirmasi Pembayaran", message: `Anda akan membayar angsuran sebesar ${formatCurrency(totalDue)} (termasuk denda jika ada). Lanjutkan?`, confirmText: "Ya, Bayar Sekarang" });
         if (confirmed) {
-            const result = await callApi('user_pay_installment.php', 'POST', { installment_id: installment.id });
+            const result = await callApi('user_pay_installment.php', 'POST', { installment_id: installment.id, loan_id: detail.id });
             if (result && result.status === 'success') { await modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
             else { await modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }

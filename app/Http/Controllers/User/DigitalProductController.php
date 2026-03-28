@@ -180,7 +180,7 @@ class DigitalProductController extends Controller
                 'amount' => $product['price'],
                 'fee' => 0,
                 'description' => "Pembelian {$product['name']} - {$request->destination}",
-                'status' => 'PROCESSING'
+                'status' => 'PENDING'
             ]);
 
             // Deduct balance

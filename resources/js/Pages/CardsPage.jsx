@@ -30,8 +30,8 @@ const CardsPage = () => {
     };
 
     const handleUpdateStatus = async (cardId, currentStatus) => {
-        const newStatus = currentStatus === 'BLOCKED' ? 'ACTIVE' : 'BLOCKED';
-        const actionText = newStatus === 'ACTIVE' ? 'membuka blokir' : 'memblokir';
+        const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
+        const actionText = newStatus === 'active' ? 'membuka blokir' : 'memblokir';
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi ${actionText} kartu`, message: `Apakah Anda yakin ingin ${actionText} kartu ini?`, confirmText: `Ya, ${actionText}` });
         if (confirmed) { const result = await callApi('user_update_card_status.php', 'POST', { card_id: cardId, new_status: newStatus }); if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); } }
     };
@@ -52,7 +52,7 @@ const CardsPage = () => {
                         <DebitCard card={card} />
                         <div className="bg-white -mt-2 rounded-b-xl shadow-lg flex justify-around items-center border-t">
                             <ActionButton onClick={() => openLimitModal(card)} icon={<Edit size={16} />} className="text-gray-600 hover:bg-gray-100 rounded-bl-xl">Limit</ActionButton>
-                            <ActionButton onClick={() => handleUpdateStatus(card.id, card.status)} icon={card.status === 'BLOCKED' ? <Unlock size={16} /> : <Lock size={16} />} className={card.status === 'BLOCKED' ? 'text-green-600 hover:bg-green-50' : 'text-red-600 hover:bg-red-50 rounded-br-xl'}>{card.status === 'BLOCKED' ? 'Buka Blokir' : 'Blokir'}</ActionButton>
+                            <ActionButton onClick={() => handleUpdateStatus(card.id, card.status)} icon={card.status === 'blocked' ? <Unlock size={16} /> : <Lock size={16} />} className={card.status === 'blocked' ? 'text-green-600 hover:bg-green-50' : 'text-red-600 hover:bg-red-50 rounded-br-xl'}>{card.status === 'blocked' ? 'Buka Blokir' : 'Blokir'}</ActionButton>
                         </div>
                     </div>
                 ))}

@@ -54,7 +54,7 @@ class StandingInstruction extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('status', 'ACTIVE');
+        return $query->where('status', 'active');
     }
 
     /**
@@ -62,7 +62,7 @@ class StandingInstruction extends Model
      */
     public function scopePaused($query)
     {
-        return $query->where('status', 'PAUSED');
+        return $query->where('status', 'paused');
     }
 
     /**
@@ -70,7 +70,7 @@ class StandingInstruction extends Model
      */
     public function scopeEnded($query)
     {
-        return $query->where('status', 'ENDED');
+        return $query->where('status', 'ended');
     }
 
     /**
@@ -80,7 +80,7 @@ class StandingInstruction extends Model
     {
         $today = now();
         
-        return $query->where('status', 'ACTIVE')
+        return $query->where('status', 'active')
                     ->where('start_date', '<=', $today->toDateString())
                     ->where(function($q) use ($today) {
                         $q->whereNull('end_date')
@@ -89,12 +89,12 @@ class StandingInstruction extends Model
                     ->where(function($q) use ($today) {
                         // Monthly frequency
                         $q->where(function($monthly) use ($today) {
-                            $monthly->where('frequency', 'MONTHLY')
+                            $monthly->where('frequency', 'monthly')
                                    ->where('execution_day', $today->day);
                         })
                         // Weekly frequency  
                         ->orWhere(function($weekly) use ($today) {
-                            $weekly->where('frequency', 'WEEKLY')
+                            $weekly->where('frequency', 'weekly')
                                    ->where('execution_day', $today->dayOfWeek);
                         });
                     });
@@ -108,7 +108,7 @@ class StandingInstruction extends Model
         $today = now();
         
         // Check if active and within date range
-        if ($this->status !== 'ACTIVE') {
+        if ($this->status !== 'active') {
             return false;
         }
         
@@ -126,9 +126,9 @@ class StandingInstruction extends Model
         }
         
         // Check frequency
-        if ($this->frequency === 'MONTHLY') {
+        if ($this->frequency === 'monthly') {
             return $this->execution_day === $today->day;
-        } elseif ($this->frequency === 'WEEKLY') {
+        } elseif ($this->frequency === 'weekly') {
             return $this->execution_day === $today->dayOfWeek;
         }
         

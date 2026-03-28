@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { AppConfig } from '@/config';
 import Button from '@/components/ui/Button';
+import WhatsAppFloat from '@/components/ui/WhatsAppFloat';
 import { Menu, X, BarChart2, CreditCard, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const FaqItem = ({ question, answer }) => {
@@ -68,6 +69,7 @@ const LandingPage = () => {
             <section id="features" className="py-20 bg-gray-100"><div className="container mx-auto px-6 text-center"><h2 className="text-3xl font-bold mb-12 text-bpn-blue-900">Satu Aplikasi, Berbagai Kemudahan</h2><div className="grid md:grid-cols-3 gap-12">{features.map(feature => (<div key={feature.title}><div className="bg-white w-24 h-24 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg border">{feature.icon}</div><h3 className="text-2xl font-bold mb-2">{feature.title}</h3><p className="text-gray-600">{feature.description}</p></div>))}</div></div></section>
             <section id="about" className="py-20"><div className="container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center"><div><h2 className="text-3xl font-bold mb-4 text-bpn-blue-900">Membawa Layanan Perbankan Syariah Terbaik untuk Anda</h2><p className="text-gray-600 mb-4">A2U Bank Digital berkomitmen untuk menyediakan solusi keuangan yang tidak hanya modern dan mudah diakses, tetapi juga berlandaskan pada nilai-nilai keadilan dan transparansi. Kami hadir untuk menjadi mitra terpercaya dalam setiap langkah perjalanan finansial Anda.</p></div><div id="faq" className="space-y-4">{faqs.map((faq, index) => (<FaqItem key={index} question={faq.question} answer={faq.answer} />))}</div></div></section>
             <footer className="py-12 bg-gray-800 text-white"><div className="container mx-auto px-6 text-center text-gray-400"><img src="/a2u-logo.png" alt="A2U Bank Digital Logo" className="h-8 mx-auto mb-4" /><p>&copy; {new Date().getFullYear()} A2U Bank Digital. Semua Hak Cipta Dilindungi.</p></div></footer>
+            <WhatsAppFloat />
         </div>
     );
 };

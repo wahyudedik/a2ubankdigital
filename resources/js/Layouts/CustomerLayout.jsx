@@ -1,11 +1,11 @@
 import React from 'react';
 import { usePage, router } from '@inertiajs/react';
 import MainLayout from '@/components/layout/MainLayout';
+import WhatsAppFloat from '@/components/ui/WhatsAppFloat';
 
 const CustomerLayout = ({ children }) => {
     const { auth } = usePage().props;
 
-    // Fallback to localStorage if auth not available from server
     let user = auth?.user;
     if (!user) {
         try {
@@ -22,6 +22,7 @@ const CustomerLayout = ({ children }) => {
     return (
         <MainLayout user={user} onLogout={handleLogout}>
             {children}
+            <WhatsAppFloat />
         </MainLayout>
     );
 };

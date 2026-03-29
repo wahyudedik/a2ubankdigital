@@ -19,6 +19,7 @@ const TopUpPage = () => {
     // State untuk alur UI
     const [selectedMethod, setSelectedMethod] = useState('');
     const [selectedBankIndex, setSelectedBankIndex] = useState('');
+    const [showQrisZoom, setShowQrisZoom] = useState(false);
 
     // State untuk form
     const [amount, setAmount] = useState('');
@@ -27,7 +28,7 @@ const TopUpPage = () => {
 
     useEffect(() => {
         const fetchMethods = async () => {
-            const result = await callApi('utility_get_payment_methods.php');
+            const result = await callApi('utility/payment-methods');
             if (result && result.status === 'success') {
                 setPaymentMethods(result.data);
             }
@@ -127,15 +128,17 @@ const TopUpPage = () => {
                 {selectedMethod === 'qris' && paymentMethods.qris_image_url && (
                     <div className="text-center p-4 border rounded-lg bg-gray-50">
                         <h3 className="font-semibold mb-2">Silakan Pindai QRIS di Bawah</h3>
-                        {/* --- KODE YANG DIPERBARUI DIMULAI DI SINI --- */}
-                        <div className="w-56 h-56 mx-auto border rounded-lg bg-white p-2 flex items-center justify-center">
+                        <div
+                            className="w-72 h-72 mx-auto border rounded-lg bg-white p-2 flex items-center justify-center cursor-pointer"
+                            onClick={() => setShowQrisZoom(true)}
+                        >
                             <img
                                 src={paymentMethods.qris_image_url}
                                 alt="QRIS Code"
                                 className="w-full h-full object-contain"
                             />
                         </div>
-                        {/* --- KODE YANG DIPERBARUI BERAKHIR DI SINI --- */}
+                        <p className="text-xs text-gray-400 mt-2">Ketuk gambar untuk memperbesar</p>
                     </div>
                 )}
                 {selectedMethod === 'bank' && (
@@ -181,6 +184,19 @@ const TopUpPage = () => {
                 {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
                 <Button type="submit" fullWidth disabled={loading} className="mt-4">{loading ? 'Mengirim...' : 'Kirim Konfirmasi'}</Button>
             </form>
+
+            {showQrisZoom && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setShowQrisZoom(false)}>
+                    <div className="relative bg-white rounded-lg p-4 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => setShowQrisZoom(false)} className="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
+                        <img
+                            src={paymentMethods.qris_image_url}
+                            alt="QRIS Code"
+                            className="w-full h-auto object-contain"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

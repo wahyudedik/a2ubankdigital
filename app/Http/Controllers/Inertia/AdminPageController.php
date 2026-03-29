@@ -79,7 +79,7 @@ class AdminPageController extends Controller
 
     public function customerDetail($customerId)
     {
-        $customer = User::with(['customerProfile', 'accounts.depositProduct'])->where('role_id', 9)->findOrFail($customerId);
+        $customer = User::with(['customerProfile.unit', 'accounts.depositProduct'])->where('role_id', 9)->findOrFail($customerId);
         $loans = Loan::where('user_id', $customerId)->with(['loanProduct', 'installments'])->orderBy('created_at', 'desc')->get();
         $profile = $customer->customerProfile;
 
@@ -91,23 +91,43 @@ class AdminPageController extends Controller
                 'pob' => $profile?->pob, 'dob' => $profile?->dob, 'gender' => $profile?->gender,
                 'address_ktp' => $profile?->address_ktp, 'ktp_image_path' => $profile?->ktp_image_path,
                 'selfie_image_path' => $profile?->selfie_image_path,
-                'branch_name' => $profile?->unit?->unit_name ?? '-', 'unit_name' => $profile?->unit?->unit_name ?? '-',
+                'branch_name' => $profile?->unit?->unit_name ?? '-', 
+                'unit_name' => $profile?->unit?->unit_name ?? '-',
                 'accounts' => $customer->accounts->map(fn($a) => [
                     'id' => $a->id, 'account_number' => $a->account_number, 'balance' => (float)$a->balance,
                     'account_type' => $a->account_type, 'status' => $a->status,
                     'deposit_product_name' => $a->depositProduct?->product_name,
-                    'interest_earned' => 0, 'maturity_date' => $a->maturity_date,
+                    'interest_earned' => $a->account_type === 'DEPOSITO' ? $this->calculateDepositInterest($a) : 0, 
+                    'maturity_date' => $a->maturity_date,
                 ]),
                 'loans' => $loans->map(fn($l) => [
                     'id' => $l->id, 'product_name' => $l->loanProduct?->product_name, 'loan_amount' => (float)$l->loan_amount,
                     'tenor' => $l->tenor, 'tenor_unit' => $l->tenor_unit, 'status' => $l->status,
                     'installments' => $l->installments->map(fn($i) => [
                         'id' => $i->id, 'installment_number' => $i->installment_number, 'due_date' => $i->due_date,
-                        'amount_due' => (float)$i->total_amount, 'penalty_amount' => 0, 'status' => $i->status,
+                        'amount_due' => (float)$i->total_amount, 
+                        'penalty_amount' => (float)$i->late_fee, 
+                        'status' => $i->status,
                     ]),
                 ]),
             ],
         ]);
+    }
+
+    private function calculateDepositInterest($account)
+    {
+        if (!$account->depositProduct || !$account->created_at) {
+            return 0;
+        }
+        
+        $principal = (float)$account->balance;
+        $annualRate = (float)$account->depositProduct->interest_rate_pa / 100;
+        $daysElapsed = now()->diffInDays($account->created_at);
+        
+        // Simple interest calculation: Principal * Rate * (Days/365)
+        $interest = $principal * $annualRate * ($daysElapsed / 365);
+        
+        return round($interest, 2);
     }
 
     public function customerAdd()
@@ -157,11 +177,18 @@ class AdminPageController extends Controller
                 'id' => $loan->id, 'customer_name' => $loan->user?->full_name, 'email' => $loan->user?->email,
                 'phone_number' => $loan->user?->phone_number, 'product_name' => $loan->loanProduct?->product_name,
                 'loan_amount' => (float)$loan->loan_amount, 'tenor' => $loan->tenor, 'tenor_unit' => $loan->tenor_unit,
+                'monthly_installment' => (float)$loan->monthly_installment,
+                'total_interest' => (float)$loan->total_interest,
+                'total_repayment' => (float)$loan->total_repayment,
+                'purpose' => $loan->purpose,
                 'status' => $loan->status, 'application_date' => $loan->created_at,
+                'rejection_reason' => $loan->rejection_reason,
                 'installments' => $loan->installments->map(fn($i) => [
                     'id' => $i->id, 'installment_number' => $i->installment_number, 'due_date' => $i->due_date,
                     'amount_due' => (float)$i->total_amount, 'principal_amount' => (float)$i->principal_amount,
-                    'interest_amount' => (float)$i->interest_amount, 'penalty_amount' => 0, 'status' => $i->status,
+                    'interest_amount' => (float)$i->interest_amount, 
+                    'penalty_amount' => (float)$i->late_fee, 
+                    'status' => $i->status,
                 ]),
             ],
         ]);
@@ -183,15 +210,18 @@ class AdminPageController extends Controller
             ->map(fn($l) => [
                 'id' => $l->id, 'customer_name' => $l->user?->full_name, 'product_name' => $l->loanProduct?->product_name,
                 'loan_amount' => (float)$l->loan_amount, 'status' => $l->status,
-                'outstanding_principal' => (float)($l->installments()->where('status', 'PENDING')->sum('principal_amount') ?? 0),
+                'outstanding_principal' => (float)($l->installments()->whereIn('status', ['PENDING', 'OVERDUE'])->sum('principal_amount') ?? 0),
+                'next_due_date' => $l->installments()->whereIn('status', ['PENDING', 'OVERDUE'])->orderBy('due_date')->value('due_date'),
+                'overdue_installments_count' => $l->installments()->where('status', 'OVERDUE')->count(),
             ]);
 
         $activeLoansCount = Loan::whereIn('status', ['DISBURSED', 'ACTIVE'])->count();
         $totalActiveLoans = (float)(Loan::whereIn('status', ['DISBURSED', 'ACTIVE'])->sum('loan_amount') ?? 0);
+        $overdueLoansCount = Loan::whereHas('installments', fn($q) => $q->where('status', 'OVERDUE'))->count();
 
         return Inertia::render('AdminLoansListPage', [
             'loans' => $loans,
-            'summary' => ['totalActiveLoans' => $totalActiveLoans, 'activeLoansCount' => $activeLoansCount, 'overdueLoansCount' => 0],
+            'summary' => ['totalActiveLoans' => $totalActiveLoans, 'activeLoansCount' => $activeLoansCount, 'overdueLoansCount' => $overdueLoansCount],
             'pagination' => ['current_page' => (int)$page, 'total_pages' => (int)ceil($total / $limit), 'total_records' => $total],
             'filters' => ['search' => $search, 'status' => $status],
         ]);
@@ -268,8 +298,17 @@ class AdminPageController extends Controller
         $requests = DB::table('withdrawal_requests as wr')
             ->join('users as u', 'wr.user_id', '=', 'u.id')
             ->leftJoin('withdrawal_accounts as wa', 'wr.withdrawal_account_id', '=', 'wa.id')
-            ->select(['wr.*', 'u.full_name as customer_name', 'wa.bank_name', 'wa.account_number as dest_account_number', 'wa.account_name'])
-            ->where('wr.status', $status)->orderBy('wr.created_at', 'desc')->get();
+            ->select([
+                'wr.id', 'wr.amount', 'wr.status', 'wr.created_at', 'wr.processed_at',
+                'u.full_name as customer_name', 
+                'wa.bank_name', 
+                'wa.account_number', 
+                'wa.account_name'
+            ])
+            ->where('wr.status', $status)
+            ->orderBy('wr.created_at', 'desc')
+            ->get();
+            
         return Inertia::render('AdminWithdrawalRequestsPage', ['requests' => $requests, 'filters' => ['status' => $status]]);
     }
 

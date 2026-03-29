@@ -70,9 +70,9 @@ class TransactionController extends Controller
                 'transactions.amount',
                 'transactions.status',
                 'transactions.created_at',
-                DB::raw("IF(transactions.to_account_id IN (" . implode(',', $userAccountIds) . ") OR transactions.transaction_type LIKE 'LOAN_DISBURSEMENT%', 'KREDIT', 'DEBIT') as flow"),
+                DB::raw("IF(transactions.to_account_id IN (" . implode(',', array_map('intval', $userAccountIds)) . ") OR transactions.transaction_type LIKE 'LOAN_DISBURSEMENT%', 'KREDIT', 'DEBIT') as flow"),
                 DB::raw("(CASE
-                    WHEN transactions.to_account_id IN (" . implode(',', $userAccountIds) . ") AND transactions.transaction_type IN ('TRANSFER_INTERNAL', 'TRANSFER_QR') THEN CONCAT('Transfer dari ', from_user.full_name)
+                    WHEN transactions.to_account_id IN (" . implode(',', array_map('intval', $userAccountIds)) . ") AND transactions.transaction_type IN ('TRANSFER_INTERNAL', 'TRANSFER_QR') THEN CONCAT('Transfer dari ', from_user.full_name)
                     WHEN transactions.transaction_type = 'LOAN_PAYMENT' THEN 'Pembayaran Angsuran'
                     ELSE transactions.description
                 END) as description")

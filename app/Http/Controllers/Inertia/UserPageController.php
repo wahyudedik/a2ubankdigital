@@ -31,14 +31,14 @@ class UserPageController extends Controller
             ->leftJoin('accounts as from_acc', 't.from_account_id', '=', 'from_acc.id')
             ->leftJoin('users as from_user', 'from_acc.user_id', '=', 'from_user.id')
             ->select('t.transaction_code', 't.transaction_type', 't.amount',
-                DB::raw("CASE WHEN t.to_account_id = {$account->id} AND t.transaction_type = 'TRANSFER_INTERNAL' THEN CONCAT('Transfer dari ', from_user.full_name) ELSE t.description END as description"),
-                't.created_at', DB::raw("IF(t.to_account_id = {$account->id}, 'KREDIT', 'DEBIT') as flow"))
+                DB::raw("CASE WHEN t.to_account_id = " . intval($account->id) . " AND t.transaction_type = 'TRANSFER_INTERNAL' THEN CONCAT('Transfer dari ', from_user.full_name) ELSE t.description END as description"),
+                't.created_at', DB::raw("IF(t.to_account_id = " . intval($account->id) . ", 'KREDIT', 'DEBIT') as flow"))
             ->where(fn($q) => $q->where('t.from_account_id', $account->id)->orWhere('t.to_account_id', $account->id))
             ->orderBy('t.created_at', 'desc')->limit(5)->get();
 
         // Weekly summary
         $weeklyData = DB::table('transactions')
-            ->select(DB::raw('DATE(created_at) as d'), DB::raw("SUM(CASE WHEN to_account_id = {$account->id} THEN amount ELSE 0 END) as inc"), DB::raw("SUM(CASE WHEN from_account_id = {$account->id} THEN amount ELSE 0 END) as exp"))
+            ->select(DB::raw('DATE(created_at) as d'), DB::raw("SUM(CASE WHEN to_account_id = " . intval($account->id) . " THEN amount ELSE 0 END) as inc"), DB::raw("SUM(CASE WHEN from_account_id = " . intval($account->id) . " THEN amount ELSE 0 END) as exp"))
             ->where(fn($q) => $q->where('from_account_id', $account->id)->orWhere('to_account_id', $account->id))
             ->where('created_at', '>=', now()->subDays(6)->startOfDay())->where('status', 'SUCCESS')
             ->groupBy('d')->orderBy('d')->get()->keyBy('d');
@@ -69,7 +69,7 @@ class UserPageController extends Controller
 
         $query = DB::table('transactions as t')
             ->where(fn($q) => $q->where('t.from_account_id', $account?->id)->orWhere('t.to_account_id', $account?->id))
-            ->select('t.*', DB::raw("IF(t.to_account_id = " . ($account?->id ?? 0) . ", 'KREDIT', 'DEBIT') as flow"));
+            ->select('t.*', DB::raw("IF(t.to_account_id = " . intval($account?->id ?? 0) . ", 'KREDIT', 'DEBIT') as flow"));
 
         if ($request->type) $query->where('t.transaction_type', $request->type);
         if ($request->start_date) $query->whereDate('t.created_at', '>=', $request->start_date);
@@ -115,11 +115,19 @@ class UserPageController extends Controller
         $loan = Loan::where('user_id', Auth::id())->with(['loanProduct', 'installments'])->findOrFail($loanId);
         return Inertia::render('MyLoanDetailPage', [
             'loan' => [
-                'id' => $loan->id, 'product_name' => $loan->loanProduct?->product_name, 'loan_amount' => (float)$loan->loan_amount,
+                'id' => $loan->id, 'product_name' => $loan->loanProduct?->product_name, 
+                'loan_amount' => (float)$loan->loan_amount,
+                'monthly_installment' => (float)$loan->monthly_installment,
+                'total_interest' => (float)$loan->total_interest,
+                'total_repayment' => (float)$loan->total_repayment,
                 'tenor' => $loan->tenor, 'tenor_unit' => $loan->tenor_unit, 'status' => $loan->status,
+                'disbursed_at' => $loan->disbursed_at,
                 'installments' => $loan->installments->map(fn($i) => [
                     'id' => $i->id, 'installment_number' => $i->installment_number, 'due_date' => $i->due_date,
-                    'amount_due' => (float)$i->total_amount, 'penalty_amount' => 0, 'status' => $i->status,
+                    'amount_due' => (float)$i->total_amount, 
+                    'penalty_amount' => (float)$i->late_fee, 
+                    'status' => $i->status,
+                    'paid_at' => $i->paid_at,
                 ]),
             ],
         ]);

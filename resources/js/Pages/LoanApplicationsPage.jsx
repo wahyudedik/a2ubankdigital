@@ -32,7 +32,7 @@ const LoanApplicationsPage = () => {
         const actionText = newStatus === 'APPROVED' ? 'MENYETUJUI' : 'MENOLAK';
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi ${actionText}`, message: `Apakah Anda yakin ingin ${actionText.toLowerCase()} pengajuan pinjaman ini?`, confirmText: `Ya, ${actionText}` });
         if (confirmed) {
-            const result = await callApi('admin_loan_application_update_status.php', 'POST', { loan_id: loanId, status: newStatus });
+            const result = await callApi('admin_loan_application_update_status.php', 'PUT', { loan_id: loanId, status: newStatus });
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
             else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }

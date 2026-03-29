@@ -240,7 +240,7 @@ class TellerController extends Controller
                 throw new \Exception("Angsuran tidak ditemukan, sudah lunas, atau sedang diproses.");
             }
 
-            $totalDue = $installment->amount_due + ($installment->penalty_amount ?? 0);
+            $totalDue = $installment->total_amount + ($installment->late_fee ?? 0);
 
             if ($cashAmount < $totalDue) {
                 throw new \Exception("Jumlah uang tunai yang diterima kurang dari total tagihan (Rp " . number_format($totalDue, 2, ',', '.') . ").");
@@ -261,8 +261,8 @@ class TellerController extends Controller
             // Update installment status
             $installment->update([
                 'status' => 'PAID',
-                'payment_date' => now(),
-                'transaction_id' => $transaction->id
+                'paid_at' => now(),
+                'paid_amount' => $totalDue
             ]);
 
             // Log audit

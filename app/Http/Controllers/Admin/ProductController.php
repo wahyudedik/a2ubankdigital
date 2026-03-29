@@ -53,15 +53,25 @@ class ProductController extends Controller
         $request->validate([
             'product_name' => 'required|string|max:255',
             'min_amount' => 'required|numeric|min:0',
-            'max_amount' => 'required|numeric|gt:min_amount',
+            'max_amount' => 'required|numeric|min:0',
             'interest_rate_pa' => 'required|numeric|min:0|max:100',
+            'late_payment_fee' => 'required|numeric|min:0',
             'min_tenor' => 'required|integer|min:1',
-            'max_tenor' => 'required|integer|gt:min_tenor',
-            'tenor_unit' => 'required|in:HARI,MINGGU,BULAN'
+            'max_tenor' => 'required|integer|min:1',
+            'tenor_unit' => 'required|in:BULAN,TAHUN'
         ]);
 
+        if ((float)$request->max_amount < (float)$request->min_amount) {
+            return response()->json(['status' => 'error', 'message' => 'Plafon maksimum harus lebih besar atau sama dengan plafon minimum.'], 422);
+        }
+        if ((int)$request->max_tenor < (int)$request->min_tenor) {
+            return response()->json(['status' => 'error', 'message' => 'Tenor maksimum harus lebih besar atau sama dengan tenor minimum.'], 422);
+        }
+
         try {
-            $product = LoanProduct::create($request->all());
+            $data = $request->all();
+            $data['product_code'] = 'LP-' . strtoupper(uniqid());
+            $product = LoanProduct::create($data);
 
             // Log product creation
             $this->logService->logAudit('LOAN_PRODUCT_CREATED', 'loan_products', $product->id, [], $product->toArray());
@@ -102,9 +112,10 @@ class ProductController extends Controller
             'min_amount' => 'sometimes|numeric|min:0',
             'max_amount' => 'sometimes|numeric',
             'interest_rate_pa' => 'sometimes|numeric|min:0|max:100',
+            'late_payment_fee' => 'sometimes|numeric|min:0',
             'min_tenor' => 'sometimes|integer|min:1',
             'max_tenor' => 'sometimes|integer',
-            'tenor_unit' => 'sometimes|in:HARI,MINGGU,BULAN'
+            'tenor_unit' => 'sometimes|in:BULAN,TAHUN'
         ]);
 
         $oldData = $product->toArray();
@@ -190,10 +201,8 @@ class ProductController extends Controller
         $request->validate([
             'product_name' => 'required|string|max:255',
             'min_amount' => 'required|numeric|min:0',
-            'max_amount' => 'required|numeric|gt:min_amount',
             'interest_rate_pa' => 'required|numeric|min:0|max:100',
-            'min_tenor_months' => 'required|integer|min:1',
-            'max_tenor_months' => 'required|integer|gt:min_tenor_months'
+            'tenor_months' => 'required|integer|min:1'
         ]);
 
         try {
@@ -236,10 +245,8 @@ class ProductController extends Controller
         $request->validate([
             'product_name' => 'sometimes|string|max:255',
             'min_amount' => 'sometimes|numeric|min:0',
-            'max_amount' => 'sometimes|numeric',
             'interest_rate_pa' => 'sometimes|numeric|min:0|max:100',
-            'min_tenor_months' => 'sometimes|integer|min:1',
-            'max_tenor_months' => 'sometimes|integer'
+            'tenor_months' => 'sometimes|integer|min:1'
         ]);
 
         $oldData = $product->toArray();

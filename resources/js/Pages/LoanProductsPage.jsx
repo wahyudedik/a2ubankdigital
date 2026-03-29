@@ -6,7 +6,7 @@ import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import LoanProductModal from '@/components/modals/LoanProductModal';
 
-const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0);
 const formatTenor = (p) => {
     const unitMap = { 'HARI': 'Hari', 'MINGGU': 'Minggu', 'BULAN': 'Bulan' };
     const unitDisplay = unitMap[p.tenor_unit] || p.tenor_unit;
@@ -26,7 +26,7 @@ const LoanProductsPage = () => {
     const handleDelete = async (productId) => {
         const confirmed = await modal.showConfirmation({ title: "Konfirmasi Hapus", message: "Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.", confirmText: "Ya, Hapus" });
         if (confirmed) {
-            const result = await callApi('admin_loan_products_delete.php', 'POST', { id: productId });
+            const result = await callApi('admin_loan_products_delete.php', 'DELETE', { id: productId });
             if (result && result.status === 'success') {
                 modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' });
                 router.reload();

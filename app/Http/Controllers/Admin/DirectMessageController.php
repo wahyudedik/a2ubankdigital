@@ -56,7 +56,7 @@ class DirectMessageController extends Controller
             }
 
             // Check if user account is active
-            if ($user->status !== 'active') {
+            if ($user->status !== 'ACTIVE') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot send message to inactive user'

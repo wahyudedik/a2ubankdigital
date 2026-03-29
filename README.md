@@ -11,6 +11,9 @@ Platform perbankan digital monolith dibangun dengan Laravel 12 + Inertia.js + Re
 - MySQL 8
 - Vite
 
+generate vapid = php artisan vapid:generate
+php artisan qris:update
+
 ## Struktur Proyek
 
 ```

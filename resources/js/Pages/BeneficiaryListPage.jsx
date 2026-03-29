@@ -31,7 +31,7 @@ const BeneficiaryListPage = () => {
     const handleDelete = async (id) => {
         const confirmed = await modal.showConfirmation({ title: "Konfirmasi Hapus", message: "Apakah Anda yakin ingin menghapus penerima ini dari daftar?", confirmText: "Ya, Hapus" });
         if (confirmed) {
-            const result = await callApi('beneficiaries_delete.php', 'POST', { id });
+            const result = await callApi('beneficiaries_delete.php', 'DELETE', { id });
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: 'Penerima telah dihapus.', type: 'success' }); router.reload(); }
         }
     };

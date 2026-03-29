@@ -12,6 +12,7 @@ use App\Models\CustomerProfile;
 use App\Models\Transaction;
 use App\Models\Notification;
 use App\Models\Card;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,12 @@ use Illuminate\Support\Facades\Hash;
 
 class ActionController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     // ===== ADMIN ACTIONS =====
 
     public function storeCustomer(Request $request)
@@ -85,10 +92,27 @@ class ActionController extends Controller
     public function updateLoanStatus(Request $request, $id)
     {
         $loan = Loan::findOrFail($id);
+        $oldStatus = $loan->status;
         $loan->update(['status' => $request->status, 'approved_by' => Auth::id(), 'approved_at' => now()]);
         if ($request->status === 'REJECTED' && $request->rejection_reason) {
             $loan->update(['rejection_reason' => $request->rejection_reason]);
         }
+        
+        // Send notification to customer
+        if ($request->status === 'APPROVED') {
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Pinjaman Disetujui',
+                'Pengajuan pinjaman Anda sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah disetujui. Menunggu pencairan dana.'
+            );
+        } elseif ($request->status === 'REJECTED') {
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Pinjaman Ditolak',
+                'Pengajuan pinjaman Anda ditolak. Alasan: ' . ($request->rejection_reason ?? 'Tidak memenuhi syarat.')
+            );
+        }
+        
         return back()->with('success', 'Status pinjaman berhasil diperbarui.');
     }
 
@@ -109,6 +133,14 @@ class ActionController extends Controller
                 'description' => 'Pencairan Pinjaman ' . ($loan->loanProduct?->product_name ?? ''),
                 'status' => 'SUCCESS',
             ]);
+            
+            // Send notification to customer
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Pinjaman Dicairkan',
+                'Dana pinjaman sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah dicairkan ke rekening Anda.'
+            );
+            
             DB::commit();
             return back()->with('success', 'Pinjaman berhasil dicairkan.');
         } catch (\Exception $e) {
@@ -337,5 +369,70 @@ class ActionController extends Controller
     {
         DB::table('beneficiaries')->where('id', $id)->where('user_id', Auth::id())->delete();
         return back()->with('success', 'Penerima berhasil dihapus.');
+    }
+
+    public function submitLoanApplication(Request $request)
+    {
+        $request->validate([
+            'loan_product_id' => 'required|exists:loan_products,id',
+            'amount' => 'required|numeric|min:0',
+            'tenor' => 'required|integer|min:1',
+            'purpose' => 'required|string|max:500',
+        ]);
+
+        $product = LoanProduct::findOrFail($request->loan_product_id);
+
+        if ($request->amount < $product->min_amount || $request->amount > $product->max_amount) {
+            return back()->withErrors(['amount' => "Jumlah pinjaman harus antara Rp " . number_format($product->min_amount, 0, ',', '.') . " dan Rp " . number_format($product->max_amount, 0, ',', '.') . "."]);
+        }
+
+        if ($request->tenor < $product->min_tenor || $request->tenor > $product->max_tenor) {
+            return back()->withErrors(['tenor' => "Tenor harus antara {$product->min_tenor} dan {$product->max_tenor} {$product->tenor_unit}."]);
+        }
+
+        $user = Auth::user();
+
+        $interestRate = $product->interest_rate_pa / 100 / 12;
+        $tenor = (int) $request->tenor;
+        $amount = (float) $request->amount;
+
+        if ($interestRate > 0) {
+            $monthlyInstallment = ($amount * $interestRate * pow(1 + $interestRate, $tenor)) / (pow(1 + $interestRate, $tenor) - 1);
+        } else {
+            $monthlyInstallment = $amount / $tenor;
+        }
+
+        $totalInterest = ($monthlyInstallment * $tenor) - $amount;
+        $totalRepayment = $amount + $totalInterest;
+
+        $loan = Loan::create([
+            'user_id' => $user->id,
+            'loan_product_id' => $product->id,
+            'loan_amount' => $amount,
+            'interest_rate_pa' => $product->interest_rate_pa,
+            'tenor' => $tenor,
+            'tenor_unit' => $product->tenor_unit,
+            'monthly_installment' => round($monthlyInstallment, 2),
+            'total_interest' => round($totalInterest, 2),
+            'total_repayment' => round($totalRepayment, 2),
+            'purpose' => $request->purpose,
+            'status' => 'SUBMITTED',
+        ]);
+
+        // Notify customer
+        $this->notificationService->notifyUser(
+            $user->id,
+            'Pengajuan Pinjaman Diterima',
+            'Pengajuan pinjaman Anda sebesar Rp ' . number_format($amount, 0, ',', '.') . ' telah diterima dan sedang diproses.'
+        );
+
+        // Notify admin staff
+        $this->notificationService->notifyStaffByRole(
+            [1, 2, 3], // Super Admin, Admin, Manager
+            'Pengajuan Pinjaman Baru',
+            'Pengajuan pinjaman baru dari ' . $user->full_name . ' sebesar Rp ' . number_format($amount, 0, ',', '.') . ' menunggu persetujuan.'
+        );
+
+        return redirect('/my-loans')->with('success', 'Pengajuan pinjaman berhasil dikirim.');
     }
 }

@@ -22,7 +22,7 @@ const AdminWithdrawalRequestsPage = () => {
     const handleProcess = async (requestId, action) => {
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi ${action === 'APPROVE' ? 'Persetujuan' : 'Penolakan'}`, message: `Anda yakin ingin ${action === 'APPROVE' ? 'menyetujui' : 'menolak'} permintaan penarikan ini?`, confirmText: `Ya, ${action === 'APPROVE' ? 'Setujui' : 'Tolak'}` });
         if (confirmed) {
-            const result = await callApi('admin_process_withdrawal_request.php', 'POST', { request_id: requestId, action });
+            const result = await callApi('admin_process_withdrawal_request.php', 'PUT', { request_id: requestId, action });
             if (result && result.status === 'success') { await modal.showAlert({ title: 'Berhasil', message: 'Permintaan berhasil diproses.', type: 'success' }); router.reload(); }
             else { await modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }

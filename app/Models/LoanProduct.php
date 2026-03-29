@@ -12,18 +12,22 @@ class LoanProduct extends Model
 
     protected $fillable = [
         'product_name',
+        'product_code',
         'min_amount',
         'max_amount',
         'interest_rate_pa',
         'min_tenor',
         'max_tenor',
-        'tenor_unit'
+        'tenor_unit',
+        'late_payment_fee',
+        'is_active'
     ];
 
     protected $casts = [
         'min_amount' => 'decimal:2',
         'max_amount' => 'decimal:2',
-        'interest_rate_pa' => 'decimal:4'
+        'interest_rate_pa' => 'decimal:4',
+        'late_payment_fee' => 'decimal:2'
     ];
 
     /**

@@ -14,18 +14,23 @@ class LoanInstallment extends Model
         'loan_id',
         'installment_number',
         'due_date',
-        'amount_due',
-        'penalty_amount',
+        'principal_amount',
+        'interest_amount',
+        'total_amount',
+        'paid_amount',
+        'late_fee',
         'status',
-        'payment_date',
-        'transaction_id'
+        'paid_at'
     ];
 
     protected $casts = [
         'due_date' => 'date',
-        'payment_date' => 'date',
-        'amount_due' => 'decimal:2',
-        'penalty_amount' => 'decimal:2'
+        'paid_at' => 'datetime',
+        'principal_amount' => 'decimal:2',
+        'interest_amount' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'late_fee' => 'decimal:2'
     ];
 
     /**
@@ -34,14 +39,6 @@ class LoanInstallment extends Model
     public function loan(): BelongsTo
     {
         return $this->belongsTo(Loan::class);
-    }
-
-    /**
-     * Get the payment transaction
-     */
-    public function transaction(): BelongsTo
-    {
-        return $this->belongsTo(Transaction::class);
     }
 
     /**

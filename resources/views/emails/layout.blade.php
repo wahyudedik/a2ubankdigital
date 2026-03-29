@@ -76,8 +76,13 @@
 
     <div class="container">
         <div class="header">
-            <img src="{{ config('app.url') }}/a2u-logo.png" alt="A2U Bank Digital Logo"
-                style="max-width: 180px; height: auto;" />
+            @php
+                $logoPath = public_path('a2u-logo.png');
+                $logoBase64 = file_exists($logoPath)
+                    ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+                    : config('app.url') . '/a2u-logo.png';
+            @endphp
+            <img src="{{ $logoBase64 }}" alt="A2U Bank Digital Logo" style="max-width: 180px; height: auto;" />
         </div>
         <div class="content">
             @yield('content')

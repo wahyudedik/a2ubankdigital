@@ -43,7 +43,7 @@ class DashboardController extends Controller
                     ELSE t.description 
                 END as description"),
                 't.created_at',
-                DB::raw("IF(t.to_account_id = {$account->id}, 'KREDIT', 'DEBIT') as flow")
+                DB::raw("IF(t.to_account_id = " . intval($account->id) . ", 'KREDIT', 'DEBIT') as flow")
             )
             ->where(function ($query) use ($account) {
                 $query->where('t.from_account_id', $account->id)

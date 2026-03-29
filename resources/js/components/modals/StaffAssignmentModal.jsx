@@ -8,7 +8,7 @@ const StaffAssignmentModal = ({ staff, units, onClose, onSave }) => {
     const [selectedUnitId, setSelectedUnitId] = useState(staff.unit_id || '');
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const result = await callApi('admin_update_staff_assignment.php', 'POST', { staff_id: staff.id, unit_id: selectedUnitId });
+        const result = await callApi('admin_update_staff_assignment.php', 'PUT', { staff_id: staff.id, unit_id: selectedUnitId });
         if (result && result.status === 'success') onSave();
     };
     return (

@@ -54,6 +54,7 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::post('/transfer/execute', [ActionController::class, 'internalTransfer']);
     Route::get('/loan-products', [UserPageController::class, 'loanProducts']);
     Route::get('/loan-application/{productId}', [UserPageController::class, 'loanApplication']);
+    Route::post('/loan-application', [ActionController::class, 'submitLoanApplication']);
     Route::get('/my-loans', [UserPageController::class, 'myLoans']);
     Route::get('/my-loans/{loanId}', [UserPageController::class, 'myLoanDetail']);
     Route::get('/deposits', [UserPageController::class, 'deposits']);

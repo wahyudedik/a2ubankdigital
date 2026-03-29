@@ -140,9 +140,17 @@ Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,
             ->join('loans as l', 'li.loan_id', '=', 'l.id')
             ->join('users as u', 'l.user_id', '=', 'u.id')
             ->leftJoin('loan_products as lp', 'l.loan_product_id', '=', 'lp.id')
-            ->where('li.status', 'PENDING')
+            ->whereIn('li.status', ['PENDING', 'OVERDUE'])
             ->where(fn($query) => $query->where('u.full_name', 'like', "%{$q}%")->orWhere('u.bank_id', 'like', "%{$q}%"))
-            ->select(['li.id as installment_id', 'u.full_name as customer_name', 'lp.product_name', 'li.installment_number', 'li.due_date', 'li.total_amount as amount_due', DB::raw('0 as penalty_amount')])
+            ->select([
+                'li.id as installment_id', 
+                'u.full_name as customer_name', 
+                'lp.product_name', 
+                'li.installment_number', 
+                'li.due_date', 
+                'li.total_amount as amount_due', 
+                'li.late_fee as penalty_amount'
+            ])
             ->limit(20)->get();
         return response()->json(['status' => 'success', 'data' => $installments]);
     });

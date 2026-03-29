@@ -251,7 +251,23 @@ class CustomerController extends Controller
 
         $customer = User::where('role_id', 9)->findOrFail($id);
 
+        $oldStatus = $customer->status;
         $customer->update(['status' => $request->status]);
+
+        // Send notification to customer about status change
+        if ($oldStatus !== $request->status) {
+            $statusMessages = [
+                'ACTIVE' => 'Akun Anda telah diaktifkan kembali. Anda dapat menggunakan layanan kami.',
+                'BLOCKED' => 'Akun Anda telah diblokir. Silakan hubungi customer service untuk informasi lebih lanjut.',
+                'SUSPENDED' => 'Akun Anda telah ditangguhkan sementara. Silakan hubungi customer service untuk informasi lebih lanjut.'
+            ];
+
+            $this->notificationService->notifyUser(
+                $customer->id,
+                'Status Akun Diperbarui',
+                $statusMessages[$request->status] ?? 'Status akun Anda telah diperbarui.'
+            );
+        }
 
         return response()->json([
             'status' => 'success',

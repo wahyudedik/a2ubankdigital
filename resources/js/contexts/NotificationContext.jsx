@@ -68,7 +68,7 @@ export const NotificationProvider = ({ children }) => {
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
             });
 
-            const result = await callApi('push_notification_subscribe.php', 'POST', subscription.toJSON());
+            const result = await callApi('/user/push-notification/subscribe', 'POST', subscription.toJSON());
 
             if (result && result.status === 'success') {
                 await modal.showAlert({ title: 'Berhasil', message: 'Notifikasi push berhasil diaktifkan.', type: 'success' });

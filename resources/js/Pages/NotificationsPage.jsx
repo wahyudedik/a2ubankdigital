@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import useApi from '@/hooks/useApi';
 import { ArrowLeft, Bell, Check } from 'lucide-react';
@@ -22,8 +22,14 @@ const NotificationsPage = () => {
     const { loading, callApi } = useApi();
     const hasUnread = (notifications || []).some(n => !n.is_read);
 
+    useEffect(() => {
+        if (hasUnread) {
+            callApi('user_mark_notification_read.php', 'PUT', {});
+        }
+    }, []);
+
     const markAllAsRead = async () => {
-        const result = await callApi('user_mark_notification_read.php', 'PUT', { notification_id: 'all' });
+        const result = await callApi('user_mark_notification_read.php', 'PUT', {});
         if (result && result.status === 'success') { router.reload(); }
     };
 

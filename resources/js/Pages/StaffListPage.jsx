@@ -27,7 +27,7 @@ const StaffListPage = () => {
         const actionText = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan';
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi Status`, message: `Apakah Anda yakin ingin ${actionText} akun staf ini?`, confirmText: `Ya, ${actionText}` });
         if (confirmed) {
-            const result = await callApi('admin_update_staff_status.php', 'POST', { staff_id: staffId, new_status: newStatus });
+            const result = await callApi('admin_update_staff_status.php', 'PUT', { staff_id: staffId, new_status: newStatus });
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: 'Status staf telah diperbarui.', type: 'success' }); router.reload(); }
         }
     };

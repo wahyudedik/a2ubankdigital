@@ -7,6 +7,7 @@ use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Transaction;
 use App\Models\Account;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,12 @@ use Illuminate\Support\Facades\Auth;
 
 class LoanController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(Request $request): JsonResponse
     {
         $page = $request->input('page', 1);
@@ -80,6 +87,21 @@ class LoanController extends Controller
             'approved_by' => Auth::id()
         ]);
 
+        // Send notification to customer
+        if ($request->status === 'APPROVED') {
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Pinjaman Disetujui',
+                'Pengajuan pinjaman Anda sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah disetujui. Menunggu pencairan dana.'
+            );
+        } elseif ($request->status === 'REJECTED') {
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Pinjaman Ditolak',
+                'Pengajuan pinjaman Anda ditolak. Alasan: ' . ($request->rejection_reason ?? 'Tidak memenuhi syarat.')
+            );
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Status pinjaman berhasil diperbarui.',
@@ -133,6 +155,13 @@ class LoanController extends Controller
             // Generate installments
             $this->generateInstallments($loan);
 
+            // Send notification to customer
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Pinjaman Dicairkan',
+                'Dana pinjaman sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah dicairkan ke rekening Anda.'
+            );
+
             DB::commit();
 
             return response()->json([
@@ -178,6 +207,107 @@ class LoanController extends Controller
             ]);
 
             $remainingPrincipal -= $principal;
+        }
+    }
+
+    public function forcePayInstallment(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'installment_id' => 'required|exists:loan_installments,id'
+        ]);
+
+        $loan = Loan::findOrFail($id);
+        $installment = LoanInstallment::where('id', $request->installment_id)
+            ->where('loan_id', $loan->id)
+            ->firstOrFail();
+
+        if ($installment->status === 'PAID') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Angsuran ini sudah dibayar.'
+            ], 400);
+        }
+
+        // Get customer's account
+        $account = Account::where('user_id', $loan->user_id)
+            ->where('account_type', 'TABUNGAN')
+            ->first();
+
+        if (!$account) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Rekening nasabah tidak ditemukan.'
+            ], 400);
+        }
+
+        $totalDue = $installment->total_amount + ($installment->late_fee ?? 0);
+
+        if ($account->balance < $totalDue) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Saldo nasabah tidak mencukupi untuk membayar angsuran ini.'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Create transaction
+            $transaction = Transaction::create([
+                'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
+                'from_account_id' => $account->id,
+                'transaction_type' => 'LOAN_PAYMENT',
+                'amount' => $totalDue,
+                'fee' => 0,
+                'description' => "Pembayaran Paksa Angsuran #{$installment->installment_number} - Pinjaman #{$loan->id}",
+                'status' => 'SUCCESS'
+            ]);
+
+            // Update account balance
+            $account->decrement('balance', $totalDue);
+
+            // Update installment
+            $installment->update([
+                'status' => 'PAID',
+                'paid_amount' => $totalDue,
+                'paid_at' => now()
+            ]);
+
+            // Check if all installments are paid
+            $remainingInstallments = LoanInstallment::where('loan_id', $loan->id)
+                ->whereIn('status', ['PENDING', 'OVERDUE'])
+                ->count();
+
+            if ($remainingInstallments === 0) {
+                $loan->update(['status' => 'COMPLETED']);
+            } else {
+                $loan->update(['status' => 'ACTIVE']);
+            }
+
+            // Send notification to customer
+            $this->notificationService->notifyUser(
+                $loan->user_id,
+                'Angsuran Dibayar',
+                'Angsuran ke-' . $installment->installment_number . ' sebesar Rp ' . number_format($totalDue, 0, ',', '.') . ' telah dibayar dari saldo Anda.'
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Angsuran berhasil dibayar.',
+                'data' => [
+                    'transaction' => $transaction,
+                    'installment' => $installment->fresh(),
+                    'remaining_installments' => $remainingInstallments
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memproses pembayaran: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

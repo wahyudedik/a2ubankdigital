@@ -13,8 +13,20 @@ const LoanProductModal = ({ product, onClose, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const endpoint = isEditing ? 'admin_loan_products_edit.php' : 'admin_loan_products_add.php';
-        const payload = isEditing ? { ...formData, id: product.id } : formData;
-        const result = await callApi(endpoint, 'POST', payload);
+        const method = isEditing ? 'PUT' : 'POST';
+        const numericPayload = {
+            product_name: formData.product_name,
+            interest_rate_pa: parseFloat(formData.interest_rate_pa),
+            late_payment_fee: parseFloat(formData.late_payment_fee) || 0,
+            min_amount: parseFloat(formData.min_amount),
+            max_amount: parseFloat(formData.max_amount),
+            min_tenor: parseInt(formData.min_tenor, 10),
+            max_tenor: parseInt(formData.max_tenor, 10),
+            tenor_unit: formData.tenor_unit,
+            is_active: formData.is_active,
+        };
+        const payload = isEditing ? { ...numericPayload, id: product.id } : numericPayload;
+        const result = await callApi(endpoint, method, payload);
         if (result && result.status === 'success') onSave();
     };
     return (
@@ -32,7 +44,7 @@ const LoanProductModal = ({ product, onClose, onSave }) => {
                         <Input name="min_tenor" type="number" label="Tenor Minimum" value={formData.min_tenor} onChange={handleChange} required />
                         <div className="grid grid-cols-2 gap-2">
                             <Input name="max_tenor" type="number" label="Tenor Maksimum" value={formData.max_tenor} onChange={handleChange} required />
-                            <div><label className="block mb-2 text-sm font-medium">Satuan</label><select name="tenor_unit" value={formData.tenor_unit} onChange={handleChange} className="w-full p-2 border rounded-lg bg-gray-50 h-[42px]"><option value="HARI">Hari</option><option value="MINGGU">Minggu</option><option value="BULAN">Bulan</option></select></div>
+                            <div><label className="block mb-2 text-sm font-medium">Satuan</label><select name="tenor_unit" value={formData.tenor_unit} onChange={handleChange} className="w-full p-2 border rounded-lg bg-gray-50 h-[42px]"><option value="BULAN">Bulan</option><option value="TAHUN">Tahun</option></select></div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 md:col-span-2"><input type="checkbox" id="is_active" name="is_active" checked={!!formData.is_active} onChange={handleChange} className="h-4 w-4 rounded border-gray-300" /><label htmlFor="is_active" className="text-sm font-medium text-gray-700">Aktifkan Produk</label></div>
                     </div>

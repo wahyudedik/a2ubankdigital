@@ -13,23 +13,33 @@ class Loan extends Model
 
     protected $fillable = [
         'user_id',
-        'account_id',
         'loan_product_id',
-        'amount',
-        'interest_rate',
-        'tenor_months',
-        'monthly_payment',
+        'loan_amount',
+        'interest_rate_pa',
+        'tenor',
+        'tenor_unit',
+        'monthly_installment',
+        'total_interest',
+        'total_repayment',
+        'purpose',
         'status',
+        'rejection_reason',
+        'approved_at',
+        'approved_by',
         'disbursed_at',
-        'maturity_date'
+        'disbursed_by',
+        'first_payment_date'
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'interest_rate' => 'decimal:4',
-        'monthly_payment' => 'decimal:2',
+        'loan_amount' => 'decimal:2',
+        'interest_rate_pa' => 'decimal:2',
+        'monthly_installment' => 'decimal:2',
+        'total_interest' => 'decimal:2',
+        'total_repayment' => 'decimal:2',
+        'approved_at' => 'datetime',
         'disbursed_at' => 'datetime',
-        'maturity_date' => 'date'
+        'first_payment_date' => 'date'
     ];
 
     /**

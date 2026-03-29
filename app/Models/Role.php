@@ -13,14 +13,14 @@ class Role extends Model
         return $this->hasMany(User::class);
     }
 
-    // Role constants
+    // Role constants (must match CheckRole middleware)
     const SUPER_ADMIN = 1;
-    const BRANCH_MANAGER = 2;
-    const TELLER = 3;
-    const LOAN_OFFICER = 4;
-    const CUSTOMER_SERVICE = 5;
-    const MARKETING = 6;
-    const DEBT_COLLECTOR = 7;
-    const AUDITOR = 8;
-    const CUSTOMER = 9;
+    const ADMIN = 2;              // Kepala Cabang
+    const MANAGER = 3;            // Kepala Unit
+    const MARKETING = 4;          // Marketing
+    const TELLER = 5;             // Teller
+    const CS = 6;                 // Customer Service
+    const ANALYST = 7;            // Analis Kredit
+    const DEBT_COLLECTOR = 8;     // Debt Collector
+    const CUSTOMER = 9;           // Nasabah
 }

@@ -13,8 +13,9 @@ const DepositProductModal = ({ product, onClose, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const endpoint = isEditing ? 'admin_update_deposit_product.php' : 'admin_add_deposit_product.php';
+        const method = isEditing ? 'PUT' : 'POST';
         const payload = isEditing ? { ...formData, id: product.id } : formData;
-        const result = await callApi(endpoint, 'POST', payload);
+        const result = await callApi(endpoint, method, payload);
         if (result && result.status === 'success') onSave();
     };
     return (

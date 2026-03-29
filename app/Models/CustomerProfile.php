@@ -31,7 +31,7 @@ class CustomerProfile extends Model
     ];
 
     protected $casts = [
-        'dob' => 'date',
+        'dob' => 'date:Y-m-d',
         'monthly_income' => 'decimal:2',
         'kyc_verified_at' => 'datetime',
         'loyalty_points' => 'integer',

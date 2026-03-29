@@ -86,7 +86,7 @@ class UnitController extends Controller
         $request->validate([
             'unit_name' => 'required|string|max:255',
             'unit_type' => 'required|in:KANTOR_PUSAT,KANTOR_CABANG,KANTOR_KAS,KANTOR_LAYANAN',
-            'parent_id' => 'required_if:unit_type,KANTOR_KAS|exists:units,id',
+            'parent_id' => 'nullable|exists:units,id',
             'address' => 'sometimes|string',
             'latitude' => 'sometimes|numeric',
             'longitude' => 'sometimes|numeric',
@@ -104,8 +104,9 @@ class UnitController extends Controller
         try {
             $unitData = [
                 'unit_name' => $request->unit_name,
+                'unit_code' => strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $request->unit_name), 0, 3)) . '-' . rand(100, 999),
                 'unit_type' => $request->unit_type,
-                'parent_id' => in_array($request->unit_type, ['KANTOR_PUSAT', 'KANTOR_CABANG']) ? null : $request->parent_id,
+                'parent_id' => in_array($request->unit_type, ['KANTOR_PUSAT', 'KANTOR_CABANG']) ? null : ($request->parent_id ? (int)$request->parent_id : null),
                 'status' => $request->status ?? 'ACTIVE'
             ];
 
@@ -155,7 +156,7 @@ class UnitController extends Controller
         $request->validate([
             'unit_name' => 'sometimes|string|max:255',
             'unit_type' => 'sometimes|in:KANTOR_PUSAT,KANTOR_CABANG,KANTOR_KAS,KANTOR_LAYANAN',
-            'parent_id' => 'required_if:unit_type,KANTOR_KAS|exists:units,id',
+            'parent_id' => 'nullable|exists:units,id',
             'address' => 'sometimes|string',
             'latitude' => 'sometimes|numeric',
             'longitude' => 'sometimes|numeric',
@@ -218,11 +219,11 @@ class UnitController extends Controller
             ], 400);
         }
 
-        // Check if unit has assigned staff
-        if ($unit->users()->count() > 0) {
+        // Check if unit has assigned staff/customers
+        if ($unit->customerProfiles()->count() > 0) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Tidak dapat menghapus unit yang masih memiliki staf.'
+                'message' => 'Tidak dapat menghapus unit yang masih memiliki nasabah/staf.'
             ], 400);
         }
 

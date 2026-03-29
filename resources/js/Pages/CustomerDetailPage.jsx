@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-import useParams from '@/hooks/useParams';
 import useApi from '@/hooks/useApi.js';
 import { useModal } from '@/contexts/ModalContext.jsx';
 import { AppConfig } from '@/config/index.js';
@@ -57,12 +56,12 @@ const StatusActionCard = ({ customer, onStatusChange }) => {
     const handleChangeStatus = async (newStatus, actionText, confirmationTitle, confirmationMessage) => {
         const confirmed = await modal.showConfirmation({ title: confirmationTitle, message: confirmationMessage, confirmText: `Ya, ${actionText}` });
         if (confirmed) {
-            const result = await callApi('admin_update_customer_status.php', 'PUT', { customer_id: customer.id, new_status: newStatus });
+            const result = await callApi('admin_update_customer_status.php', 'PUT', { customer_id: customer.id, status: newStatus });
             if (result && result.status === 'success') {
                 modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' });
                 onStatusChange();
             } else {
-                modal.showAlert({ title: 'Gagal', message: result.message || 'Terjadi kesalahan', type: 'warning' });
+                modal.showAlert({ title: 'Gagal', message: result?.message || 'Terjadi kesalahan', type: 'warning' });
             }
         }
     };
@@ -102,7 +101,6 @@ const StatusActionCard = ({ customer, onStatusChange }) => {
 
 function CustomerDetailPage() {
     const { customer: initialCustomer } = usePage().props;
-    const { customerId } = useParams();
     const { loading, callApi } = useApi();
     const [customer, setCustomer] = useState(initialCustomer);
     const [expandedLoanId, setExpandedLoanId] = useState(null);
@@ -147,7 +145,7 @@ function CustomerDetailPage() {
                     <ArrowLeft size={20} />
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Detail Nasabah</h1>
                 </Link>
-                <Link href={`/admin/customers/edit/${customerId}`} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <Link href={`/admin/customers/edit/${customer?.id}`} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                     <Edit size={18} />
                     <span>Edit Nasabah</span>
                 </Link>

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-import useParams from '@/hooks/useParams';
 import useNavigate from '@/hooks/useNavigate';
 import useApi from '@/hooks/useApi';
 import { useModal } from '@/contexts/ModalContext.jsx';
@@ -9,8 +8,8 @@ import Button from '@/components/ui/Button';
 import { ArrowLeft, User, KeyRound } from 'lucide-react';
 
 const StaffEditPage = () => {
-    const { staffId } = useParams();
     const { staff, roles: allRoles } = usePage().props;
+    const staffId = staff?.id;
     const navigate = useNavigate();
     const modal = useModal();
     const { loading: resetLoading, callApi } = useApi();

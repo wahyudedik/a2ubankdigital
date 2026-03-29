@@ -46,11 +46,11 @@ class Unit extends Model
     }
 
     /**
-     * Get users assigned to this unit
+     * Get customer profiles assigned to this unit
      */
-    public function users(): HasMany
+    public function customerProfiles(): HasMany
     {
-        return $this->hasMany(User::class, 'unit_id');
+        return $this->hasMany(CustomerProfile::class, 'unit_id');
     }
 
     /**

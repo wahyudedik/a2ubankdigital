@@ -199,12 +199,19 @@ class AdminPageController extends Controller
 
     public function units()
     {
-        $branches = DB::table('units')->where('unit_type', 'KANTOR_CABANG')->where('status', 'ACTIVE')->get();
-        $allUnits = DB::table('units')->where('status', 'ACTIVE')->get();
-        $grouped = $branches->map(function($branch) use ($allUnits) {
-            $branch->units = $allUnits->where('unit_type', '!=', 'KANTOR_CABANG')->filter(fn($u) => str_starts_with($u->unit_code, explode('-', $branch->unit_code)[0] . '-'))->values();
+        // Use eager loading to avoid N+1 queries
+        $branches = DB::table('units')
+            ->where('unit_type', 'KANTOR_CABANG')
+            ->get();
+        
+        // Group units by parent_id relationship
+        $grouped = $branches->map(function($branch) {
+            $branch->units = DB::table('units')
+                ->where('parent_id', $branch->id)
+                ->get();
             return $branch;
         });
+        
         return Inertia::render('AdminUnitsPage', ['branches' => $grouped]);
     }
 

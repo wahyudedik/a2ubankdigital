@@ -1,25 +1,30 @@
 import React, { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-import useParams from '@/hooks/useParams';
 import useNavigate from '@/hooks/useNavigate';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { ArrowLeft } from 'lucide-react';
 
 const CustomerEditPage = () => {
-    const { customerId } = useParams();
     const { customer, units, allUnits } = usePage().props;
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const dobFormatted = customer?.dob ? customer.dob.split(' ')[0] : '';
+    const customerId = customer?.id;
+    const customerProfile = customer?.customer_profile || customer?.customerProfile || {};
+    const rawDob = customerProfile?.dob || customer?.dob || '';
+    const dobFormatted = rawDob ? rawDob.substring(0, 10) : '';
     const [formData, setFormData] = useState({
         full_name: customer?.full_name ?? '', email: customer?.email ?? '',
         phone_number: customer?.phone_number ?? '', status: customer?.status ?? 'ACTIVE',
-        nik: customer?.nik ?? '', mother_maiden_name: customer?.mother_maiden_name ?? '',
-        pob: customer?.pob ?? '', dob: dobFormatted, gender: customer?.gender ?? 'L',
-        address_ktp: customer?.address_ktp ?? '', unit_id: customer?.unit_id ?? ''
+        nik: customerProfile?.nik ?? customer?.nik ?? '',
+        mother_maiden_name: customerProfile?.mother_maiden_name ?? customer?.mother_maiden_name ?? '',
+        pob: customerProfile?.pob ?? customer?.pob ?? '',
+        dob: dobFormatted,
+        gender: customerProfile?.gender ?? customer?.gender ?? 'L',
+        address_ktp: customerProfile?.address_ktp ?? customer?.address_ktp ?? '',
+        unit_id: customerProfile?.unit_id ?? customer?.unit_id ?? ''
     });
 
     const handleChange = (e) => {

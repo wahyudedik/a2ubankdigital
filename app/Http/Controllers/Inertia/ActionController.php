@@ -181,22 +181,52 @@ class ActionController extends Controller
 
     public function storeUnit(Request $request)
     {
+        $request->validate([
+            'unit_name' => 'required|string|max:255',
+            'unit_type' => 'required|in:KANTOR_CABANG,KANTOR_KAS',
+            'parent_id' => 'nullable|exists:units,id',
+        ]);
+        
+        // Validate unit type rules
+        if ($request->unit_type === 'KANTOR_KAS' && empty($request->parent_id)) {
+            return back()->withErrors(['parent_id' => 'Kantor Kas harus berada di bawah sebuah Kantor Cabang.']);
+        }
+        
         DB::table('units')->insert([
-            'unit_name' => $request->unit_name, 'unit_code' => $request->unit_code ?? strtoupper(substr($request->unit_name, 0, 3)),
-            'unit_type' => $request->unit_type, 'address' => $request->address, 'phone' => $request->phone ?? null,
-            'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now(),
+            'unit_name' => $request->unit_name,
+            'unit_code' => strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $request->unit_name), 0, 5)) . '-' . rand(10, 99),
+            'unit_type' => $request->unit_type,
+            'parent_id' => $request->unit_type === 'KANTOR_KAS' ? (int)$request->parent_id : null,
+            'address' => $request->address,
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         return back()->with('success', 'Unit berhasil ditambahkan.');
     }
 
     public function updateUnit(Request $request, $id)
     {
-        DB::table('units')->where('id', $id)->update(['unit_name' => $request->unit_name, 'address' => $request->address, 'updated_at' => now()]);
+        $data = array_filter([
+            'unit_name' => $request->unit_name,
+            'address' => $request->address,
+            'unit_type' => $request->unit_type,
+            'status' => $request->status,
+        ], fn($v) => $v !== null);
+        $data['updated_at'] = now();
+        DB::table('units')->where('id', $id)->update($data);
         return back()->with('success', 'Unit berhasil diperbarui.');
     }
 
     public function deleteUnit($id)
     {
+        $user = Auth::user();
+        
+        // Only Super Admin can delete units
+        if ($user->role_id !== 1) {
+            return back()->withErrors(['error' => 'Akses ditolak.']);
+        }
+        
         DB::table('units')->where('id', $id)->delete();
         return back()->with('success', 'Unit berhasil dihapus.');
     }

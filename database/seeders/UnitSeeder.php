@@ -2,47 +2,111 @@
 
 namespace Database\Seeders;
 
+use App\Models\Unit;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class UnitSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        $units = [
-            ['id' => 1, 'unit_name' => 'Yogyakarta', 'unit_code' => 'YOG', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Daerah istimewa yogyakarta', 'latitude' => -7.79407877, 'longitude' => 110.36905522, 'status' => 'ACTIVE'],
-            ['id' => 2, 'unit_name' => 'Jogja Kota', 'unit_code' => 'YOG-01', 'unit_type' => 'KANTOR_KAS', 'address' => 'Jogja Kota', 'latitude' => -7.77860175, 'longitude' => 110.36665052, 'status' => 'ACTIVE'],
-            ['id' => 3, 'unit_name' => 'DKI Jakarta', 'unit_code' => 'JKT', 'unit_type' => 'KANTOR_CABANG', 'address' => 'DKI Jakarta', 'latitude' => -6.19456967, 'longitude' => 106.82238246, 'status' => 'ACTIVE'],
-            ['id' => 4, 'unit_name' => 'Jakarta Selatan', 'unit_code' => 'JKT-01', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 5, 'unit_name' => 'Jawa Barat', 'unit_code' => 'JBR', 'unit_type' => 'KANTOR_CABANG', 'address' => '', 'latitude' => 0, 'longitude' => 0, 'status' => 'ACTIVE'],
-            ['id' => 9, 'unit_name' => 'Sumatera Utara', 'unit_code' => 'SUT', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Daerah Indonesia', 'latitude' => 4, 'longitude' => 100, 'status' => 'ACTIVE'],
-            ['id' => 10, 'unit_name' => 'Deli Serdang', 'unit_code' => 'SUT-DS', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Daerah Sumatera Utara', 'latitude' => 0, 'longitude' => 0, 'status' => 'ACTIVE'],
-            ['id' => 11, 'unit_name' => 'Asahan', 'unit_code' => 'SUT-ASH', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Daerah Sumatera Utara', 'latitude' => 0, 'longitude' => 0, 'status' => 'ACTIVE'],
-            ['id' => 12, 'unit_name' => 'Dairi', 'unit_code' => 'SUT-01', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 13, 'unit_name' => 'Humbang Hasundutan', 'unit_code' => 'SUT-02', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 14, 'unit_name' => 'Batu Bara', 'unit_code' => 'SUT-03', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 15, 'unit_name' => 'Karo', 'unit_code' => 'SUT-04', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 16, 'unit_name' => 'Kab.Labuhan Batu', 'unit_code' => 'SUT-LB', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Sumatera Utara', 'latitude' => 0, 'longitude' => 0, 'status' => 'ACTIVE'],
-            ['id' => 17, 'unit_name' => 'Tanjung Morawa', 'unit_code' => 'SUT-DS-01', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 18, 'unit_name' => 'Lubuk Pakam', 'unit_code' => 'SUT-DS-02', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 19, 'unit_name' => 'Patumbak', 'unit_code' => 'SUT-DS-03', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 20, 'unit_name' => 'Percut Sei Tuan', 'unit_code' => 'SUT-DS-04', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 31, 'unit_name' => 'Aceh', 'unit_code' => 'ACH', 'unit_type' => 'KANTOR_CABANG', 'address' => '', 'latitude' => 0, 'longitude' => 0, 'status' => 'ACTIVE'],
-            ['id' => 43, 'unit_name' => 'Kab.Paser', 'unit_code' => 'KTM-PSR', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Kalimantan Timur', 'latitude' => 24.21, 'longitude' => 119, 'status' => 'ACTIVE'],
-            ['id' => 50, 'unit_name' => 'Kalimantan Timur', 'unit_code' => 'KTM', 'unit_type' => 'KANTOR_CABANG', 'address' => '', 'latitude' => 2.33, 'longitude' => 119, 'status' => 'ACTIVE'],
-            ['id' => 67, 'unit_name' => 'Kab.Labuhan Batu Utara', 'unit_code' => 'SUT-LBU', 'unit_type' => 'KANTOR_CABANG', 'address' => 'Sumatera Utara', 'latitude' => 0, 'longitude' => 0, 'status' => 'ACTIVE'],
-            ['id' => 68, 'unit_name' => 'Kec.Marbau', 'unit_code' => 'SUT-LBU-01', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-            ['id' => 69, 'unit_name' => 'Kec.Batu Sopang', 'unit_code' => 'KTM-PSR-01', 'unit_type' => 'KANTOR_KAS', 'address' => null, 'latitude' => null, 'longitude' => null, 'status' => 'ACTIVE'],
-        ];
+        // Create KANTOR_PUSAT (Headquarters)
+        $pusat = Unit::create([
+            'unit_name' => 'Kantor Pusat A2U Bank',
+            'unit_code' => 'HQ-001',
+            'unit_type' => 'KANTOR_PUSAT',
+            'parent_id' => null,
+            'address' => 'Jl. Sudirman No. 1, Jakarta',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'status' => 'ACTIVE',
+        ]);
 
-        foreach ($units as $unit) {
-            DB::table('units')->updateOrInsert(
-                ['id' => $unit['id']],
-                array_merge($unit, [
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ])
-            );
-        }
+        // Create KANTOR_CABANG (Branches)
+        $branchJakarta = Unit::create([
+            'unit_name' => 'Cabang Jakarta',
+            'unit_code' => 'JAK-001',
+            'unit_type' => 'KANTOR_CABANG',
+            'parent_id' => null,
+            'address' => 'Jl. Pemuda No. 1, Jakarta',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'status' => 'ACTIVE',
+        ]);
+
+        $branchSurabaya = Unit::create([
+            'unit_name' => 'Cabang Surabaya',
+            'unit_code' => 'SBY-001',
+            'unit_type' => 'KANTOR_CABANG',
+            'parent_id' => null,
+            'address' => 'Jl. Pemuda No. 1, Surabaya',
+            'latitude' => -7.2575,
+            'longitude' => 112.7521,
+            'status' => 'ACTIVE',
+        ]);
+
+        $branchBandung = Unit::create([
+            'unit_name' => 'Cabang Bandung',
+            'unit_code' => 'BDG-001',
+            'unit_type' => 'KANTOR_CABANG',
+            'parent_id' => null,
+            'address' => 'Jl. Diponegoro No. 1, Bandung',
+            'latitude' => -6.9175,
+            'longitude' => 107.6062,
+            'status' => 'ACTIVE',
+        ]);
+
+        // Create KANTOR_KAS (Sub-units) under Jakarta branch
+        Unit::create([
+            'unit_name' => 'Unit Layanan Jakarta 1',
+            'unit_code' => 'JAK-002',
+            'unit_type' => 'KANTOR_KAS',
+            'parent_id' => $branchJakarta->id,
+            'status' => 'ACTIVE',
+        ]);
+
+        Unit::create([
+            'unit_name' => 'Unit Layanan Jakarta 2',
+            'unit_code' => 'JAK-003',
+            'unit_type' => 'KANTOR_KAS',
+            'parent_id' => $branchJakarta->id,
+            'status' => 'ACTIVE',
+        ]);
+
+        // Create KANTOR_KAS (Sub-units) under Surabaya branch
+        Unit::create([
+            'unit_name' => 'Unit Layanan Surabaya 1',
+            'unit_code' => 'SBY-002',
+            'unit_type' => 'KANTOR_KAS',
+            'parent_id' => $branchSurabaya->id,
+            'status' => 'ACTIVE',
+        ]);
+
+        Unit::create([
+            'unit_name' => 'Unit Layanan Surabaya 2',
+            'unit_code' => 'SBY-003',
+            'unit_type' => 'KANTOR_KAS',
+            'parent_id' => $branchSurabaya->id,
+            'status' => 'ACTIVE',
+        ]);
+
+        // Create KANTOR_KAS (Sub-units) under Bandung branch
+        Unit::create([
+            'unit_name' => 'Unit Layanan Bandung 1',
+            'unit_code' => 'BDG-002',
+            'unit_type' => 'KANTOR_KAS',
+            'parent_id' => $branchBandung->id,
+            'status' => 'ACTIVE',
+        ]);
+
+        Unit::create([
+            'unit_name' => 'Unit Layanan Bandung 2',
+            'unit_code' => 'BDG-003',
+            'unit_type' => 'KANTOR_KAS',
+            'parent_id' => $branchBandung->id,
+            'status' => 'ACTIVE',
+        ]);
     }
 }

@@ -57,6 +57,7 @@ export const endpointMapping = {
     'admin_get_units.php': 'admin/units',
     'admin_add_unit.php': 'admin/units',
     'admin_update_unit.php': 'admin/units',
+    'admin_delete_unit.php': 'admin/units',
     'admin_create_staff_user.php': 'admin/staff',
     'admin_get_staff_list.php': 'admin/staff',
     'admin_get_staff_detail.php': 'admin/staff',
@@ -203,6 +204,10 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
                 mappedEndpoint = `admin/staff/${body.staff_id || body.id}`;
             } else if (endpointPath === 'admin_update_deposit_product.php' && body.id) {
                 mappedEndpoint = `admin/deposit-products/${body.id}`;
+            } else if (endpointPath === 'admin_update_unit.php' && body.id) {
+                mappedEndpoint = `admin/units/${body.id}`;
+            } else if (endpointPath === 'admin_delete_unit.php' && body.id) {
+                mappedEndpoint = `admin/units/${body.id}`;
             } else if (endpointPath === 'admin_loan_products_edit.php' && body.id) {
                 mappedEndpoint = `admin/loan-products/${body.id}`;
             } else if (endpointPath === 'admin_loan_products_delete.php' && body.id) {

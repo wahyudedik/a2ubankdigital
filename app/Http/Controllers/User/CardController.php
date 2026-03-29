@@ -26,6 +26,7 @@ class CardController extends Controller
     public function index(): JsonResponse
     {
         $cards = Card::where('user_id', Auth::id())
+            ->with('user')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -41,6 +42,7 @@ class CardController extends Controller
     public function show($id): JsonResponse
     {
         $card = Card::where('user_id', Auth::id())
+            ->with('user')
             ->findOrFail($id);
 
         return response()->json([
@@ -112,15 +114,14 @@ class CardController extends Controller
     public function setLimit(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'daily_limit' => 'required|numeric|min:0|max:50000000'
+            'daily_limit' => 'required|integer|min:0|max:50000000'
         ]);
 
         $card = Card::where('user_id', Auth::id())
-            ->where('status', 'active')
             ->findOrFail($id);
 
         $card->update([
-            'daily_limit' => $request->daily_limit
+            'daily_limit' => (int) $request->daily_limit
         ]);
 
         return response()->json([
@@ -151,7 +152,7 @@ class CardController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => "Kartu berhasil {$statusText}.",
-            'data' => $card
+            'data' => $card->fresh()->load('user')
         ]);
     }
 

@@ -24,7 +24,7 @@ const CardsPage = () => {
     const accounts = initialAccounts || [];
 
     const handleRequestCard = async () => {
-        const result = await callApi('user_request_card.php', 'POST', { account_id: selectedAccountId });
+        const result = await callApi('/user/cards/request', 'POST', { card_type: 'DEBIT', delivery_address: 'Alamat pengiriman', reason: 'Pengajuan kartu baru' });
         if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); setIsRequesting(false); router.reload(); }
         else { modal.showAlert({ title: 'Gagal', message: error || result?.message || 'Terjadi kesalahan.', type: 'warning' }); }
     };
@@ -33,13 +33,13 @@ const CardsPage = () => {
         const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
         const actionText = newStatus === 'active' ? 'membuka blokir' : 'memblokir';
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi ${actionText} kartu`, message: `Apakah Anda yakin ingin ${actionText} kartu ini?`, confirmText: `Ya, ${actionText}` });
-        if (confirmed) { const result = await callApi('user_update_card_status.php', 'POST', { card_id: cardId, new_status: newStatus }); if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); } }
+        if (confirmed) { const result = await callApi(`/user/cards/${cardId}/status`, 'PUT', { status: newStatus }); if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); } }
     };
 
     const openLimitModal = (card) => { setSelectedCard(card); setNewLimit(String(card.daily_limit)); setLimitModalOpen(true); };
     const handleSetLimit = async (e) => {
         e.preventDefault();
-        const result = await callApi('user_set_card_limit.php', 'POST', { card_id: selectedCard.id, daily_limit: newLimit });
+        const result = await callApi(`/user/cards/${selectedCard.id}/limit`, 'PUT', { daily_limit: parseInt(newLimit, 10) });
         if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); setLimitModalOpen(false); router.reload(); }
     };
 

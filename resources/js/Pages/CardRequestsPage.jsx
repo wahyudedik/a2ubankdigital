@@ -13,7 +13,7 @@ const CardRequestsPage = () => {
     const handleApprove = async (cardId) => {
         const confirmed = await modal.showConfirmation({ title: "Konfirmasi Aktivasi Kartu", message: "Anda akan mengaktifkan kartu ini. Pastikan kartu fisik sudah diterima oleh nasabah. Lanjutkan?", confirmText: "Ya, Aktifkan" });
         if (confirmed) {
-            const result = await callApi('admin_process_card_request.php', 'POST', { card_id: cardId, action: 'APPROVE' });
+            const result = await callApi(`/admin/card-requests/${cardId}/process`, 'PUT', { action: 'APPROVE' });
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
             else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }

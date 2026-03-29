@@ -18,6 +18,10 @@ class DatabaseSeeder extends Seeder
             LoanProductSeeder::class,
             DepositProductSeeder::class,
             SystemConfigurationSeeder::class,
+            ExternalBankSeeder::class,
+            FaqSeeder::class,
+            AnnouncementSeeder::class,
+            BillerProductSeeder::class,
             
             // Transactional data seeders
             UserSeeder::class,

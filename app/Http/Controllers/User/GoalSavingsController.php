@@ -25,254 +25,210 @@ class GoalSavingsController extends Controller
     }
 
     /**
-     * Open goal savings account
+     * Get all goal savings for authenticated user
      */
-    public function openGoalSavings(Request $request): JsonResponse
+    public function index(): JsonResponse
+    {
+        try {
+            $goalSavings = Account::where('user_id', Auth::id())
+                ->where('account_type', 'TABUNGAN_BERJANGKA')
+                ->with(['goalSavingsDetail', 'goalSavingsDetail.fromAccount'])
+                ->get()
+                ->map(function ($account) {
+                    $detail = $account->goalSavingsDetail;
+                    return [
+                        'id' => $account->id,
+                        'account_number' => $account->account_number,
+                        'goal_name' => $detail->goal_name ?? 'Tabungan Berjangka',
+                        'goal_amount' => (float)($detail->goal_amount ?? 0),
+                        'current_balance' => (float)$account->balance,
+                        'target_date' => $detail->target_date ?? null,
+                        'progress_percentage' => $detail->progress_percentage ?? 0,
+                        'remaining_amount' => $detail->remaining_amount ?? 0,
+                        'days_remaining' => $detail->days_remaining ?? 0,
+                        'is_achieved' => $detail->is_achieved ?? false,
+                        'autodebit_enabled' => $detail->autodebit_amount > 0,
+                        'autodebit_day' => $detail->autodebit_day ?? null,
+                        'autodebit_amount' => (float)($detail->autodebit_amount ?? 0),
+                        'status' => $account->status,
+                        'created_at' => $account->created_at->toISOString()
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $goalSavings
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data tabungan berjangka.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Create new goal savings
+     */
+    public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'goal_name' => 'required|string|max:255',
-            'goal_amount' => 'required|numeric|min:100000|max:1000000000',
+            'goal_name' => 'required|string|max:100',
+            'goal_amount' => 'required|numeric|min:100000',
             'target_date' => 'required|date|after:today',
-            'autodebit_day' => 'required|integer|min:1|max:31',
-            'autodebit_amount' => 'required|numeric|min:10000',
-            'from_account_id' => 'required|exists:accounts,id',
-            'initial_deposit' => 'sometimes|numeric|min:0'
+            'initial_deposit' => 'required|numeric|min:10000',
+            'autodebit_enabled' => 'sometimes|boolean',
+            'autodebit_day' => 'required_if:autodebit_enabled,true|integer|min:1|max:28',
+            'autodebit_amount' => 'required_if:autodebit_enabled,true|numeric|min:10000'
         ]);
-
-        $user = Auth::user();
-
-        // Verify source account ownership
-        $fromAccount = Account::where('id', $request->from_account_id)
-            ->where('user_id', $user->id)
-            ->where('status', 'ACTIVE')
-            ->first();
-
-        if (!$fromAccount) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Rekening sumber tidak ditemukan atau tidak aktif.'
-            ], 404);
-        }
-
-        // Check if user already has a goal savings account
-        $existingGoalSavings = Account::where('user_id', $user->id)
-            ->where('account_type', 'TABUNGAN_RENCANA')
-            ->where('status', 'ACTIVE')
-            ->first();
-
-        if ($existingGoalSavings) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Anda sudah memiliki rekening tabungan rencana yang aktif.'
-            ], 400);
-        }
-
-        // Validate autodebit amount vs goal
-        $monthsToTarget = now()->diffInMonths($request->target_date);
-        $requiredMonthlyAmount = $request->goal_amount / max($monthsToTarget, 1);
-        
-        if ($request->autodebit_amount < $requiredMonthlyAmount * 0.5) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Jumlah autodebit terlalu kecil untuk mencapai target. Minimal Rp ' . number_format($requiredMonthlyAmount * 0.5, 0, ',', '.') . ' per bulan.'
-            ], 400);
-        }
 
         DB::beginTransaction();
         try {
-            // Generate account number
-            $accountNumber = '1200' . str_pad($user->id, 6, '0', STR_PAD_LEFT) . rand(100, 999);
+            // Get source account
+            $sourceAccount = Account::where('user_id', Auth::id())
+                ->where('account_type', 'TABUNGAN')
+                ->where('status', 'ACTIVE')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$sourceAccount || $sourceAccount->balance < $request->initial_deposit) {
+                throw new \Exception('Saldo tidak mencukupi untuk setoran awal.');
+            }
 
             // Create goal savings account
             $goalAccount = Account::create([
-                'user_id' => $user->id,
-                'account_number' => $accountNumber,
-                'account_type' => 'TABUNGAN_RENCANA',
-                'balance' => $request->initial_deposit ?? 0,
+                'user_id' => Auth::id(),
+                'account_number' => 'GS' . time() . rand(1000, 9999),
+                'account_type' => 'TABUNGAN_BERJANGKA',
+                'balance' => $request->initial_deposit,
                 'status' => 'ACTIVE'
             ]);
 
-            // Create goal savings details
-            $goalDetails = GoalSavingsDetail::create([
+            // Create goal savings detail
+            GoalSavingsDetail::create([
                 'account_id' => $goalAccount->id,
                 'goal_name' => $request->goal_name,
                 'goal_amount' => $request->goal_amount,
                 'target_date' => $request->target_date,
-                'autodebit_day' => $request->autodebit_day,
-                'autodebit_amount' => $request->autodebit_amount,
-                'from_account_id' => $request->from_account_id
+                'autodebit_day' => $request->autodebit_enabled ? $request->autodebit_day : null,
+                'autodebit_amount' => $request->autodebit_enabled ? $request->autodebit_amount : 0,
+                'from_account_id' => $sourceAccount->id
             ]);
 
-            // Process initial deposit if provided
-            if ($request->initial_deposit && $request->initial_deposit > 0) {
-                // Check source account balance
-                if ($fromAccount->balance < $request->initial_deposit) {
-                    throw new \Exception("Saldo rekening sumber tidak mencukupi untuk setoran awal.");
-                }
+            // Deduct initial deposit from source account
+            $sourceAccount->decrement('balance', $request->initial_deposit);
 
-                // Debit from source account
-                $fromAccount->decrement('balance', $request->initial_deposit);
-
-                // Create transaction record
-                $transaction = Transaction::create([
-                    'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
-                    'from_account_id' => $fromAccount->id,
-                    'to_account_id' => $goalAccount->id,
-                    'transaction_type' => 'TRANSFER_INTERNAL',
-                    'amount' => $request->initial_deposit,
-                    'fee' => 0,
-                    'description' => 'Setoran awal tabungan rencana: ' . $request->goal_name,
-                    'status' => 'SUCCESS'
-                ]);
-            }
-
-            // Log goal savings creation
-            $this->logService->logAudit('GOAL_SAVINGS_CREATED', 'accounts', $goalAccount->id, [], [
-                'goal_name' => $request->goal_name,
-                'goal_amount' => $request->goal_amount,
-                'target_date' => $request->target_date
+            // Create transaction record
+            $transaction = Transaction::create([
+                'transaction_code' => 'GSOPEN-' . time() . '-' . rand(100000, 999999),
+                'from_account_id' => $sourceAccount->id,
+                'to_account_id' => $goalAccount->id,
+                'transaction_type' => 'GOAL_SAVINGS_OPEN',
+                'amount' => $request->initial_deposit,
+                'fee' => 0,
+                'description' => "Pembukaan Tabungan Berjangka: {$request->goal_name}",
+                'status' => 'SUCCESS'
             ]);
 
-            // Notify user
-            $this->notificationService->notifyUser(
-                $user->id,
-                'Tabungan Rencana Berhasil Dibuat',
-                'Tabungan rencana "' . $request->goal_name . '" dengan target Rp ' . number_format($request->goal_amount, 2, ',', '.') . ' berhasil dibuat.'
+            // Log the action
+            $this->logService->log(
+                'goal_savings_created',
+                "Goal savings created: {$request->goal_name}",
+                Auth::id(),
+                ['account_id' => $goalAccount->id, 'goal_amount' => $request->goal_amount]
+            );
+
+            // Send notification
+            $this->notificationService->send(
+                Auth::id(),
+                'Tabungan Berjangka Dibuat',
+                "Tabungan berjangka '{$request->goal_name}' berhasil dibuat dengan target " . number_format($request->goal_amount, 0, ',', '.'),
+                'goal_savings',
+                ['account_id' => $goalAccount->id]
             );
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Tabungan rencana berhasil dibuat.',
+                'message' => 'Tabungan berjangka berhasil dibuat.',
                 'data' => [
-                    'account' => $goalAccount,
-                    'goal_details' => $goalDetails,
-                    'progress_percentage' => $goalDetails->progress_percentage,
-                    'remaining_amount' => $goalDetails->remaining_amount,
-                    'days_remaining' => $goalDetails->days_remaining
+                    'account_id' => $goalAccount->id,
+                    'account_number' => $goalAccount->account_number,
+                    'transaction_id' => $transaction->id
                 ]
-            ], 201);
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->logService->log('goal_savings_creation_failed', $e->getMessage(), Auth::id());
+            
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal membuat tabungan rencana: ' . $e->getMessage()
+                'message' => 'Gagal membuat tabungan berjangka: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Get goal savings details
+     * Deposit to goal savings
      */
-    public function getGoalSavingsDetail(): JsonResponse
-    {
-        $user = Auth::user();
-
-        $goalAccount = Account::with(['goalSavingsDetail.fromAccount'])
-            ->where('user_id', $user->id)
-            ->where('account_type', 'TABUNGAN_RENCANA')
-            ->where('status', 'ACTIVE')
-            ->first();
-
-        if (!$goalAccount) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Anda belum memiliki tabungan rencana.'
-            ], 404);
-        }
-
-        $goalDetails = $goalAccount->goalSavingsDetail;
-
-        // Get recent transactions
-        $recentTransactions = Transaction::where('to_account_id', $goalAccount->id)
-            ->orderBy('created_at', 'desc')
-            ->take(10)
-            ->get();
-
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'account' => $goalAccount,
-                'goal_details' => $goalDetails,
-                'progress_percentage' => $goalDetails->progress_percentage,
-                'remaining_amount' => $goalDetails->remaining_amount,
-                'days_remaining' => $goalDetails->days_remaining,
-                'is_achieved' => $goalDetails->is_achieved,
-                'recent_transactions' => $recentTransactions
-            ]
-        ]);
-    }
-
-    /**
-     * Manual deposit to goal savings
-     */
-    public function manualDeposit(Request $request): JsonResponse
+    public function deposit(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'amount' => 'required|numeric|min:10000',
-            'from_account_id' => 'required|exists:accounts,id'
+            'amount' => 'required|numeric|min:10000'
         ]);
-
-        $user = Auth::user();
-
-        // Get goal savings account
-        $goalAccount = Account::where('user_id', $user->id)
-            ->where('account_type', 'TABUNGAN_RENCANA')
-            ->where('status', 'ACTIVE')
-            ->first();
-
-        if (!$goalAccount) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Anda belum memiliki tabungan rencana.'
-            ], 404);
-        }
-
-        // Verify source account
-        $fromAccount = Account::where('id', $request->from_account_id)
-            ->where('user_id', $user->id)
-            ->where('status', 'ACTIVE')
-            ->first();
-
-        if (!$fromAccount) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Rekening sumber tidak ditemukan atau tidak aktif.'
-            ], 404);
-        }
 
         DB::beginTransaction();
         try {
-            // Check balance
-            if ($fromAccount->balance < $request->amount) {
-                throw new \Exception("Saldo tidak mencukupi.");
+            // Get goal savings account
+            $goalAccount = Account::where('id', $id)
+                ->where('user_id', Auth::id())
+                ->where('account_type', 'TABUNGAN_BERJANGKA')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$goalAccount) {
+                throw new \Exception('Tabungan berjangka tidak ditemukan.');
+            }
+
+            // Get source account
+            $sourceAccount = Account::where('user_id', Auth::id())
+                ->where('account_type', 'TABUNGAN')
+                ->where('status', 'ACTIVE')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$sourceAccount || $sourceAccount->balance < $request->amount) {
+                throw new \Exception('Saldo tidak mencukupi.');
             }
 
             // Transfer funds
-            $fromAccount->decrement('balance', $request->amount);
+            $sourceAccount->decrement('balance', $request->amount);
             $goalAccount->increment('balance', $request->amount);
 
-            // Create transaction
+            // Create transaction record
             $transaction = Transaction::create([
-                'transaction_code' => 'TRX-' . time() . '-' . rand(100000, 999999),
-                'from_account_id' => $fromAccount->id,
+                'transaction_code' => 'GSDEP-' . time() . '-' . rand(100000, 999999),
+                'from_account_id' => $sourceAccount->id,
                 'to_account_id' => $goalAccount->id,
-                'transaction_type' => 'TRANSFER_INTERNAL',
+                'transaction_type' => 'GOAL_SAVINGS_DEPOSIT',
                 'amount' => $request->amount,
                 'fee' => 0,
-                'description' => 'Setoran manual tabungan rencana',
+                'description' => "Setoran Tabungan Berjangka: {$goalAccount->goalSavingsDetail->goal_name}",
                 'status' => 'SUCCESS'
             ]);
 
             // Check if goal is achieved
-            $goalDetails = $goalAccount->goalSavingsDetail;
-            if ($goalDetails && $goalDetails->is_achieved) {
-                $this->notificationService->notifyUser(
-                    $user->id,
-                    'Target Tabungan Rencana Tercapai!',
-                    'Selamat! Target tabungan rencana "' . $goalDetails->goal_name . '" sebesar Rp ' . number_format($goalDetails->goal_amount, 2, ',', '.') . ' telah tercapai.'
+            $detail = $goalAccount->goalSavingsDetail;
+            if ($goalAccount->balance >= $detail->goal_amount) {
+                $this->notificationService->send(
+                    Auth::id(),
+                    '🎉 Target Tercapai!',
+                    "Selamat! Target tabungan '{$detail->goal_name}' sebesar " . number_format($detail->goal_amount, 0, ',', '.') . " telah tercapai!",
+                    'goal_savings',
+                    ['account_id' => $goalAccount->id]
                 );
             }
 
@@ -283,16 +239,143 @@ class GoalSavingsController extends Controller
                 'message' => 'Setoran berhasil.',
                 'data' => [
                     'transaction_id' => $transaction->id,
-                    'new_balance' => $goalAccount->fresh()->balance,
-                    'progress_percentage' => $goalDetails->progress_percentage ?? 0
+                    'new_balance' => (float)$goalAccount->fresh()->balance,
+                    'progress_percentage' => $goalAccount->fresh()->goalSavingsDetail->progress_percentage
                 ]
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
             return response()->json([
                 'status' => 'error',
                 'message' => 'Setoran gagal: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update goal savings settings
+     */
+    public function update(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'goal_name' => 'sometimes|string|max:100',
+            'goal_amount' => 'sometimes|numeric|min:100000',
+            'target_date' => 'sometimes|date|after:today',
+            'autodebit_enabled' => 'sometimes|boolean',
+            'autodebit_day' => 'sometimes|integer|min:1|max:28',
+            'autodebit_amount' => 'sometimes|numeric|min:10000'
+        ]);
+
+        try {
+            $goalAccount = Account::where('id', $id)
+                ->where('user_id', Auth::id())
+                ->where('account_type', 'TABUNGAN_BERJANGKA')
+                ->first();
+
+            if (!$goalAccount) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tabungan berjangka tidak ditemukan.'
+                ], 404);
+            }
+
+            $detail = $goalAccount->goalSavingsDetail;
+            
+            $updateData = [];
+            if ($request->has('goal_name')) $updateData['goal_name'] = $request->goal_name;
+            if ($request->has('goal_amount')) $updateData['goal_amount'] = $request->goal_amount;
+            if ($request->has('target_date')) $updateData['target_date'] = $request->target_date;
+            
+            if ($request->has('autodebit_enabled')) {
+                if ($request->autodebit_enabled) {
+                    $updateData['autodebit_day'] = $request->autodebit_day;
+                    $updateData['autodebit_amount'] = $request->autodebit_amount;
+                } else {
+                    $updateData['autodebit_day'] = null;
+                    $updateData['autodebit_amount'] = 0;
+                }
+            }
+
+            $detail->update($updateData);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pengaturan tabungan berjangka berhasil diperbarui.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memperbarui pengaturan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Close goal savings (withdraw all funds)
+     */
+    public function destroy($id): JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $goalAccount = Account::where('id', $id)
+                ->where('user_id', Auth::id())
+                ->where('account_type', 'TABUNGAN_BERJANGKA')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$goalAccount) {
+                throw new \Exception('Tabungan berjangka tidak ditemukan.');
+            }
+
+            $balance = $goalAccount->balance;
+
+            if ($balance > 0) {
+                // Transfer remaining balance to main account
+                $mainAccount = Account::where('user_id', Auth::id())
+                    ->where('account_type', 'TABUNGAN')
+                    ->where('status', 'ACTIVE')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($mainAccount) {
+                    $mainAccount->increment('balance', $balance);
+                    
+                    // Create transaction record
+                    Transaction::create([
+                        'transaction_code' => 'GSCLOSE-' . time() . '-' . rand(100000, 999999),
+                        'from_account_id' => $goalAccount->id,
+                        'to_account_id' => $mainAccount->id,
+                        'transaction_type' => 'GOAL_SAVINGS_CLOSE',
+                        'amount' => $balance,
+                        'fee' => 0,
+                        'description' => "Penutupan Tabungan Berjangka: {$goalAccount->goalSavingsDetail->goal_name}",
+                        'status' => 'SUCCESS'
+                    ]);
+                }
+            }
+
+            // Delete goal savings detail
+            $goalAccount->goalSavingsDetail()->delete();
+            
+            // Close account
+            $goalAccount->update(['status' => 'CLOSED']);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tabungan berjangka berhasil ditutup.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menutup tabungan berjangka: ' . $e->getMessage()
             ], 500);
         }
     }

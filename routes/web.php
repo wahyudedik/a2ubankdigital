@@ -63,6 +63,20 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/topup', [UserPageController::class, 'topup']);
     Route::get('/withdrawal', [UserPageController::class, 'withdrawal']);
     Route::get('/investments', [UserPageController::class, 'investments']);
+    Route::get('/scheduled-transfers', [UserPageController::class, 'scheduledTransfers']);
+    Route::get('/standing-instructions', [UserPageController::class, 'standingInstructions']);
+    Route::get('/tickets', [UserPageController::class, 'tickets']);
+    Route::get('/tickets/{id}', [UserPageController::class, 'ticketDetail']);
+    Route::get('/external-transfer', [UserPageController::class, 'externalTransfer']);
+    Route::get('/faq', [UserPageController::class, 'faq']);
+    Route::get('/announcements', [UserPageController::class, 'announcements']);
+    Route::get('/messages', [UserPageController::class, 'secureMessages']);
+    Route::get('/digital-products', [UserPageController::class, 'digitalProducts']);
+    Route::get('/qr-payment', [UserPageController::class, 'qrPayment']);
+    Route::get('/loyalty', [UserPageController::class, 'loyalty']);
+    Route::get('/goal-savings', [UserPageController::class, 'goalSavings']);
+    Route::get('/account-closure', [UserPageController::class, 'accountClosure']);
+    Route::get('/ewallet', [UserPageController::class, 'ewallet']);
 });
 
 /*

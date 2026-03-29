@@ -3,50 +3,51 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\ScheduledTransfer;
+use App\Models\StandingInstruction;
 use App\Models\Account;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class ScheduledTransferController extends Controller
+class StandingInstructionController extends Controller
 {
     /**
-     * Get all scheduled transfers for authenticated user
+     * Get all standing instructions for authenticated user
      */
     public function index(): JsonResponse
     {
         $user = Auth::user();
         
-        $transfers = ScheduledTransfer::where('user_id', $user->id)
+        $instructions = StandingInstruction::where('user_id', $user->id)
             ->with(['fromAccount', 'toAccount'])
-            ->orderBy('next_execution_date', 'asc')
+            ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function($transfer) {
+            ->map(function($instruction) {
                 return [
-                    'id' => $transfer->id,
-                    'from_account_number' => $transfer->fromAccount?->account_number,
-                    'to_account_number' => $transfer->toAccount?->account_number,
-                    'recipient_name' => $transfer->recipient_name,
-                    'amount' => (float)$transfer->amount,
-                    'frequency' => $transfer->frequency,
-                    'next_execution_date' => $transfer->next_execution_date,
-                    'end_date' => $transfer->end_date,
-                    'description' => $transfer->description,
-                    'status' => $transfer->status,
-                    'created_at' => $transfer->created_at,
+                    'id' => $instruction->id,
+                    'from_account_number' => $instruction->fromAccount?->account_number,
+                    'to_account_number' => $instruction->toAccount?->account_number,
+                    'recipient_name' => $instruction->recipient_name,
+                    'amount' => (float)$instruction->amount,
+                    'instruction_type' => $instruction->instruction_type,
+                    'execution_day' => $instruction->execution_day,
+                    'start_date' => $instruction->start_date,
+                    'end_date' => $instruction->end_date,
+                    'description' => $instruction->description,
+                    'status' => $instruction->status,
+                    'created_at' => $instruction->created_at,
                 ];
             });
 
         return response()->json([
             'status' => 'success',
-            'data' => $transfers
+            'data' => $instructions
         ]);
     }
 
     /**
-     * Create new scheduled transfer
+     * Create new standing instruction
      */
     public function store(Request $request): JsonResponse
     {
@@ -55,7 +56,8 @@ class ScheduledTransferController extends Controller
         $request->validate([
             'to_account_number' => 'required|string',
             'amount' => 'required|numeric|min:10000',
-            'frequency' => 'required|in:DAILY,WEEKLY,MONTHLY',
+            'instruction_type' => 'required|in:MONTHLY,SPECIFIC_DATE',
+            'execution_day' => 'required|integer|min:1|max:31',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'nullable|date|after:start_date',
             'description' => 'nullable|string|max:255'
@@ -84,20 +86,21 @@ class ScheduledTransferController extends Controller
 
             // Check not transferring to self
             if ($toAccount->user_id == $user->id) {
-                throw new \Exception('Tidak dapat membuat transfer terjadwal ke rekening sendiri.');
+                throw new \Exception('Tidak dapat membuat standing instruction ke rekening sendiri.');
             }
 
-            // Create scheduled transfer
-            $scheduledTransfer = ScheduledTransfer::create([
+            // Create standing instruction
+            $standingInstruction = StandingInstruction::create([
                 'user_id' => $user->id,
                 'from_account_id' => $fromAccount->id,
                 'to_account_id' => $toAccount->id,
                 'recipient_name' => $toAccount->user->full_name,
                 'amount' => $request->amount,
-                'frequency' => $request->frequency,
-                'next_execution_date' => $request->start_date,
+                'instruction_type' => $request->instruction_type,
+                'execution_day' => $request->execution_day,
+                'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
-                'description' => $request->description ?? 'Transfer Terjadwal',
+                'description' => $request->description ?? 'Standing Instruction',
                 'status' => 'ACTIVE'
             ]);
 
@@ -105,21 +108,21 @@ class ScheduledTransferController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Transfer terjadwal berhasil dibuat.',
-                'data' => $scheduledTransfer
+                'message' => 'Standing instruction berhasil dibuat.',
+                'data' => $standingInstruction
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal membuat transfer terjadwal: ' . $e->getMessage()
+                'message' => 'Gagal membuat standing instruction: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Update scheduled transfer
+     * Update standing instruction
      */
     public function update(Request $request, $id): JsonResponse
     {
@@ -127,43 +130,43 @@ class ScheduledTransferController extends Controller
 
         $request->validate([
             'amount' => 'sometimes|numeric|min:10000',
-            'frequency' => 'sometimes|in:DAILY,WEEKLY,MONTHLY',
+            'execution_day' => 'sometimes|integer|min:1|max:31',
             'end_date' => 'nullable|date',
             'description' => 'nullable|string|max:255',
             'status' => 'sometimes|in:ACTIVE,PAUSED'
         ]);
 
-        $scheduledTransfer = ScheduledTransfer::where('id', $id)
+        $standingInstruction = StandingInstruction::where('id', $id)
             ->where('user_id', $user->id)
             ->firstOrFail();
 
-        $scheduledTransfer->update($request->only([
-            'amount', 'frequency', 'end_date', 'description', 'status'
+        $standingInstruction->update($request->only([
+            'amount', 'execution_day', 'end_date', 'description', 'status'
         ]));
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Transfer terjadwal berhasil diperbarui.',
-            'data' => $scheduledTransfer
+            'message' => 'Standing instruction berhasil diperbarui.',
+            'data' => $standingInstruction
         ]);
     }
 
     /**
-     * Delete scheduled transfer
+     * Delete standing instruction
      */
     public function destroy($id): JsonResponse
     {
         $user = Auth::user();
 
-        $scheduledTransfer = ScheduledTransfer::where('id', $id)
+        $standingInstruction = StandingInstruction::where('id', $id)
             ->where('user_id', $user->id)
             ->firstOrFail();
 
-        $scheduledTransfer->delete();
+        $standingInstruction->delete();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Transfer terjadwal berhasil dihapus.'
+            'message' => 'Standing instruction berhasil dihapus.'
         ]);
     }
 }

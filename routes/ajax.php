@@ -126,6 +126,55 @@ Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function
     });
     // Dashboard summary (for pages that still fetch via AJAX)
     Route::get('/dashboard/summary', [App\Http\Controllers\User\DashboardController::class, 'summary']);
+    // Scheduled Transfers
+    Route::get('/scheduled-transfers', [App\Http\Controllers\User\ScheduledTransferController::class, 'index']);
+    Route::post('/scheduled-transfers', [App\Http\Controllers\User\ScheduledTransferController::class, 'store']);
+    Route::put('/scheduled-transfers/{id}', [App\Http\Controllers\User\ScheduledTransferController::class, 'update']);
+    Route::delete('/scheduled-transfers/{id}', [App\Http\Controllers\User\ScheduledTransferController::class, 'destroy']);
+    // Standing Instructions
+    Route::get('/standing-instructions', [App\Http\Controllers\User\StandingInstructionController::class, 'index']);
+    Route::post('/standing-instructions', [App\Http\Controllers\User\StandingInstructionController::class, 'store']);
+    Route::put('/standing-instructions/{id}', [App\Http\Controllers\User\StandingInstructionController::class, 'update']);
+    Route::delete('/standing-instructions/{id}', [App\Http\Controllers\User\StandingInstructionController::class, 'destroy']);
+    // Support Tickets
+    Route::get('/tickets', [App\Http\Controllers\User\TicketController::class, 'index']);
+    Route::post('/tickets', [App\Http\Controllers\User\TicketController::class, 'store']);
+    Route::get('/tickets/{id}', [App\Http\Controllers\User\TicketController::class, 'show']);
+    Route::post('/tickets/{id}/reply', [App\Http\Controllers\User\TicketController::class, 'reply']);
+    Route::put('/tickets/{id}/close', [App\Http\Controllers\User\TicketController::class, 'close']);
+    // External Transfer
+    Route::get('/external-banks', [App\Http\Controllers\User\ExternalTransferController::class, 'getBanks']);
+    Route::post('/external-transfer/inquiry', [App\Http\Controllers\User\ExternalTransferController::class, 'inquiry']);
+    Route::post('/external-transfer/execute', [App\Http\Controllers\User\ExternalTransferController::class, 'execute']);
+    // FAQ & Announcements
+    Route::get('/faq', [App\Http\Controllers\User\FaqController::class, 'index']);
+    Route::get('/announcements', [App\Http\Controllers\User\AnnouncementController::class, 'index']);
+    // Secure Messages
+    Route::get('/messages', [App\Http\Controllers\User\SecureMessageController::class, 'index']);
+    Route::post('/messages', [App\Http\Controllers\User\SecureMessageController::class, 'send']);
+    Route::put('/messages/{id}/read', [App\Http\Controllers\User\SecureMessageController::class, 'markAsRead']);
+    Route::get('/messages/thread', [App\Http\Controllers\User\SecureMessageController::class, 'getThread']);
+    // QR Payment
+    Route::post('/payment/qr-scan', [App\Http\Controllers\User\QrPaymentController::class, 'scanInfo']);
+    Route::post('/payment/qr-pay', [App\Http\Controllers\User\QrPaymentController::class, 'pay']);
+    // Loyalty Points
+    Route::get('/loyalty/points', [App\Http\Controllers\User\LoyaltyController::class, 'getLoyaltyPoints']);
+    Route::post('/loyalty/redeem', [App\Http\Controllers\User\LoyaltyController::class, 'redeemPoints']);
+    Route::get('/loyalty/rewards', [App\Http\Controllers\User\LoyaltyController::class, 'getAvailableRewards']);
+    // Goal Savings
+    Route::get('/goal-savings', [App\Http\Controllers\User\GoalSavingsController::class, 'index']);
+    Route::post('/goal-savings', [App\Http\Controllers\User\GoalSavingsController::class, 'store']);
+    Route::put('/goal-savings/{id}', [App\Http\Controllers\User\GoalSavingsController::class, 'update']);
+    Route::delete('/goal-savings/{id}', [App\Http\Controllers\User\GoalSavingsController::class, 'destroy']);
+    Route::post('/goal-savings/{id}/deposit', [App\Http\Controllers\User\GoalSavingsController::class, 'deposit']);
+    // Investment
+    Route::get('/investment/products', [App\Http\Controllers\User\InvestmentController::class, 'getProducts']);
+    Route::get('/investment/portfolio', [App\Http\Controllers\User\InvestmentController::class, 'getPortfolio']);
+    Route::post('/investment/purchase', [App\Http\Controllers\User\InvestmentController::class, 'purchase']);
+    // Account Closure
+    Route::post('/account-closure/request', [App\Http\Controllers\User\AccountClosureController::class, 'requestClosure']);
+    Route::get('/account-closure/status', [App\Http\Controllers\User\AccountClosureController::class, 'getStatus']);
+    Route::post('/account-closure/{id}/cancel', [App\Http\Controllers\User\AccountClosureController::class, 'cancelRequest']);
 });
 
 // Admin routes (for interactive flows) - Staff only

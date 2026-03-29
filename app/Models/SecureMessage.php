@@ -16,12 +16,22 @@ class SecureMessage extends Model
         'thread_id',
         'sender_id',
         'recipient_id',
+        'sender_type',
+        'recipient_type',
+        'subject',
         'message',
-        'sent_at'
+        'priority',
+        'message_type',
+        'status',
+        'sent_at',
+        'read_at',
+        'replied_at'
     ];
 
     protected $casts = [
-        'sent_at' => 'datetime'
+        'sent_at' => 'datetime',
+        'read_at' => 'datetime',
+        'replied_at' => 'datetime'
     ];
 
     /**

@@ -199,4 +199,18 @@ class UserPageController extends Controller
     public function changePassword() { return Inertia::render('ChangePasswordPage'); }
     public function changePin() { return Inertia::render('ChangePinPage'); }
     public function investments() { return Inertia::render('InvestmentPage'); }
+    public function scheduledTransfers() { return Inertia::render('ScheduledTransfersPage'); }
+    public function standingInstructions() { return Inertia::render('StandingInstructionsPage'); }
+    public function tickets() { return Inertia::render('TicketsPage'); }
+    public function ticketDetail($id) { return Inertia::render('TicketDetailPage', ['ticketId' => $id]); }
+    public function externalTransfer() { return Inertia::render('ExternalTransferPage'); }
+    public function faq() { return Inertia::render('FaqPage'); }
+    public function announcements() { return Inertia::render('AnnouncementsPage'); }
+    public function secureMessages() { return Inertia::render('SecureMessagesPage'); }
+    public function digitalProducts() { return Inertia::render('DigitalProductsPage'); }
+    public function qrPayment() { return Inertia::render('QrPaymentPage'); }
+    public function loyalty() { return Inertia::render('LoyaltyPointsPage'); }
+    public function goalSavings() { return Inertia::render('GoalSavingsPage'); }
+    public function accountClosure() { return Inertia::render('AccountClosurePage'); }
+    public function ewallet() { return Inertia::render('EWalletPage'); }
 }

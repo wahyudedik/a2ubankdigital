@@ -3,49 +3,52 @@ import useApi from '@/hooks/useApi';
 import { ShieldCheck, ChevronLeft, ChevronRight, Loader2, Filter } from 'lucide-react';
 
 // REVISI: Komponen diperbarui untuk menangani lebih banyak jenis aksi
-const LogDetail = ({ action, details, transactionCode }) => {
-    if (transactionCode) {
-        return `Kode Transaksi: ${transactionCode}`;
-    }
-
+const LogDetail = ({ action, log }) => {
     try {
-        const data = JSON.parse(details);
+        const newValues = log.new_values ? (typeof log.new_values === 'string' ? JSON.parse(log.new_values) : log.new_values) : {};
+        const tableName = log.table_name || '';
+        const recordId = log.record_id || '';
+
+        const base = `${tableName}${recordId ? ' #' + recordId : ''}`;
+
         switch (action) {
-            case 'APPROVE_LOAN':
-                return `Menyetujui Pinjaman ID: ${data.loan_id}`;
-            case 'REJECT_LOAN':
-                return `Menolak Pinjaman ID: ${data.loan_id}`;
-            case 'APPROVE_TOPUP':
-                return `Menyetujui Top-Up ID: ${data.topup_request_id}`;
-            case 'CUSTOMER_PIN_RESET':
-                 return `Reset PIN untuk Customer ID: ${data.reset_pin_for_customer_id}`;
-            case 'TRANSACTION_REVERSAL':
-                return `Membatalkan Transaksi ID: ${data.reversed_transaction_id}`;
-            case 'DISBURSE_LOAN':
-                return `Mencairkan Pinjaman ID: ${data.loan_id}`;
-            case 'DISBURSE_WITHDRAWAL':
-                return `Mencairkan Penarikan ID: ${data.withdrawal_request_id}`;
-            // --- PENAMBAHAN KASUS BARU ---
-            case 'UPDATE_SYSTEM_CONFIG':
-                return `Memperbarui konfigurasi: ${data.updated_keys.join(', ')}`;
-            case 'CREATE_STAFF':
-                return `Membuat staf baru: ${data.email} (ID: ${data.new_staff_id})`;
-            case 'UPDATE_STAFF_STATUS':
-                return `Ubah status staf ID ${data.target_staff_id} menjadi ${data.new_status}`;
-            case 'UPDATE_STAFF_ASSIGNMENT':
-                return `Pindah tugas staf ID ${data.target_staff_id} ke unit ID ${data.new_unit_id}`;
-            case 'EDIT_CUSTOMER_PROFILE':
-                return `Edit profil nasabah ID: ${data.edited_customer_id}`;
-            case 'APPROVE_CARD_REQUEST':
-                return `Menyetujui kartu ID: ${data.approved_card_id}`;
-            case 'PROCESS_ACCOUNT_CLOSURE':
-                return `${data.action === 'APPROVE' ? 'Menyetujui' : 'Menolak'} penutupan akun untuk nasabah ID: ${data.customer_id}`;
-            // --- AKHIR PENAMBAHAN ---
-            default:
-                return <span className="text-gray-500 text-xs">{details}</span>;
+            case 'LOGIN_SUCCESS': return `Login berhasil`;
+            case 'LOGIN_FAILED': return `Login gagal: ${newValues.failure_reason || 'Unknown'}`;
+            case 'LOGOUT': return `Logout`;
+            case 'APPROVE_LOAN': return `Menyetujui Pinjaman #${recordId}`;
+            case 'REJECT_LOAN': return `Menolak Pinjaman #${recordId}`;
+            case 'DISBURSE_LOAN': return `Mencairkan Pinjaman #${recordId} - Rp ${Number(newValues.amount || 0).toLocaleString('id-ID')}`;
+            case 'TELLER_DEPOSIT': return `Setor Tunai - Rp ${Number(newValues.amount || 0).toLocaleString('id-ID')}`;
+            case 'TELLER_WITHDRAWAL': return `Tarik Tunai - Rp ${Number(newValues.amount || 0).toLocaleString('id-ID')}`;
+            case 'TELLER_LOAN_PAYMENT': return `Bayar Angsuran - Rp ${Number(newValues.amount || 0).toLocaleString('id-ID')}`;
+            case 'LOAN_PRODUCT_CREATED': return `Buat produk pinjaman: ${newValues.product_name || base}`;
+            case 'LOAN_PRODUCT_UPDATED': return `Update produk pinjaman #${recordId}`;
+            case 'LOAN_PRODUCT_DELETED': return `Hapus produk pinjaman #${recordId}`;
+            case 'DEPOSIT_PRODUCT_CREATED': return `Buat produk deposito: ${newValues.product_name || base}`;
+            case 'DEPOSIT_PRODUCT_UPDATED': return `Update produk deposito #${recordId}`;
+            case 'STAFF_CREATED': return `Buat staf baru #${recordId}`;
+            case 'STAFF_UPDATED': return `Update staf #${recordId}`;
+            case 'STAFF_STATUS_CHANGED': return `Ubah status staf #${recordId} → ${newValues.status || ''}`;
+            case 'STAFF_PASSWORD_RESET': return `Reset password staf #${recordId}`;
+            case 'STAFF_ASSIGNMENT_CHANGED': return `Pindah tugas staf #${recordId}`;
+            case 'UNIT_CREATED': return `Buat unit: ${newValues.unit_name || base}`;
+            case 'UNIT_UPDATED': return `Update unit #${recordId}`;
+            case 'UNIT_DELETED': return `Hapus unit #${recordId}`;
+            case 'ANNOUNCEMENT_CREATED': return `Buat pengumuman: ${newValues.title || base}`;
+            case 'ANNOUNCEMENT_UPDATED': return `Update pengumuman #${recordId}`;
+            case 'ANNOUNCEMENT_DELETED': return `Hapus pengumuman #${recordId}`;
+            case 'PASSWORD_CHANGED': return `Ubah password`;
+            case 'PIN_CHANGED': return `Ubah PIN`;
+            case '2FA_ENABLED': return `Aktifkan 2FA`;
+            case '2FA_DISABLED': return `Nonaktifkan 2FA`;
+            case 'TRANSACTION_REVERSED': return `Reversal transaksi #${recordId}`;
+            case 'EXTERNAL_TRANSFER_EXECUTED': return `Transfer eksternal - Rp ${Number(newValues.amount || 0).toLocaleString('id-ID')}`;
+            case 'EWALLET_TOPUP_EXECUTED': return `Top-up e-wallet ${newValues.provider || ''}`;
+            case 'LOYALTY_POINTS_REDEEMED': return `Redeem ${newValues.points_redeemed || 0} poin`;
+            default: return base || action;
         }
     } catch (e) {
-        return <span className="text-gray-500 text-xs">{details || 'N/A'}</span>;
+        return action;
     }
 };
 
@@ -67,15 +70,21 @@ const AdminAuditLogPage = () => {
     useEffect(() => {
         fetchLogs(page, actionFilter);
     }, [page, actionFilter, fetchLogs]);
-    
+
     // REVISI: Menambahkan daftar aksi yang baru
     const uniqueActions = [
-        'APPROVE_TOPUP', 'DISBURSE_WITHDRAWAL', 'APPROVE_LOAN', 'REJECT_LOAN', 'DISBURSE_LOAN',
-        'CUSTOMER_PIN_RESET', 'TRANSACTION_REVERSAL', 'UPDATE_SYSTEM_CONFIG', 'CREATE_STAFF',
-        'UPDATE_STAFF_STATUS', 'UPDATE_STAFF_ASSIGNMENT', 'EDIT_CUSTOMER_PROFILE',
-        'APPROVE_CARD_REQUEST', 'PROCESS_ACCOUNT_CLOSURE'
+        'LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT',
+        'APPROVE_LOAN', 'REJECT_LOAN', 'DISBURSE_LOAN',
+        'TELLER_DEPOSIT', 'TELLER_WITHDRAWAL', 'TELLER_LOAN_PAYMENT',
+        'LOAN_PRODUCT_CREATED', 'LOAN_PRODUCT_UPDATED', 'LOAN_PRODUCT_DELETED',
+        'DEPOSIT_PRODUCT_CREATED', 'DEPOSIT_PRODUCT_UPDATED',
+        'STAFF_CREATED', 'STAFF_UPDATED', 'STAFF_STATUS_CHANGED', 'STAFF_PASSWORD_RESET', 'STAFF_ASSIGNMENT_CHANGED',
+        'UNIT_CREATED', 'UNIT_UPDATED', 'UNIT_DELETED',
+        'ANNOUNCEMENT_CREATED', 'ANNOUNCEMENT_UPDATED', 'ANNOUNCEMENT_DELETED',
+        'PASSWORD_CHANGED', 'PIN_CHANGED', '2FA_ENABLED', '2FA_DISABLED',
+        'TRANSACTION_REVERSED', 'EXTERNAL_TRANSFER_EXECUTED', 'EWALLET_TOPUP_EXECUTED', 'LOYALTY_POINTS_REDEEMED',
     ].sort();
-    
+
     const actionStyle = (action) => {
         if (action.includes('APPROVE') || action.includes('DISBURSE') || action.includes('CREATE')) return 'bg-green-100 text-green-800';
         if (action.includes('REJECT') || action.includes('REVERSAL')) return 'bg-red-100 text-red-800';
@@ -87,13 +96,13 @@ const AdminAuditLogPage = () => {
         <div>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                    <ShieldCheck size={32} className="text-taskora-green-700"/>
+                    <ShieldCheck size={32} className="text-taskora-green-700" />
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Log Audit Sistem</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Filter size={18} className="text-gray-500"/>
-                    <select 
-                        value={actionFilter} 
+                    <Filter size={18} className="text-gray-500" />
+                    <select
+                        value={actionFilter}
                         onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
                         className="p-2 border rounded-lg text-sm bg-white"
                     >
@@ -102,7 +111,7 @@ const AdminAuditLogPage = () => {
                     </select>
                 </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -117,7 +126,7 @@ const AdminAuditLogPage = () => {
                         </thead>
                         <tbody className="divide-y">
                             {loading && logs.length === 0 ? (
-                                <tr><td colSpan="5" className="p-8 text-center"><Loader2 className="animate-spin inline-block mr-2"/> Memuat log...</td></tr>
+                                <tr><td colSpan="5" className="p-8 text-center"><Loader2 className="animate-spin inline-block mr-2" /> Memuat log...</td></tr>
                             ) : error ? (
                                 <tr><td colSpan="5" className="p-8 text-center text-red-500">{error}</td></tr>
                             ) : logs.length > 0 ? logs.map(log => (
@@ -129,7 +138,7 @@ const AdminAuditLogPage = () => {
                                             {log.action}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-sm text-gray-700 font-mono"><LogDetail action={log.action} details={log.details} transactionCode={log.transaction_code} /></td>
+                                    <td className="p-4 text-sm text-gray-700"><LogDetail action={log.action} log={log} /></td>
                                     <td className="p-4 text-sm text-gray-600">{log.ip_address}</td>
                                 </tr>
                             )) : (
@@ -139,15 +148,15 @@ const AdminAuditLogPage = () => {
                     </table>
                 </div>
                 {pagination && pagination.total_pages > 1 && (
-                     <div className="flex justify-between items-center px-6 py-3 border-t">
+                    <div className="flex justify-between items-center px-6 py-3 border-t">
                         <button onClick={() => setPage(page - 1)} disabled={page <= 1 || loading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50">
-                            <ChevronLeft size={16}/> Sebelumnya
+                            <ChevronLeft size={16} /> Sebelumnya
                         </button>
                         <span className="text-sm text-gray-700">
                             Halaman {pagination.current_page || 0} dari {pagination.total_pages || 0}
                         </span>
                         <button onClick={() => setPage(page + 1)} disabled={page >= pagination.total_pages || loading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50">
-                            Berikutnya <ChevronRight size={16}/>
+                            Berikutnya <ChevronRight size={16} />
                         </button>
                     </div>
                 )}

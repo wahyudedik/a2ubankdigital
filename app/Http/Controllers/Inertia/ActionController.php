@@ -287,10 +287,15 @@ class ActionController extends Controller
 
     public function changePin(Request $request)
     {
-        $request->validate(['old_pin' => 'required', 'new_pin' => 'required|digits:6']);
+        $request->validate(['new_pin' => 'required|digits:6']);
         $user = Auth::user();
-        if ($user->pin_hash && !Hash::check($request->old_pin, $user->pin_hash)) {
-            return back()->withErrors(['old_pin' => 'PIN lama salah.']);
+        if ($user->pin_hash) {
+            if (!$request->old_pin) {
+                return back()->withErrors(['old_pin' => 'PIN lama wajib diisi.']);
+            }
+            if (!Hash::check($request->old_pin, $user->pin_hash)) {
+                return back()->withErrors(['old_pin' => 'PIN lama salah.']);
+            }
         }
         $user->update(['pin_hash' => bcrypt($request->new_pin)]);
         return back()->with('success', 'PIN berhasil diperbarui.');
@@ -352,6 +357,53 @@ class ActionController extends Controller
     {
         DB::table('withdrawal_accounts')->where('id', $id)->where('user_id', Auth::id())->delete();
         return back()->with('success', 'Rekening penarikan berhasil dihapus.');
+    }
+
+    public function createWithdrawalRequest(Request $request)
+    {
+        $request->validate([
+            'withdrawal_account_id' => 'required|exists:withdrawal_accounts,id',
+            'amount' => 'required|numeric|min:10000',
+            'pin' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+
+        // Verify PIN
+        if ($user->pin_hash && !Hash::check($request->pin, $user->pin_hash)) {
+            return back()->withErrors(['pin' => 'PIN transaksi salah.']);
+        }
+
+        // Check balance
+        $account = \App\Models\Account::where('user_id', $user->id)
+            ->where('account_type', 'TABUNGAN')
+            ->where('status', 'ACTIVE')
+            ->first();
+
+        if (!$account || $account->balance < $request->amount) {
+            return back()->withErrors(['amount' => 'Saldo tidak mencukupi.']);
+        }
+
+        // Verify withdrawal account belongs to user
+        $withdrawalAccount = DB::table('withdrawal_accounts')
+            ->where('id', $request->withdrawal_account_id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$withdrawalAccount) {
+            return back()->withErrors(['withdrawal_account_id' => 'Rekening penarikan tidak valid.']);
+        }
+
+        DB::table('withdrawal_requests')->insert([
+            'user_id' => $user->id,
+            'withdrawal_account_id' => $request->withdrawal_account_id,
+            'amount' => $request->amount,
+            'status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', 'Permintaan penarikan berhasil dikirim.');
     }
 
     public function addBeneficiary(Request $request)

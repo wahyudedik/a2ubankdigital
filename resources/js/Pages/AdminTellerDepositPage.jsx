@@ -27,7 +27,7 @@ const AdminTellerDepositPage = () => {
 
     const handleInquiry = async (e) => {
         e.preventDefault();
-        const result = await callApi('transfer_internal_inquiry.php', 'POST', { destination_account_number: accountNumber });
+        const result = await callApi('admin_teller_account_inquiry.php', 'POST', { destination_account_number: accountNumber });
         if (result && result.status === 'success') {
             setCustomerInfo(result.data);
             setStep(2);
@@ -85,22 +85,22 @@ const AdminTellerDepositPage = () => {
                     </div>
                     <div className="mt-6 flex gap-2">
                         <Button onClick={handlePrintReceipt} className="bg-gray-600 hover:bg-gray-700 w-1/2">
-                            <Printer size={16} className="mr-2"/> Cetak Nota
+                            <Printer size={16} className="mr-2" /> Cetak Nota
                         </Button>
                         <Button onClick={resetForm} fullWidth>
-                            <PlusCircle size={16} className="mr-2"/> Transaksi Baru
+                            <PlusCircle size={16} className="mr-2" /> Transaksi Baru
                         </Button>
                     </div>
                 </div>
             );
         }
-        
+
         // Langkah 2: Konfirmasi dan Masukkan Jumlah
         if (step === 2 && customerInfo) {
-             return (
+            return (
                 <form onSubmit={handleDeposit}>
-                     <h2 className="text-lg font-semibold mb-4">Langkah 2: Konfirmasi & Setoran</h2>
-                     <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md mb-4">
+                    <h2 className="text-lg font-semibold mb-4">Langkah 2: Konfirmasi & Setoran</h2>
+                    <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md mb-4">
                         <div className="flex items-center gap-3">
                             <UserCheck size={24} />
                             <div>
@@ -120,11 +120,11 @@ const AdminTellerDepositPage = () => {
                     />
                     {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
                     <div className="mt-6 flex gap-2">
-                         <Button type="button" onClick={resetForm} className="bg-gray-200 text-gray-800 hover:bg-gray-300">
-                            <ArrowLeft size={16} className="mr-1"/> Batal
+                        <Button type="button" onClick={resetForm} className="bg-gray-200 text-gray-800 hover:bg-gray-300">
+                            <ArrowLeft size={16} className="mr-1" /> Batal
                         </Button>
                         <Button type="submit" fullWidth disabled={loading}>
-                            {loading ? <><Loader2 className="animate-spin mr-2"/> Memproses...</> : 'Setor Dana'}
+                            {loading ? <><Loader2 className="animate-spin mr-2" /> Memproses...</> : 'Setor Dana'}
                         </Button>
                     </div>
                 </form>
@@ -146,7 +146,7 @@ const AdminTellerDepositPage = () => {
                 {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
                 <div className="mt-6">
                     <Button type="submit" fullWidth disabled={loading}>
-                        {loading ? <><Loader2 className="animate-spin mr-2"/> Mencari...</> : 'Cek Rekening'}
+                        {loading ? <><Loader2 className="animate-spin mr-2" /> Mencari...</> : 'Cek Rekening'}
                     </Button>
                 </div>
             </form>

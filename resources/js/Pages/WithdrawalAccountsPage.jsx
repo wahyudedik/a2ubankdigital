@@ -23,7 +23,13 @@ const WithdrawalAccountsPage = () => {
 
     const handleDelete = async (id) => {
         const confirmed = await modal.showConfirmation({ title: "Hapus Rekening?", message: "Anda yakin ingin menghapus rekening tujuan ini?" });
-        if (confirmed) { modal.showAlert({ title: "Info", message: "Fitur hapus belum tersedia di backend." }); }
+        if (confirmed) {
+            const result = await callApi(`user/withdrawal-accounts/${id}`, 'DELETE');
+            if (result && result.status === 'success') {
+                modal.showAlert({ title: "Berhasil", message: result.message, type: "success" });
+                router.reload();
+            }
+        }
     };
 
     return (

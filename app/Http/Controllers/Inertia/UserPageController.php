@@ -166,7 +166,7 @@ class UserPageController extends Controller
 
     public function cards()
     {
-        $cards = Card::where('user_id', Auth::id())->get();
+        $cards = Card::where('user_id', Auth::id())->with('user')->get();
         $accounts = Account::where('user_id', Auth::id())->where('account_type', 'TABUNGAN')->where('status', 'ACTIVE')->get();
         return Inertia::render('CardsPage', ['cards' => $cards, 'accounts' => $accounts]);
     }

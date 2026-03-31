@@ -29,16 +29,25 @@ class RegisterController extends Controller
             'full_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'nik' => 'required|string|size:16',
+            'nik' => 'required|string|min:16|max:16',
             'mother_maiden_name' => 'required|string',
             'pob' => 'required|string',
             'dob' => 'required|date',
-            'gender' => 'required|in:MALE,FEMALE',
+            'gender' => 'required|in:L,P,MALE,FEMALE',
             'address_ktp' => 'required|string',
             'phone_number' => 'required|string',
             'unit_id' => 'required|exists:units,id',
             'ktp_image' => 'required|image|mimes:jpg,jpeg,png|max:2048',
             'selfie_image' => 'required|image|mimes:jpg,jpeg,png|max:2048'
+        ], [
+            'nik.min' => 'NIK harus 16 digit.',
+            'nik.max' => 'NIK harus 16 digit.',
+            'gender.in' => 'Jenis kelamin tidak valid.',
+            'email.unique' => 'Email sudah terdaftar.',
+            'ktp_image.required' => 'Foto KTP wajib diupload.',
+            'selfie_image.required' => 'Foto selfie dengan KTP wajib diupload.',
+            'ktp_image.max' => 'Ukuran foto KTP maksimal 2MB.',
+            'selfie_image.max' => 'Ukuran foto selfie maksimal 2MB.',
         ]);
 
         // Check duplicate NIK
@@ -93,8 +102,7 @@ class RegisterController extends Controller
                 'address_ktp' => $request->address_ktp,
                 'ktp_image_path' => '/storage/' . $ktpPath,
                 'selfie_image_path' => '/storage/' . $selfiePath,
-                'registration_method' => 'ONLINE',
-                'kyc_status' => 'APPROVED'
+                'kyc_status' => 'VERIFIED'
             ]);
 
             // Generate OTP
@@ -171,6 +179,7 @@ class RegisterController extends Controller
             // Create savings account
             Account::create([
                 'user_id' => $user->id,
+                'account_number' => '',
                 'account_type' => 'TABUNGAN',
                 'balance' => 0,
                 'status' => 'ACTIVE'

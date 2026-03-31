@@ -29,123 +29,50 @@ class ReportsController extends Controller
     public function getTellerReport(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
-                'teller_id' => 'nullable|integer|exists:users,id',
-                'unit_id' => 'nullable|integer|exists:units,id'
-            ]);
+            $startDate = $request->input('start_date') ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfDay();
+            $endDate = $request->input('end_date') ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfDay();
+            $tellerId = $request->input('teller_id');
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
+            // Get teller transactions from audit_logs (teller operations are logged there)
+            $query = DB::table('audit_logs as al')
+                ->join('users as u', 'al.user_id', '=', 'u.id')
+                ->whereIn('al.action', ['TELLER_DEPOSIT', 'TELLER_WITHDRAWAL', 'TELLER_LOAN_PAYMENT'])
+                ->whereBetween('al.created_at', [$startDate, $endDate]);
+
+            if ($tellerId) {
+                $query->where('al.user_id', $tellerId);
             }
 
-            $startDate = Carbon::parse($request->start_date)->startOfDay();
-            $endDate = Carbon::parse($request->end_date)->endOfDay();
+            $logs = $query->select([
+                'al.id', 'al.action', 'al.new_values', 'al.created_at',
+                'u.full_name as teller_name'
+            ])->orderBy('al.created_at', 'desc')->get();
 
-            // Base query for teller transactions
-            $query = DB::table('transactions as t')
-                ->join('users as teller', 't.processed_by', '=', 'teller.id')
-                ->join('users as customer', 't.user_id', '=', 'customer.id')
-                ->join('customer_profiles as cp', 'customer.id', '=', 'cp.user_id')
-                ->leftJoin('units as u', 'teller.unit_id', '=', 'u.id')
-                ->where('t.processed_at', '>=', $startDate)
-                ->where('t.processed_at', '<=', $endDate)
-                ->whereNotNull('t.processed_by')
-                ->whereIn('t.type', ['deposit', 'withdrawal', 'loan_payment']);
+            $totalDeposit = 0;
+            $totalWithdrawal = 0;
+            $totalLoanPayment = 0;
 
-            if ($request->teller_id) {
-                $query->where('t.processed_by', $request->teller_id);
+            foreach ($logs as $log) {
+                $values = json_decode($log->new_values, true) ?? [];
+                $amount = $values['amount'] ?? 0;
+                if ($log->action === 'TELLER_DEPOSIT') $totalDeposit += $amount;
+                elseif ($log->action === 'TELLER_WITHDRAWAL') $totalWithdrawal += $amount;
+                elseif ($log->action === 'TELLER_LOAN_PAYMENT') $totalLoanPayment += $amount;
             }
-
-            if ($request->unit_id) {
-                $query->where('teller.unit_id', $request->unit_id);
-            }
-
-            // Get detailed transactions
-            $transactions = $query->select([
-                't.id',
-                't.type',
-                't.amount',
-                't.processed_at',
-                'teller.id as teller_id',
-                'teller.name as teller_name',
-                'customer.email as customer_email',
-                'cp.full_name as customer_name',
-                'u.name as unit_name'
-            ])->get();
-
-            // Calculate summary by teller
-            $tellerSummary = $transactions->groupBy('teller_id')->map(function ($tellerTransactions) {
-                $teller = $tellerTransactions->first();
-                
-                return [
-                    'teller_id' => $teller->teller_id,
-                    'teller_name' => $teller->teller_name,
-                    'unit_name' => $teller->unit_name,
-                    'total_transactions' => $tellerTransactions->count(),
-                    'total_amount' => $tellerTransactions->sum('amount'),
-                    'deposits' => [
-                        'count' => $tellerTransactions->where('type', 'deposit')->count(),
-                        'amount' => $tellerTransactions->where('type', 'deposit')->sum('amount')
-                    ],
-                    'withdrawals' => [
-                        'count' => $tellerTransactions->where('type', 'withdrawal')->count(),
-                        'amount' => $tellerTransactions->where('type', 'withdrawal')->sum('amount')
-                    ],
-                    'loan_payments' => [
-                        'count' => $tellerTransactions->where('type', 'loan_payment')->count(),
-                        'amount' => $tellerTransactions->where('type', 'loan_payment')->sum('amount')
-                    ]
-                ];
-            })->values();
-
-            // Overall summary
-            $overallSummary = [
-                'total_tellers' => $tellerSummary->count(),
-                'total_transactions' => $transactions->count(),
-                'total_amount' => $transactions->sum('amount'),
-                'average_per_teller' => $tellerSummary->count() > 0 ? $transactions->sum('amount') / $tellerSummary->count() : 0,
-                'by_type' => [
-                    'deposits' => [
-                        'count' => $transactions->where('type', 'deposit')->count(),
-                        'amount' => $transactions->where('type', 'deposit')->sum('amount')
-                    ],
-                    'withdrawals' => [
-                        'count' => $transactions->where('type', 'withdrawal')->count(),
-                        'amount' => $transactions->where('type', 'withdrawal')->sum('amount')
-                    ],
-                    'loan_payments' => [
-                        'count' => $transactions->where('type', 'loan_payment')->count(),
-                        'amount' => $transactions->where('type', 'loan_payment')->sum('amount')
-                    ]
-                ]
-            ];
 
             return response()->json([
-                'success' => true,
-                'data' => [
-                    'period' => [
-                        'start_date' => $startDate->toDateString(),
-                        'end_date' => $endDate->toDateString()
-                    ],
-                    'overall_summary' => $overallSummary,
-                    'teller_summary' => $tellerSummary,
-                    'detailed_transactions' => $transactions->take(100) // Limit for performance
-                ]
+                'status' => 'success',
+                'summary' => [
+                    'total_deposit' => $totalDeposit,
+                    'total_withdrawal' => $totalWithdrawal,
+                    'total_loan_payment' => $totalLoanPayment,
+                    'transaction_count' => $logs->count(),
+                ],
+                'data' => $logs->take(50),
             ]);
 
         } catch (\Exception $e) {
-            $this->logService->log('teller_report_error', $e->getMessage(), Auth::id());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate teller report'
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => 'Gagal memuat laporan: ' . $e->getMessage()], 500);
         }
     }
 
@@ -155,126 +82,57 @@ class ReportsController extends Controller
     public function getMarketingReport(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
-                'report_type' => 'nullable|in:acquisition,engagement,retention'
-            ]);
+            $startDate = $request->input('start_date') ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfMonth();
+            $endDate = $request->input('end_date') ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfDay();
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $startDate = Carbon::parse($request->start_date)->startOfDay();
-            $endDate = Carbon::parse($request->end_date)->endOfDay();
-
-            // Customer acquisition metrics
+            // Customer acquisition
             $newCustomers = User::whereBetween('created_at', [$startDate, $endDate])
-                ->where('role', 'customer')
+                ->where('role_id', 9)
                 ->count();
 
-            $totalCustomers = User::where('role', 'customer')->count();
+            $totalCustomers = User::where('role_id', 9)->count();
 
-            // Account opening metrics
-            $newAccounts = Account::whereBetween('created_at', [$startDate, $endDate])
-                ->count();
+            // New accounts
+            $newAccounts = Account::whereBetween('created_at', [$startDate, $endDate])->count();
 
-            // Transaction engagement metrics
-            $activeUsers = DB::table('transactions')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->distinct('user_id')
-                ->count();
+            // Transaction metrics
+            $totalTransactions = Transaction::whereBetween('created_at', [$startDate, $endDate])->count();
+            $transactionVolume = Transaction::whereBetween('created_at', [$startDate, $endDate])->sum('amount');
 
-            $totalTransactions = Transaction::whereBetween('created_at', [$startDate, $endDate])
-                ->count();
-
-            $transactionVolume = Transaction::whereBetween('created_at', [$startDate, $endDate])
-                ->sum('amount');
-
-            // Product adoption metrics
+            // Product adoption
             $productAdoption = [
                 'loans' => Loan::whereBetween('created_at', [$startDate, $endDate])->count(),
-                'deposits' => DB::table('transactions')
-                    ->where('type', 'deposit')
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->distinct('user_id')
-                    ->count(),
-                'digital_payments' => DB::table('transactions')
-                    ->whereIn('type', ['qr_payment', 'bill_payment', 'ewallet_topup'])
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->distinct('user_id')
-                    ->count()
+                'deposits' => Account::where('account_type', 'DEPOSITO')->whereBetween('created_at', [$startDate, $endDate])->count(),
+                'savings' => Account::where('account_type', 'TABUNGAN')->whereBetween('created_at', [$startDate, $endDate])->count(),
             ];
 
-            // Customer segmentation
-            $customerSegments = DB::table('users as u')
-                ->join('customer_profiles as cp', 'u.id', '=', 'cp.user_id')
-                ->leftJoin('accounts as a', 'u.id', '=', 'a.user_id')
-                ->where('u.role', 'customer')
-                ->select([
-                    DB::raw('CASE 
-                        WHEN a.balance >= 100000000 THEN "Premium"
-                        WHEN a.balance >= 50000000 THEN "Gold"
-                        WHEN a.balance >= 10000000 THEN "Silver"
-                        ELSE "Basic"
-                    END as segment'),
-                    DB::raw('COUNT(*) as count'),
-                    DB::raw('AVG(a.balance) as avg_balance')
-                ])
-                ->groupBy('segment')
-                ->get();
-
-            // Channel usage
-            $channelUsage = DB::table('transactions')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->select([
-                    DB::raw('CASE 
-                        WHEN processed_by IS NOT NULL THEN "Teller"
-                        WHEN type IN ("qr_payment", "bill_payment") THEN "Mobile"
-                        ELSE "Online"
-                    END as channel'),
-                    DB::raw('COUNT(*) as transaction_count'),
-                    DB::raw('SUM(amount) as transaction_volume')
-                ])
-                ->groupBy('channel')
+            // Transaction by type
+            $transactionByType = Transaction::whereBetween('created_at', [$startDate, $endDate])
+                ->select('transaction_type', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
+                ->groupBy('transaction_type')
                 ->get();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
-                    'period' => [
-                        'start_date' => $startDate->toDateString(),
-                        'end_date' => $endDate->toDateString()
-                    ],
+                    'period' => ['start_date' => $startDate->toDateString(), 'end_date' => $endDate->toDateString()],
                     'acquisition_metrics' => [
                         'new_customers' => $newCustomers,
                         'total_customers' => $totalCustomers,
-                        'growth_rate' => $totalCustomers > 0 ? ($newCustomers / $totalCustomers) * 100 : 0,
+                        'growth_rate' => $totalCustomers > 0 ? round(($newCustomers / $totalCustomers) * 100, 2) : 0,
                         'new_accounts' => $newAccounts
                     ],
                     'engagement_metrics' => [
-                        'active_users' => $activeUsers,
                         'total_transactions' => $totalTransactions,
                         'transaction_volume' => $transactionVolume,
-                        'avg_transactions_per_user' => $activeUsers > 0 ? $totalTransactions / $activeUsers : 0
                     ],
                     'product_adoption' => $productAdoption,
-                    'customer_segments' => $customerSegments,
-                    'channel_usage' => $channelUsage
+                    'transaction_by_type' => $transactionByType,
                 ]
             ]);
 
         } catch (\Exception $e) {
-            $this->logService->log('marketing_report_error', $e->getMessage(), Auth::id());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate marketing report'
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => 'Gagal memuat laporan: ' . $e->getMessage()], 500);
         }
     }
 
@@ -284,22 +142,8 @@ class ReportsController extends Controller
     public function getProductPerformanceReport(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
-                'product_type' => 'nullable|in:loan,deposit,digital'
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $startDate = Carbon::parse($request->start_date)->startOfDay();
-            $endDate = Carbon::parse($request->end_date)->endOfDay();
+            $startDate = $request->input('start_date') ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfMonth();
+            $endDate = $request->input('end_date') ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfDay();
 
             // Loan products performance
             $loanPerformance = DB::table('loans as l')
@@ -307,97 +151,60 @@ class ReportsController extends Controller
                 ->whereBetween('l.created_at', [$startDate, $endDate])
                 ->select([
                     'lp.id',
-                    'lp.name as product_name',
-                    'lp.interest_rate',
+                    'lp.product_name',
+                    'lp.interest_rate_pa',
                     DB::raw('COUNT(*) as total_loans'),
-                    DB::raw('SUM(l.amount) as total_amount'),
-                    DB::raw('AVG(l.amount) as avg_loan_amount'),
-                    DB::raw('SUM(CASE WHEN l.status = "active" THEN 1 ELSE 0 END) as active_loans'),
-                    DB::raw('SUM(CASE WHEN l.status = "completed" THEN 1 ELSE 0 END) as completed_loans'),
-                    DB::raw('SUM(CASE WHEN l.status = "defaulted" THEN 1 ELSE 0 END) as defaulted_loans')
+                    DB::raw('SUM(l.loan_amount) as total_amount'),
+                    DB::raw('AVG(l.loan_amount) as avg_loan_amount'),
+                    DB::raw("SUM(CASE WHEN l.status = 'DISBURSED' THEN 1 ELSE 0 END) as active_loans"),
+                    DB::raw("SUM(CASE WHEN l.status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_loans"),
+                    DB::raw("SUM(CASE WHEN l.status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_loans")
                 ])
-                ->groupBy('lp.id', 'lp.name', 'lp.interest_rate')
+                ->groupBy('lp.id', 'lp.product_name', 'lp.interest_rate_pa')
                 ->get();
 
             // Deposit products performance
             $depositPerformance = DB::table('accounts as a')
                 ->join('deposit_products as dp', 'a.deposit_product_id', '=', 'dp.id')
+                ->where('a.account_type', 'DEPOSITO')
                 ->whereBetween('a.created_at', [$startDate, $endDate])
                 ->select([
                     'dp.id',
-                    'dp.name as product_name',
-                    'dp.interest_rate',
+                    'dp.product_name',
+                    'dp.interest_rate_pa',
                     DB::raw('COUNT(*) as total_accounts'),
                     DB::raw('SUM(a.balance) as total_balance'),
                     DB::raw('AVG(a.balance) as avg_balance'),
-                    DB::raw('SUM(CASE WHEN a.status = "active" THEN 1 ELSE 0 END) as active_accounts')
+                    DB::raw("SUM(CASE WHEN a.status = 'ACTIVE' THEN 1 ELSE 0 END) as active_accounts")
                 ])
-                ->groupBy('dp.id', 'dp.name', 'dp.interest_rate')
+                ->groupBy('dp.id', 'dp.product_name', 'dp.interest_rate_pa')
                 ->get();
 
-            // Digital products performance
-            $digitalPerformance = DB::table('transactions as t')
-                ->join('digital_products as dp', 't.digital_product_id', '=', 'dp.id')
-                ->whereBetween('t.created_at', [$startDate, $endDate])
-                ->select([
-                    'dp.id',
-                    'dp.name as product_name',
-                    'dp.category',
-                    DB::raw('COUNT(*) as total_transactions'),
-                    DB::raw('SUM(t.amount) as total_volume'),
-                    DB::raw('COUNT(DISTINCT t.user_id) as unique_users'),
-                    DB::raw('AVG(t.amount) as avg_transaction_amount')
-                ])
-                ->groupBy('dp.id', 'dp.name', 'dp.category')
-                ->get();
-
-            // Overall product metrics
             $overallMetrics = [
                 'loan_products' => [
                     'total_products' => DB::table('loan_products')->where('is_active', true)->count(),
                     'total_loans_issued' => $loanPerformance->sum('total_loans'),
                     'total_loan_amount' => $loanPerformance->sum('total_amount'),
-                    'default_rate' => $loanPerformance->sum('total_loans') > 0 
-                        ? ($loanPerformance->sum('defaulted_loans') / $loanPerformance->sum('total_loans')) * 100 
-                        : 0
                 ],
                 'deposit_products' => [
                     'total_products' => DB::table('deposit_products')->where('is_active', true)->count(),
                     'total_accounts' => $depositPerformance->sum('total_accounts'),
                     'total_deposits' => $depositPerformance->sum('total_balance'),
-                    'avg_deposit_size' => $depositPerformance->sum('total_accounts') > 0 
-                        ? $depositPerformance->sum('total_balance') / $depositPerformance->sum('total_accounts') 
-                        : 0
                 ],
-                'digital_products' => [
-                    'total_products' => DB::table('digital_products')->where('is_active', true)->count(),
-                    'total_transactions' => $digitalPerformance->sum('total_transactions'),
-                    'total_volume' => $digitalPerformance->sum('total_volume'),
-                    'unique_users' => $digitalPerformance->sum('unique_users')
-                ]
             ];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
-                    'period' => [
-                        'start_date' => $startDate->toDateString(),
-                        'end_date' => $endDate->toDateString()
-                    ],
+                    'period' => ['start_date' => $startDate->toDateString(), 'end_date' => $endDate->toDateString()],
                     'overall_metrics' => $overallMetrics,
                     'loan_performance' => $loanPerformance,
                     'deposit_performance' => $depositPerformance,
-                    'digital_performance' => $digitalPerformance
                 ]
             ]);
 
         } catch (\Exception $e) {
-            $this->logService->log('product_performance_error', $e->getMessage(), Auth::id());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate product performance report'
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => 'Gagal memuat laporan: ' . $e->getMessage()], 500);
         }
     }
 
@@ -811,7 +618,10 @@ class ReportsController extends Controller
                 ->select([
                     'al.id',
                     'al.action',
-                    'al.details',
+                    'al.table_name',
+                    'al.record_id',
+                    'al.old_values',
+                    'al.new_values',
                     'al.ip_address',
                     'al.created_at',
                     'u.full_name',

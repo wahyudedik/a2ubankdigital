@@ -33,17 +33,17 @@ const ProductPerformanceReport = () => {
                 <div className="space-y-6">
                     <div>
                         <h3 className="font-semibold text-gray-700 mb-2 text-sm">Produk Pinjaman</h3>
-                        {report.loans.length > 0 ? (
+                        {(report.loan_performance || []).length > 0 ? (
                             <table className="w-full text-sm"><tbody>
-                                {report.loans.map(p => (<tr key={p.product_name} className="border-b"><td className="py-2">{p.product_name}</td><td className="py-2 text-right">{p.total_disbursed} pencairan</td><td className="py-2 text-right font-semibold">{formatCurrency(p.total_amount)}</td></tr>))}
+                                {report.loan_performance.map(p => (<tr key={p.id} className="border-b"><td className="py-2">{p.product_name}</td><td className="py-2 text-right">{p.total_loans} pinjaman</td><td className="py-2 text-right font-semibold">{formatCurrency(p.total_amount)}</td></tr>))}
                             </tbody></table>
                         ) : <p className="text-xs text-gray-500">Tidak ada data.</p>}
                     </div>
                     <div>
                         <h3 className="font-semibold text-gray-700 mb-2 text-sm">Produk Deposito</h3>
-                        {report.deposits.length > 0 ? (
+                        {(report.deposit_performance || []).length > 0 ? (
                             <table className="w-full text-sm"><tbody>
-                                {report.deposits.map(p => (<tr key={p.product_name} className="border-b"><td className="py-2">{p.product_name}</td><td className="py-2 text-right">{p.total_accounts} rekening</td><td className="py-2 text-right font-semibold">{formatCurrency(p.total_balance)}</td></tr>))}
+                                {report.deposit_performance.map(p => (<tr key={p.id} className="border-b"><td className="py-2">{p.product_name}</td><td className="py-2 text-right">{p.total_accounts} rekening</td><td className="py-2 text-right font-semibold">{formatCurrency(p.total_balance)}</td></tr>))}
                             </tbody></table>
                         ) : <p className="text-xs text-gray-500">Tidak ada data.</p>}
                     </div>

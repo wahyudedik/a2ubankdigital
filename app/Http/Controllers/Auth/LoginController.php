@@ -5,12 +5,20 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Services\LogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
+    protected $logService;
+
+    public function __construct(LogService $logService)
+    {
+        $this->logService = $logService;
+    }
+
     public function login(LoginRequest $request): JsonResponse
     {
         $user = User::where('email', $request->email)->first();
@@ -18,6 +26,7 @@ class LoginController extends Controller
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
             if ($user) {
                 $user->increment('failed_login_attempts');
+                $this->logService->logLogin($user->id, false, 'Invalid password');
             }
             
             return response()->json([
@@ -56,6 +65,9 @@ class LoginController extends Controller
         // Regenerate session for security
         $request->session()->regenerate();
 
+        // Log successful login
+        $this->logService->logLogin($user->id, true);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Login berhasil.',
@@ -71,6 +83,9 @@ class LoginController extends Controller
 
     public function logout(): JsonResponse
     {
+        $userId = Auth::id();
+        $this->logService->logAudit('LOGOUT', 'users', $userId);
+
         Auth::logout();
 
         if (request()->hasSession()) {

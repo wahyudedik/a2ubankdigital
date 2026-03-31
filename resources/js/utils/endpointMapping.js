@@ -136,6 +136,9 @@ export const endpointMapping = {
     // Admin build
     'admin_trigger_build.php': 'admin/trigger-build',
 
+    // Admin teller
+    'admin_teller_account_inquiry.php': 'admin/teller/account-inquiry',
+
     // Push notification
     'push_notification_subscribe.php': 'user/push-notification/subscribe',
 

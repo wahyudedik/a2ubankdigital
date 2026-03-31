@@ -49,10 +49,11 @@ const RegisterPage = () => {
 
     const fetchNearestLocations = useCallback(async (lat, lon) => {
         const result = await callApi(`utility_get_nearest_units.php?lat=${lat}&lon=${lon}`);
-        if (result && result.status === 'success') {
-            setNearestLocations(result.data);
-            if (result.data.length > 0) {
-                setFormData(prev => ({ ...prev, unit_id: result.data[0].id }));
+        if (result && result.status === 'success' && result.data) {
+            const locations = Array.isArray(result.data) ? result.data : [];
+            setNearestLocations(locations);
+            if (locations.length > 0) {
+                setFormData(prev => ({ ...prev, unit_id: String(locations[0].id) }));
             }
         }
     }, [callApi]);
@@ -172,7 +173,7 @@ const RegisterPage = () => {
                                         {nearestLocations.length === 0 && <option value="" disabled>Memuat lokasi terdekat...</option>}
                                         {nearestLocations.map(loc => (
                                             <option key={loc.id} value={loc.id}>
-                                                {loc.unit_name} ({loc.type}) - {parseFloat(loc.distance).toFixed(1)} km
+                                                {loc.unit_name} ({loc.type}){loc.distance > 0 ? ` - ${parseFloat(loc.distance).toFixed(1)} km` : ''}
                                             </option>
                                         ))}
                                     </select>

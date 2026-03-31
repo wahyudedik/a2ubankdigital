@@ -62,6 +62,7 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/deposits/{depositId}', [UserPageController::class, 'depositDetail']);
     Route::get('/topup', [UserPageController::class, 'topup']);
     Route::get('/withdrawal', [UserPageController::class, 'withdrawal']);
+    Route::post('/withdrawal', [ActionController::class, 'createWithdrawalRequest']);
     Route::get('/investments', [UserPageController::class, 'investments']);
     Route::get('/scheduled-transfers', [UserPageController::class, 'scheduledTransfers']);
     Route::get('/standing-instructions', [UserPageController::class, 'standingInstructions']);

@@ -239,102 +239,111 @@ class UtilityServicesController extends Controller
     public function getNearestUnits(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'latitude' => 'required|numeric|between:-90,90',
-                'longitude' => 'required|numeric|between:-180,180',
-                'radius' => 'nullable|numeric|min:1|max:100', // km
-                'type' => 'nullable|in:branch,atm,agent,all'
-            ]);
+            // Accept both lat/lon (frontend) and latitude/longitude
+            $latitude = $request->input('lat', $request->input('latitude'));
+            $longitude = $request->input('lon', $request->input('longitude'));
 
-            if ($validator->fails()) {
+            if (!$latitude || !$longitude) {
+                // If no coordinates, return all active units sorted by name
+                $units = Unit::where('status', 'ACTIVE')
+                    ->orderBy('unit_name')
+                    ->get()
+                    ->map(function ($unit) {
+                        return [
+                            'id' => $unit->id,
+                            'unit_name' => $unit->unit_name,
+                            'unit_code' => $unit->unit_code,
+                            'type' => $unit->unit_type,
+                            'address' => $unit->address,
+                            'phone' => $unit->phone,
+                            'distance' => 0,
+                        ];
+                    });
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
+                    'status' => 'success',
+                    'data' => $units
+                ]);
             }
 
-            $latitude = $request->latitude;
-            $longitude = $request->longitude;
-            $radius = $request->input('radius', 10); // Default 10km
-            $type = $request->input('type', 'all');
+            $radius = $request->input('radius', 100); // Default 100km
 
             // Calculate distance using Haversine formula
-            $query = Unit::select([
-                '*',
-                DB::raw("
-                    (6371 * acos(
-                        cos(radians($latitude)) * 
-                        cos(radians(latitude)) * 
-                        cos(radians(longitude) - radians($longitude)) + 
-                        sin(radians($latitude)) * 
-                        sin(radians(latitude))
-                    )) AS distance
-                ")
-            ])
-            ->where('is_active', true)
-            ->having('distance', '<=', $radius);
-
-            if ($type !== 'all') {
-                $query->where('type', $type);
-            }
-
-            $units = $query
+            $units = Unit::select([
+                    '*',
+                    DB::raw("
+                        (6371 * acos(
+                            LEAST(1, cos(radians({$latitude})) * 
+                            cos(radians(latitude)) * 
+                            cos(radians(longitude) - radians({$longitude})) + 
+                            sin(radians({$latitude})) * 
+                            sin(radians(latitude)))
+                        )) AS distance
+                    ")
+                ])
+                ->where('status', 'ACTIVE')
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->having('distance', '<=', $radius)
                 ->orderBy('distance')
-                ->take(20) // Limit to 20 nearest units
+                ->take(20)
                 ->get()
                 ->map(function ($unit) {
                     return [
                         'id' => $unit->id,
-                        'name' => $unit->name,
-                        'type' => $unit->type,
+                        'unit_name' => $unit->unit_name,
+                        'unit_code' => $unit->unit_code,
+                        'type' => $unit->unit_type,
                         'address' => $unit->address,
-                        'city' => $unit->city,
-                        'province' => $unit->province,
-                        'postal_code' => $unit->postal_code,
                         'phone' => $unit->phone,
-                        'email' => $unit->email,
-                        'coordinates' => [
-                            'latitude' => $unit->latitude,
-                            'longitude' => $unit->longitude
-                        ],
                         'distance' => round($unit->distance, 2),
-                        'operating_hours' => json_decode($unit->operating_hours ?? '{}', true),
-                        'services' => json_decode($unit->services ?? '[]', true),
-                        'facilities' => json_decode($unit->facilities ?? '[]', true),
-                        'is_24_hours' => (bool) $unit->is_24_hours,
-                        'has_parking' => (bool) $unit->has_parking,
-                        'wheelchair_accessible' => (bool) $unit->wheelchair_accessible
                     ];
                 });
 
-            // Group by type
-            $groupedUnits = $units->groupBy('type');
+            // If no units found within radius, return all active units
+            if ($units->isEmpty()) {
+                $units = Unit::where('status', 'ACTIVE')
+                    ->orderBy('unit_name')
+                    ->get()
+                    ->map(function ($unit) {
+                        return [
+                            'id' => $unit->id,
+                            'unit_name' => $unit->unit_name,
+                            'unit_code' => $unit->unit_code,
+                            'type' => $unit->unit_type,
+                            'address' => $unit->address,
+                            'phone' => $unit->phone,
+                            'distance' => 0,
+                        ];
+                    });
+            }
 
             return response()->json([
-                'success' => true,
-                'data' => [
-                    'units' => $units,
-                    'grouped_units' => $groupedUnits,
-                    'search_criteria' => [
-                        'latitude' => $latitude,
-                        'longitude' => $longitude,
-                        'radius_km' => $radius,
-                        'type' => $type
-                    ],
-                    'summary' => [
-                        'total_found' => $units->count(),
-                        'nearest_distance' => $units->first()?->distance ?? 0,
-                        'by_type' => $groupedUnits->map->count()
-                    ]
-                ]
+                'status' => 'success',
+                'data' => $units
             ]);
 
         } catch (\Exception $e) {
+            // Fallback: return all active units if calculation fails
+            $units = Unit::where('status', 'ACTIVE')
+                ->orderBy('unit_name')
+                ->get()
+                ->map(function ($unit) {
+                    return [
+                        'id' => $unit->id,
+                        'unit_name' => $unit->unit_name,
+                        'unit_code' => $unit->unit_code,
+                        'type' => $unit->unit_type,
+                        'address' => $unit->address,
+                        'phone' => $unit->phone,
+                        'distance' => 0,
+                    ];
+                });
+
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch nearest units'
-            ], 500);
+                'status' => 'success',
+                'data' => $units
+            ]);
         }
     }
 

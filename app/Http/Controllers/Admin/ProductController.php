@@ -54,11 +54,11 @@ class ProductController extends Controller
             'product_name' => 'required|string|max:255',
             'min_amount' => 'required|numeric|min:0',
             'max_amount' => 'required|numeric|min:0',
-            'interest_rate_pa' => 'required|numeric|min:0|max:100',
+            'interest_rate_pa' => 'required|numeric|min:0|max:9999',
             'late_payment_fee' => 'required|numeric|min:0',
             'min_tenor' => 'required|integer|min:1',
             'max_tenor' => 'required|integer|min:1',
-            'tenor_unit' => 'required|in:BULAN,TAHUN'
+            'tenor_unit' => 'required|in:MINGGU,BULAN,TAHUN'
         ]);
 
         if ((float)$request->max_amount < (float)$request->min_amount) {
@@ -111,11 +111,11 @@ class ProductController extends Controller
             'product_name' => 'sometimes|string|max:255',
             'min_amount' => 'sometimes|numeric|min:0',
             'max_amount' => 'sometimes|numeric',
-            'interest_rate_pa' => 'sometimes|numeric|min:0|max:100',
+            'interest_rate_pa' => 'sometimes|numeric|min:0|max:9999',
             'late_payment_fee' => 'sometimes|numeric|min:0',
             'min_tenor' => 'sometimes|integer|min:1',
             'max_tenor' => 'sometimes|integer',
-            'tenor_unit' => 'sometimes|in:BULAN,TAHUN'
+            'tenor_unit' => 'sometimes|in:MINGGU,BULAN,TAHUN'
         ]);
 
         $oldData = $product->toArray();

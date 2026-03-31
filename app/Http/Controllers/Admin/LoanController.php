@@ -8,6 +8,7 @@ use App\Models\LoanInstallment;
 use App\Models\Transaction;
 use App\Models\Account;
 use App\Services\NotificationService;
+use App\Services\LogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +17,12 @@ use Illuminate\Support\Facades\Auth;
 class LoanController extends Controller
 {
     protected $notificationService;
+    protected $logService;
 
-    public function __construct(NotificationService $notificationService)
+    public function __construct(NotificationService $notificationService, LogService $logService)
     {
         $this->notificationService = $notificationService;
+        $this->logService = $logService;
     }
     public function index(Request $request): JsonResponse
     {
@@ -68,7 +71,7 @@ class LoanController extends Controller
     {
         $request->validate([
             'status' => 'required|in:APPROVED,REJECTED',
-            'rejection_reason' => 'required_if:status,REJECTED'
+            'rejection_reason' => 'nullable|required_if:status,REJECTED|string'
         ]);
 
         $loan = Loan::findOrFail($id);
@@ -86,6 +89,14 @@ class LoanController extends Controller
             'approved_at' => now(),
             'approved_by' => Auth::id()
         ]);
+
+        // Audit log
+        $this->logService->logAudit(
+            $request->status === 'APPROVED' ? 'APPROVE_LOAN' : 'REJECT_LOAN',
+            'loans', $loan->id,
+            ['status' => 'SUBMITTED'],
+            ['status' => $request->status, 'approved_by' => Auth::id()]
+        );
 
         // Send notification to customer
         if ($request->status === 'APPROVED') {
@@ -154,6 +165,12 @@ class LoanController extends Controller
 
             // Generate installments
             $this->generateInstallments($loan);
+
+            // Audit log
+            $this->logService->logAudit('DISBURSE_LOAN', 'loans', $loan->id, 
+                ['status' => 'APPROVED'], 
+                ['status' => 'DISBURSED', 'disbursed_by' => Auth::id(), 'amount' => $loan->loan_amount]
+            );
 
             // Send notification to customer
             $this->notificationService->notifyUser(

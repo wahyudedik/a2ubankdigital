@@ -44,7 +44,7 @@ const LoanProductModal = ({ product, onClose, onSave }) => {
                         <Input name="min_tenor" type="number" label="Tenor Minimum" value={formData.min_tenor} onChange={handleChange} required />
                         <div className="grid grid-cols-2 gap-2">
                             <Input name="max_tenor" type="number" label="Tenor Maksimum" value={formData.max_tenor} onChange={handleChange} required />
-                            <div><label className="block mb-2 text-sm font-medium">Satuan</label><select name="tenor_unit" value={formData.tenor_unit} onChange={handleChange} className="w-full p-2 border rounded-lg bg-gray-50 h-[42px]"><option value="BULAN">Bulan</option><option value="TAHUN">Tahun</option></select></div>
+                            <div><label className="block mb-2 text-sm font-medium">Satuan</label><select name="tenor_unit" value={formData.tenor_unit} onChange={handleChange} className="w-full p-2 border rounded-lg bg-gray-50 h-[42px]"><option value="MINGGU">Minggu</option><option value="BULAN">Bulan</option><option value="TAHUN">Tahun</option></select></div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 md:col-span-2"><input type="checkbox" id="is_active" name="is_active" checked={!!formData.is_active} onChange={handleChange} className="h-4 w-4 rounded border-gray-300" /><label htmlFor="is_active" className="text-sm font-medium text-gray-700">Aktifkan Produk</label></div>
                     </div>

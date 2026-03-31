@@ -26,7 +26,7 @@ const TellerReport = () => {
     useEffect(() => {
         const fetchTellers = async () => {
             const result = await callApi('admin_get_staff_list.php');
-            if (result && result.status === 'success') setTellers(result.data.filter(s => s.role_name === 'Teller' || s.role_name === 'Customer Service'));
+            if (result && result.status === 'success') setTellers(result.data.filter(s => [4, 6].includes(s.role_id)));
         };
         fetchTellers();
     }, [callApi]);

@@ -30,9 +30,19 @@ const LoanApplicationsPage = () => {
 
     const handleUpdateStatus = async (loanId, newStatus) => {
         const actionText = newStatus === 'APPROVED' ? 'MENYETUJUI' : 'MENOLAK';
+        let rejectionReason = '';
+
+        if (newStatus === 'REJECTED') {
+            const reason = prompt('Masukkan alasan penolakan:');
+            if (!reason) return;
+            rejectionReason = reason;
+        }
+
         const confirmed = await modal.showConfirmation({ title: `Konfirmasi ${actionText}`, message: `Apakah Anda yakin ingin ${actionText.toLowerCase()} pengajuan pinjaman ini?`, confirmText: `Ya, ${actionText}` });
         if (confirmed) {
-            const result = await callApi('admin_loan_application_update_status.php', 'PUT', { loan_id: loanId, status: newStatus });
+            const payload = { loan_id: loanId, status: newStatus };
+            if (newStatus === 'REJECTED') payload.rejection_reason = rejectionReason;
+            const result = await callApi('admin_loan_application_update_status.php', 'PUT', payload);
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
             else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }

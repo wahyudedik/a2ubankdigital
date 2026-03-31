@@ -181,6 +181,22 @@ Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function
 Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,cs,analyst,debt_collector'])->prefix('admin')->group(function () {
     // Teller operations
     Route::post('/teller/deposit', [App\Http\Controllers\Admin\TellerController::class, 'deposit']);
+    Route::post('/teller/account-inquiry', function(Request $request) {
+        $request->validate(['destination_account_number' => 'required|string']);
+        $account = App\Models\Account::with('user')
+            ->where('account_number', $request->destination_account_number)
+            ->where('status', 'ACTIVE')
+            ->first();
+        if (!$account) {
+            return response()->json(['status' => 'error', 'message' => 'Nomor rekening tidak ditemukan atau tidak aktif.'], 404);
+        }
+        return response()->json(['status' => 'success', 'data' => [
+            'account_number' => $account->account_number,
+            'account_type' => $account->account_type,
+            'recipient_name' => $account->user->full_name,
+            'balance' => (float) $account->balance,
+        ]]);
+    });
     Route::post('/teller/pay-installment', [App\Http\Controllers\Admin\TellerController::class, 'payInstallment']);
     Route::get('/teller/search-installments', function(Request $request) {
         $q = $request->input('q', '');

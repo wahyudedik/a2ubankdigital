@@ -15,9 +15,6 @@
     # Force HTTPS (only enable after SSL is configured)
     # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
     
-    # Content Security Policy (adjust as needed for your app)
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
-    
     # Referrer Policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     

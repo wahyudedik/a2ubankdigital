@@ -28,14 +28,27 @@ class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        // Content Security Policy
-        $csp = "default-src 'self'; " .
-               "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " .
-               "style-src 'self' 'unsafe-inline'; " .
-               "img-src 'self' data: https:; " .
-               "font-src 'self' data:; " .
-               "connect-src 'self'; " .
-               "frame-ancestors 'none';";
+        // Content Security Policy - adjusted for development and production
+        $isDevelopment = config('app.env') === 'local' || config('app.debug');
+        
+        if ($isDevelopment) {
+            // Relaxed CSP for development - allow Vite dev server
+            $csp = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: http: ws:; " .
+                   "style-src 'self' 'unsafe-inline' https:; " .
+                   "img-src 'self' data: https: http:; " .
+                   "font-src 'self' data: https:; " .
+                   "connect-src 'self' http: ws: https:; " .
+                   "frame-ancestors 'none';";
+        } else {
+            // Stricter CSP for production
+            $csp = "default-src 'self'; " .
+                   "script-src 'self' 'unsafe-inline'; " .
+                   "style-src 'self' 'unsafe-inline' https://fonts.bunny.net https://fonts.googleapis.com; " .
+                   "img-src 'self' data: https:; " .
+                   "font-src 'self' data: https://fonts.bunny.net https://fonts.gstatic.com; " .
+                   "connect-src 'self' https:; " .
+                   "frame-ancestors 'none';";
+        }
         
         $response->headers->set('Content-Security-Policy', $csp);
 

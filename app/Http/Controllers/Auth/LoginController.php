@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Services\EmailService;
 use App\Services\LogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -13,10 +14,12 @@ use Illuminate\Support\Facades\Auth;
 class LoginController extends Controller
 {
     protected $logService;
+    protected $emailService;
 
-    public function __construct(LogService $logService)
+    public function __construct(LogService $logService, EmailService $emailService)
     {
         $this->logService = $logService;
+        $this->emailService = $emailService;
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -67,6 +70,24 @@ class LoginController extends Controller
 
         // Log successful login
         $this->logService->logLogin($user->id, true);
+
+        // Send login security notification email (non-blocking)
+        try {
+            $this->emailService->send(
+                $user->email,
+                $user->full_name,
+                'Notifikasi Login Berhasil',
+                'login_notification',
+                [
+                    'full_name' => $user->full_name,
+                    'login_time' => now()->format('d M Y H:i:s'),
+                    'ip_address' => $request->ip(),
+                    'preheader' => 'Login baru terdeteksi pada akun Anda.'
+                ]
+            );
+        } catch (\Exception $e) {
+            // Email failure should not break the login flow
+        }
 
         return response()->json([
             'status' => 'success',

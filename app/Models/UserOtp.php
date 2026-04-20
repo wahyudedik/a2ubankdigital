@@ -12,7 +12,8 @@ class UserOtp extends Model
         'user_id',
         'otp_code',
         'expires_at',
-        'is_used'
+        'is_used',
+        'purpose'
     ];
 
     protected $casts = [

@@ -28,7 +28,7 @@ export default function SecureMessagesPage({ auth }) {
                 setUnreadCount(data.data.summary.unread_count);
             }
         } catch (error) {
-            console.error('Failed to fetch messages:', error);
+
         } finally {
             setLoading(false);
         }
@@ -45,7 +45,7 @@ export default function SecureMessagesPage({ auth }) {
                 setSelectedThread(threadId);
             }
         } catch (error) {
-            console.error('Failed to fetch thread:', error);
+
         }
     };
 
@@ -73,7 +73,7 @@ export default function SecureMessagesPage({ auth }) {
                 alert(data.message || 'Gagal mengirim pesan');
             }
         } catch (error) {
-            console.error('Failed to send message:', error);
+
             alert('Gagal mengirim pesan');
         }
     };
@@ -89,7 +89,7 @@ export default function SecureMessagesPage({ auth }) {
             });
             fetchMessages();
         } catch (error) {
-            console.error('Failed to mark as read:', error);
+
         }
     };
 

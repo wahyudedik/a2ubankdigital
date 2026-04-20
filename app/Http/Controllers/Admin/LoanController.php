@@ -8,6 +8,7 @@ use App\Models\LoanInstallment;
 use App\Models\Transaction;
 use App\Models\Account;
 use App\Services\NotificationService;
+use App\Services\EmailService;
 use App\Services\LogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,17 +19,26 @@ class LoanController extends Controller
 {
     protected $notificationService;
     protected $logService;
+    protected $emailService;
 
-    public function __construct(NotificationService $notificationService, LogService $logService)
+    public function __construct(NotificationService $notificationService, LogService $logService, EmailService $emailService)
     {
         $this->notificationService = $notificationService;
         $this->logService = $logService;
+        $this->emailService = $emailService;
     }
     public function index(Request $request): JsonResponse
     {
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 10);
         $status = $request->input('status');
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         $query = Loan::with(['user', 'loanProduct']);
 
@@ -74,7 +84,7 @@ class LoanController extends Controller
             'rejection_reason' => 'nullable|required_if:status,REJECTED|string'
         ]);
 
-        $loan = Loan::findOrFail($id);
+        $loan = Loan::with('user')->findOrFail($id);
 
         if ($loan->status !== 'SUBMITTED') {
             return response()->json([
@@ -105,12 +115,39 @@ class LoanController extends Controller
                 'Pinjaman Disetujui',
                 'Pengajuan pinjaman Anda sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah disetujui. Menunggu pencairan dana.'
             );
+            try {
+                $this->emailService->send(
+                    $loan->user->email,
+                    $loan->user->full_name,
+                    'Pinjaman Anda Disetujui',
+                    'loan_approved',
+                    [
+                        'full_name' => $loan->user->full_name,
+                        'loan_amount' => 'Rp ' . number_format($loan->loan_amount, 0, ',', '.'),
+                        'preheader' => 'Pengajuan pinjaman Anda telah disetujui.'
+                    ]
+                );
+            } catch (\Exception $e) {}
         } elseif ($request->status === 'REJECTED') {
             $this->notificationService->notifyUser(
                 $loan->user_id,
                 'Pinjaman Ditolak',
                 'Pengajuan pinjaman Anda ditolak. Alasan: ' . ($request->rejection_reason ?? 'Tidak memenuhi syarat.')
             );
+            try {
+                $this->emailService->send(
+                    $loan->user->email,
+                    $loan->user->full_name,
+                    'Pinjaman Anda Ditolak',
+                    'loan_rejected',
+                    [
+                        'full_name' => $loan->user->full_name,
+                        'loan_amount' => 'Rp ' . number_format($loan->loan_amount, 0, ',', '.'),
+                        'rejection_reason' => $request->rejection_reason ?? 'Tidak memenuhi syarat.',
+                        'preheader' => 'Pengajuan pinjaman Anda ditolak.'
+                    ]
+                );
+            } catch (\Exception $e) {}
         }
 
         return response()->json([
@@ -122,7 +159,7 @@ class LoanController extends Controller
 
     public function disburse(Request $request, $id): JsonResponse
     {
-        $loan = Loan::findOrFail($id);
+        $loan = Loan::with('user')->findOrFail($id);
 
         if ($loan->status !== 'APPROVED') {
             return response()->json([
@@ -149,7 +186,7 @@ class LoanController extends Controller
                 'transaction_type' => 'LOAN_DISBURSEMENT',
                 'amount' => $loan->loan_amount,
                 'fee' => 0,
-                'description' => 'Pencairan Pinjaman ' . $loan->loanProduct->product_name,
+                'description' => 'Pencairan Pinjaman ' . ($loan->loanProduct?->product_name ?? 'N/A'),
                 'status' => 'SUCCESS'
             ]);
 
@@ -178,6 +215,19 @@ class LoanController extends Controller
                 'Pinjaman Dicairkan',
                 'Dana pinjaman sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah dicairkan ke rekening Anda.'
             );
+            try {
+                $this->emailService->send(
+                    $loan->user->email,
+                    $loan->user->full_name,
+                    'Dana Pinjaman Telah Dicairkan',
+                    'loan_disbursed',
+                    [
+                        'full_name' => $loan->user->full_name,
+                        'loan_amount' => 'Rp ' . number_format($loan->loan_amount, 0, ',', '.'),
+                        'preheader' => 'Dana pinjaman Anda telah dicairkan ke rekening.'
+                    ]
+                );
+            } catch (\Exception $e) {}
 
             DB::commit();
 
@@ -199,19 +249,33 @@ class LoanController extends Controller
     private function generateInstallments(Loan $loan): void
     {
         $installmentAmount = $loan->monthly_installment;
-        $principalPerInstallment = $loan->loan_amount / $loan->tenor;
         $remainingPrincipal = $loan->loan_amount;
+        $tenorUnit = $loan->tenor_unit ?? 'BULAN';
+
+        // Rate per period disesuaikan dengan tenor_unit
+        if ($tenorUnit === 'MINGGU') {
+            $periodRate = $loan->interest_rate_pa / 100 / 52;
+        } else {
+            $periodRate = $loan->interest_rate_pa / 100 / 12;
+        }
 
         for ($i = 1; $i <= $loan->tenor; $i++) {
-            $dueDate = now()->addMonths($i);
-            
-            if ($i === $loan->tenor) {
-                $principal = $remainingPrincipal;
-            } else {
-                $principal = $principalPerInstallment;
-            }
+            $dueDate = $tenorUnit === 'MINGGU'
+                ? now()->addWeeks($i)
+                : now()->addMonths($i);
 
-            $interest = $installmentAmount - $principal;
+            // Hitung interest berdasarkan sisa pokok (amortisasi)
+            $interest = round($remainingPrincipal * $periodRate, 2);
+            $principal = round($installmentAmount - $interest, 2);
+
+            // Angsuran terakhir: lunasi sisa pokok agar tidak ada selisih pembulatan
+            if ($i === $loan->tenor) {
+                $principal = round($remainingPrincipal, 2);
+                $interest = round($installmentAmount - $principal, 2);
+                if ($interest < 0) {
+                    $interest = 0;
+                }
+            }
 
             LoanInstallment::create([
                 'loan_id' => $loan->id,
@@ -219,12 +283,48 @@ class LoanController extends Controller
                 'due_date' => $dueDate,
                 'principal_amount' => $principal,
                 'interest_amount' => $interest,
-                'total_amount' => $installmentAmount,
+                'total_amount' => $principal + $interest,
                 'status' => 'PENDING'
             ]);
 
-            $remainingPrincipal -= $principal;
+            $remainingPrincipal = round($remainingPrincipal - $principal, 2);
         }
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $loan = Loan::findOrFail($id);
+
+        $deletableStatuses = ['SUBMITTED', 'REJECTED'];
+        $blockedStatuses = ['DISBURSED', 'ACTIVE', 'COMPLETED'];
+
+        if (in_array($loan->status, $blockedStatuses)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pinjaman dengan status ' . $loan->status . ' tidak dapat dihapus.'
+            ], 400);
+        }
+
+        if (!in_array($loan->status, $deletableStatuses)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Status pinjaman tidak valid untuk dihapus.'
+            ], 400);
+        }
+
+        $loan->delete();
+
+        $this->logService->logAudit(
+            'DELETE_LOAN',
+            'loans', $id,
+            ['status' => $loan->status],
+            null
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pinjaman berhasil dihapus.'
+        ]);
     }
 
     public function forcePayInstallment(Request $request, $id): JsonResponse

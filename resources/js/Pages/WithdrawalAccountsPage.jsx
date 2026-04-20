@@ -17,7 +17,7 @@ const WithdrawalAccountsPage = () => {
 
     const handleSave = async (e) => {
         e.preventDefault();
-        const result = await callApi('user_add_withdrawal_account.php', 'POST', newData);
+        const result = await callApi('/user/withdrawal-accounts', 'POST', newData);
         if (result && result.status === 'success') { setNewData({ bank_name: '', account_number: '', account_name: '' }); setAddMode(false); router.reload(); }
     };
 

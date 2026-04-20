@@ -39,7 +39,7 @@ export default function GoalSavingsPage({ auth }) {
                 setGoals(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch goals:', error);
+
         } finally {
             setLoading(false);
         }
@@ -70,7 +70,7 @@ export default function GoalSavingsPage({ auth }) {
                 alert(data.message || 'Gagal membuat tabungan berjangka');
             }
         } catch (error) {
-            console.error('Create failed:', error);
+
             alert('Terjadi kesalahan');
         } finally {
             setProcessing(false);
@@ -102,7 +102,7 @@ export default function GoalSavingsPage({ auth }) {
                 alert(data.message || 'Setoran gagal');
             }
         } catch (error) {
-            console.error('Deposit failed:', error);
+
             alert('Terjadi kesalahan');
         } finally {
             setProcessing(false);
@@ -131,7 +131,7 @@ export default function GoalSavingsPage({ auth }) {
                 alert(data.message || 'Gagal menutup tabungan');
             }
         } catch (error) {
-            console.error('Delete failed:', error);
+
             alert('Terjadi kesalahan');
         }
     };

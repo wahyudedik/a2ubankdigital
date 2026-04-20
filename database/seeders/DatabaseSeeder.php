@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             AnnouncementSeeder::class,
             BillerProductSeeder::class,
             
-            // Transactional data seeders
+            // Transactional data seeders 
             UserSeeder::class,
             CustomerProfileSeeder::class,
             AccountSeeder::class,
@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             LoanSeeder::class,
             LoanInstallmentSeeder::class,
             TransactionSeeder::class,
+            TestRequestsSeeder::class,
         ]);
     }
 }

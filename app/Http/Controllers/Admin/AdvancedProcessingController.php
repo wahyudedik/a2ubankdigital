@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\EmailService;
 use App\Services\LogService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -16,11 +17,13 @@ class AdvancedProcessingController extends Controller
 {
     protected $logService;
     protected $notificationService;
+    protected $emailService;
 
-    public function __construct(LogService $logService, NotificationService $notificationService)
+    public function __construct(LogService $logService, NotificationService $notificationService, EmailService $emailService)
     {
         $this->logService = $logService;
         $this->notificationService = $notificationService;
+        $this->emailService = $emailService;
     }
 
     public function getTopupRequests(Request $request)
@@ -165,6 +168,40 @@ class AdvancedProcessingController extends Controller
                 ]);
 
             DB::commit();
+
+            // Send email notification to customer (non-blocking)
+            try {
+                $amountFormatted = 'Rp ' . number_format($topupRequest->amount, 0, ',', '.');
+                if ($request->action === 'approve') {
+                    $this->emailService->send(
+                        $user->email,
+                        $user->full_name,
+                        'Top-up Saldo Disetujui',
+                        'topup_approved',
+                        [
+                            'full_name' => $user->full_name,
+                            'amount' => $amountFormatted,
+                            'payment_method' => $topupRequest->payment_method,
+                            'preheader' => 'Top-up saldo Anda sebesar ' . $amountFormatted . ' telah disetujui.'
+                        ]
+                    );
+                } else {
+                    $this->emailService->send(
+                        $user->email,
+                        $user->full_name,
+                        'Top-up Saldo Ditolak',
+                        'topup_rejected',
+                        [
+                            'full_name' => $user->full_name,
+                            'amount' => $amountFormatted,
+                            'rejection_reason' => $request->admin_notes ?? 'Tidak memenuhi syarat.',
+                            'preheader' => 'Permintaan top-up saldo Anda ditolak.'
+                        ]
+                    );
+                }
+            } catch (\Exception $emailEx) {
+                // Email failure should not break the main flow
+            }
 
             // Log the action
             $this->logService->log(
@@ -463,6 +500,13 @@ class AdvancedProcessingController extends Controller
             $limit = $request->input('limit', 20);
             $documentType = $request->input('document_type', 'all');
             $priority = $request->input('priority', 'all'); // all, high, medium, low
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             $query = DB::table('uploaded_files as uf')
                 ->leftJoin('users as u', 'uf.uploaded_by', '=', 'u.id')

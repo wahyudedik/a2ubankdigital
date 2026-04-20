@@ -42,7 +42,7 @@ const LoanApplicationsPage = () => {
         if (confirmed) {
             const payload = { loan_id: loanId, status: newStatus };
             if (newStatus === 'REJECTED') payload.rejection_reason = rejectionReason;
-            const result = await callApi('admin_loan_application_update_status.php', 'PUT', payload);
+            const result = await callApi('/admin/loan-applications/status', 'PUT', payload);
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
             else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }
@@ -51,7 +51,7 @@ const LoanApplicationsPage = () => {
     const handleDisburse = async (loanId) => {
         const confirmed = await modal.showConfirmation({ title: "Konfirmasi Pencairan", message: "Anda akan mencairkan dana ke rekening nasabah. Tindakan ini akan membuat jadwal angsuran dan tidak dapat dibatalkan. Lanjutkan?", confirmText: "Ya, Cairkan Dana" });
         if (confirmed) {
-            const result = await callApi('admin_loan_disburse.php', 'POST', { loan_id: loanId });
+            const result = await callApi('/admin/loan-applications/disburse', 'POST', { loan_id: loanId });
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
             else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
         }

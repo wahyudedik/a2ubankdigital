@@ -39,7 +39,7 @@ class DirectMessageController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -50,7 +50,7 @@ class DirectMessageController extends Controller
 
             if (!$user) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
@@ -58,7 +58,7 @@ class DirectMessageController extends Controller
             // Check if user account is active
             if ($user->status !== 'ACTIVE') {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Cannot send message to inactive user'
                 ], 400);
             }
@@ -116,7 +116,7 @@ class DirectMessageController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'Direct message sent successfully',
                 'data' => [
                     'message_id' => $message->id,
@@ -136,7 +136,7 @@ class DirectMessageController extends Controller
             $this->logService->log('admin_direct_message_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to send direct message'
             ], 500);
         }
@@ -153,6 +153,13 @@ class DirectMessageController extends Controller
             $limit = $request->input('limit', 20);
             $status = $request->input('status', 'all');
             $priority = $request->input('priority', 'all');
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             $query = SecureMessage::with(['recipient.customerProfile'])
                 ->where('sender_id', $admin->id)
@@ -192,7 +199,7 @@ class DirectMessageController extends Controller
                 });
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'messages' => $messages,
                     'pagination' => [
@@ -218,7 +225,7 @@ class DirectMessageController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch sent messages'
             ], 500);
         }
@@ -236,7 +243,7 @@ class DirectMessageController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -280,7 +287,7 @@ class DirectMessageController extends Controller
                 });
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'messages' => $messages,
                     'thread_info' => [
@@ -294,7 +301,7 @@ class DirectMessageController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch message thread'
             ], 500);
         }
@@ -312,7 +319,7 @@ class DirectMessageController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -326,7 +333,7 @@ class DirectMessageController extends Controller
 
             if (!$message) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Message not found or not authorized'
                 ], 404);
             }
@@ -339,7 +346,7 @@ class DirectMessageController extends Controller
             }
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'Message marked as read',
                 'data' => [
                     'message_id' => $message->id,
@@ -349,7 +356,7 @@ class DirectMessageController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to mark message as read'
             ], 500);
         }

@@ -23,7 +23,7 @@ export const endpointMapping = {
     'user_create_topup_request.php': 'user/topup-requests',
     'user_security_update_password.php': 'user/security/update-password',
     'user_payment_qr_generate.php': 'user/payment/qr-generate',
-    'user_mark_notification_read.php': 'user/notifications/mark-all-read',
+    'user_mark_notification_read.php': 'admin/notifications/mark-all-read',
     'user_loan_products_get.php': 'user/loan-products',
 
     // Transfer endpoints
@@ -48,7 +48,7 @@ export const endpointMapping = {
     'admin_get_customer_deposits.php': 'admin/deposits',
     'admin_get_all_loans.php': 'admin/loans',
     'admin_get_topup_requests.php': 'admin/processing/topup-requests',
-    'admin_process_topup_request.php': 'admin/processing/process-topup',
+    'admin_process_topup_request.php': 'admin/topup-requests/process',
     'admin_get_card_requests.php': 'admin/card-requests',
     'admin_process_card_request.php': 'admin/card-requests/process',
     'admin_get_withdrawal_requests.php': 'admin/withdrawal-requests',
@@ -67,12 +67,14 @@ export const endpointMapping = {
     'admin_update_staff_assignment.php': 'admin/staff/assignment',
     'admin_get_roles.php': 'admin/roles',
     'admin_get_transactions.php': 'admin/transactions',
-    'admin_get_transaction_detail.php': 'admin/transactions',
+    'admin_get_transaction_detail.php': 'admin/transactions/detail',
     'admin_get_settings.php': 'admin/system/settings',
     'admin_config_update.php': 'admin/system/config/update',
     'admin_get_receipt_data.php': 'admin/receipts',
-    'admin_get_audit_log.php': 'admin/reports/audit-logs',
+    'admin_get_audit_log.php': 'admin/audit-log/data',
     'admin_teller_deposit.php': 'admin/teller/deposit',
+    'admin_teller_account_inquiry.php': 'admin/teller/account-inquiry',
+    'admin_teller_loan_payment.php': 'admin/teller/loan-payment',
     'admin_search_installments.php': 'admin/teller/search-installments',
     'admin_teller_pay_installment.php': 'admin/teller/pay-installment',
     'admin_add_deposit_product.php': 'admin/deposit-products',
@@ -82,8 +84,9 @@ export const endpointMapping = {
     'admin_loan_products_edit.php': 'admin/loan-products',
     'admin_loan_products_delete.php': 'admin/loan-products',
     'admin_loan_application_get_detail.php': 'admin/loans',
-    'admin_loan_application_update_status.php': 'admin/loans/status',
-    'admin_loan_disburse.php': 'admin/loans/disburse',
+    'admin_loan_application_update_status.php': 'admin/loan-applications/status',
+    'admin_loan_disburse.php': 'admin/loan-applications/disburse',
+    'admin_loan_inquiry.php': 'admin/loans/inquiry',
 
     // Force pay installment
     'admin_force_pay_installment.php': 'admin/loans/force-pay-installment',
@@ -166,7 +169,7 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
             'user_get_loan_detail.php': 'user/loans',
             'user_get_deposit_detail.php': 'user/deposits',
             'user_get_transaction_detail.php': 'user/transactions',
-            'admin_get_transaction_detail.php': 'admin/transactions',
+            'admin_get_transaction_detail.php': 'admin/transactions/detail',
             'admin_get_receipt_data.php': 'admin/receipts',
         };
 
@@ -188,9 +191,9 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
             } else if (endpointPath === 'admin_update_staff_status.php') {
                 mappedEndpoint = `admin/staff/${body.staff_id || body.id}/status`;
             } else if (endpointPath === 'admin_loan_application_update_status.php') {
-                mappedEndpoint = `admin/loans/${body.loan_id || body.id}/status`;
+                mappedEndpoint = `admin/loan-applications/status`;
             } else if (endpointPath === 'admin_loan_disburse.php') {
-                mappedEndpoint = `admin/loans/${body.loan_id || body.id}/disburse`;
+                mappedEndpoint = `admin/loan-applications/disburse`;
             } else if (endpointPath === 'admin_process_card_request.php') {
                 mappedEndpoint = `admin/card-requests/${body.card_id || body.id}/process`;
             } else if (endpointPath === 'admin_process_withdrawal_request.php') {
@@ -198,7 +201,7 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
             } else if (endpointPath === 'admin_disburse_withdrawal.php') {
                 mappedEndpoint = `admin/withdrawal-requests/${body.request_id || body.id}/disburse`;
             } else if (endpointPath === 'admin_process_topup_request.php') {
-                mappedEndpoint = `admin/processing/process-topup`;
+                mappedEndpoint = `admin/topup-requests/process`;
             } else if (endpointPath === 'admin_reset_staff_password.php') {
                 mappedEndpoint = `admin/staff/${body.staff_id || body.id}/reset-password`;
             } else if (endpointPath === 'admin_update_staff_assignment.php') {
@@ -206,7 +209,11 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
             } else if (endpointPath === 'admin_edit_staff.php') {
                 mappedEndpoint = `admin/staff/${body.staff_id || body.id}`;
             } else if (endpointPath === 'admin_update_deposit_product.php' && body.id) {
-                mappedEndpoint = `admin/deposit-products/${body.id}`;
+                if (method === 'DELETE') {
+                    mappedEndpoint = `admin/deposit-products/${body.id}`;
+                } else {
+                    mappedEndpoint = `admin/deposit-products/${body.id}`;
+                }
             } else if (endpointPath === 'admin_update_unit.php' && body.id) {
                 mappedEndpoint = `admin/units/${body.id}`;
             } else if (endpointPath === 'admin_delete_unit.php' && body.id) {

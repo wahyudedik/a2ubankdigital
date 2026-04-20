@@ -16,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register services as singletons
         $this->app->singleton(EmailService::class, function ($app) {
-            return new EmailService();
+            return new EmailService($app->make(LogService::class));
         });
 
         $this->app->singleton(LogService::class, function ($app) {

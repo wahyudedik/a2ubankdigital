@@ -31,6 +31,13 @@ class FaqController extends Controller
             $status = $request->input('status', 'all');
             $search = $request->input('search');
 
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
+
             $query = Faq::query();
 
             if ($category !== 'all') {
@@ -79,7 +86,7 @@ class FaqController extends Controller
                 ->pluck('category');
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'faqs' => $faqs,
                     'pagination' => [
@@ -99,7 +106,7 @@ class FaqController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch FAQs'
             ], 500);
         }
@@ -122,7 +129,7 @@ class FaqController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -134,7 +141,7 @@ class FaqController extends Controller
             $existingFaq = Faq::where('question', $request->question)->first();
             if ($existingFaq) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'FAQ with this question already exists'
                 ], 409);
             }
@@ -164,7 +171,7 @@ class FaqController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'FAQ created successfully',
                 'data' => [
                     'id' => $faq->id,
@@ -182,7 +189,7 @@ class FaqController extends Controller
             $this->logService->log('faq_creation_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to create FAQ'
             ], 500);
         }
@@ -205,7 +212,7 @@ class FaqController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -216,7 +223,7 @@ class FaqController extends Controller
 
             if (!$faq) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'FAQ not found'
                 ], 404);
             }
@@ -228,7 +235,7 @@ class FaqController extends Controller
 
             if ($existingFaq) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'FAQ with this question already exists'
                 ], 409);
             }
@@ -265,7 +272,7 @@ class FaqController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'FAQ updated successfully',
                 'data' => [
                     'id' => $faq->id,
@@ -283,7 +290,7 @@ class FaqController extends Controller
             $this->logService->log('faq_update_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to update FAQ'
             ], 500);
         }
@@ -300,7 +307,7 @@ class FaqController extends Controller
 
             if (!$faq) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'FAQ not found'
                 ], 404);
             }
@@ -323,7 +330,7 @@ class FaqController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'FAQ deleted successfully'
             ]);
 
@@ -331,7 +338,7 @@ class FaqController extends Controller
             $this->logService->log('faq_deletion_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to delete FAQ'
             ], 500);
         }
@@ -347,13 +354,13 @@ class FaqController extends Controller
 
             if (!$faq) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'FAQ not found'
                 ], 404);
             }
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'id' => $faq->id,
                     'question' => $faq->question,
@@ -371,7 +378,7 @@ class FaqController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch FAQ'
             ], 500);
         }
@@ -391,7 +398,7 @@ class FaqController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -421,7 +428,7 @@ class FaqController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'FAQ sort order updated successfully'
             ]);
 
@@ -430,7 +437,7 @@ class FaqController extends Controller
             $this->logService->log('faq_sort_order_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to update FAQ sort order'
             ], 500);
         }
@@ -447,7 +454,7 @@ class FaqController extends Controller
 
             if (!$faq) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'FAQ not found'
                 ], 404);
             }
@@ -467,7 +474,7 @@ class FaqController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'FAQ status updated successfully',
                 'data' => [
                     'id' => $faq->id,
@@ -479,7 +486,7 @@ class FaqController extends Controller
             $this->logService->log('faq_status_toggle_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to update FAQ status'
             ], 500);
         }

@@ -39,7 +39,7 @@ class AccountManagementController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -55,7 +55,7 @@ class AccountManagementController extends Controller
 
             if (!$closureRequest) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Closure request not found or already processed'
                 ], 404);
             }
@@ -63,7 +63,7 @@ class AccountManagementController extends Controller
             $user = User::find($closureRequest->user_id);
             if (!$user) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
@@ -92,7 +92,7 @@ class AccountManagementController extends Controller
                 if ($activeLoans > 0) {
                     DB::rollBack();
                     return response()->json([
-                        'success' => false,
+                        'status' => 'error',
                         'message' => 'Cannot close account with active loans'
                     ], 400);
                 }
@@ -179,7 +179,7 @@ class AccountManagementController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => $message,
                 'data' => [
                     'request_id' => $request->request_id,
@@ -194,7 +194,7 @@ class AccountManagementController extends Controller
             $this->logService->log('account_closure_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to process account closure'
             ], 500);
         }
@@ -209,6 +209,13 @@ class AccountManagementController extends Controller
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
             $status = $request->input('status', 'all');
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             $query = DB::table('account_closure_requests as acr')
                 ->join('users as u', 'acr.user_id', '=', 'u.id')
@@ -246,7 +253,7 @@ class AccountManagementController extends Controller
                 });
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'requests' => $requests,
                     'pagination' => [
@@ -260,7 +267,7 @@ class AccountManagementController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch closure requests'
             ], 500);
         }
@@ -281,7 +288,7 @@ class AccountManagementController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -297,7 +304,7 @@ class AccountManagementController extends Controller
 
             if (!$limitRequest) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Credit limit request not found or already processed'
                 ], 404);
             }
@@ -305,7 +312,7 @@ class AccountManagementController extends Controller
             $user = User::find($limitRequest->user_id);
             if (!$user) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
@@ -370,7 +377,7 @@ class AccountManagementController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => $message,
                 'data' => [
                     'request_id' => $request->request_id,
@@ -385,7 +392,7 @@ class AccountManagementController extends Controller
             $this->logService->log('credit_limit_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to process credit limit request'
             ], 500);
         }
@@ -400,6 +407,13 @@ class AccountManagementController extends Controller
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
             $status = $request->input('status', 'all');
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             $query = DB::table('credit_limit_requests as clr')
                 ->join('users as u', 'clr.user_id', '=', 'u.id')
@@ -441,7 +455,7 @@ class AccountManagementController extends Controller
                 });
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'requests' => $requests,
                     'pagination' => [
@@ -455,7 +469,7 @@ class AccountManagementController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch credit limit requests'
             ], 500);
         }

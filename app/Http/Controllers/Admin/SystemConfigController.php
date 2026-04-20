@@ -36,7 +36,7 @@ class SystemConfigController extends Controller
             }
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => $data
             ]);
 
@@ -44,7 +44,7 @@ class SystemConfigController extends Controller
             $this->logService->log('system_settings_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
@@ -93,7 +93,7 @@ class SystemConfigController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'System configuration updated successfully',
                 'data' => []
             ]);
@@ -103,7 +103,7 @@ class SystemConfigController extends Controller
             $this->logService->log('system_config_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to update system configuration'
             ], 500);
         }
@@ -122,13 +122,13 @@ class SystemConfigController extends Controller
             }
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => $data
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch public configuration'
             ], 500);
         }

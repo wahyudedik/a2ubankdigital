@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Jobs\SendEmailJob;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 
 class EmailService
 {
+    public function __construct(
+        private LogService $logService
+    ) {}
+
     /**
      * Send email using template (dispatched to queue)
      */
@@ -17,7 +20,10 @@ class EmailService
             SendEmailJob::dispatch($toEmail, $toName, $subject, $templateName, $templateData);
             return true;
         } catch (\Exception $e) {
-            Log::error('Email dispatch failed', ['to' => $toEmail, 'subject' => $subject, 'error' => $e->getMessage()]);
+            $this->logService->logError('Email dispatch failed', $e, [
+                'to' => $toEmail,
+                'subject' => $subject,
+            ]);
             // Fallback: send synchronously
             try {
                 Mail::send("emails.{$templateName}", $templateData, function ($message) use ($toEmail, $toName, $subject) {
@@ -25,7 +31,10 @@ class EmailService
                 });
                 return true;
             } catch (\Exception $e2) {
-                Log::error('Email sync fallback also failed', ['error' => $e2->getMessage()]);
+                $this->logService->logError('Email sync fallback also failed', $e2, [
+                    'to' => $toEmail,
+                    'subject' => $subject,
+                ]);
                 return false;
             }
         }

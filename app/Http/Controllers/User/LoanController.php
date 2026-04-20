@@ -37,9 +37,16 @@ class LoanController extends Controller
 
     public function show($id): JsonResponse
     {
-        $loan = Loan::where('user_id', Auth::id())
-            ->with(['loanProduct', 'installments'])
-            ->findOrFail($id);
+        try {
+            $loan = Loan::where('user_id', Auth::id())
+                ->with(['loanProduct', 'installments'])
+                ->findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pinjaman tidak ditemukan.'
+            ], 404);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -66,10 +73,34 @@ class LoanController extends Controller
             ], 400);
         }
 
-        // Calculate installment
-        $interestRate = $loanProduct->interest_rate_pa / 100 / 12; // Monthly rate
-        $monthlyInstallment = ($request->loan_amount * $interestRate * pow(1 + $interestRate, $request->tenor)) / 
-                             (pow(1 + $interestRate, $request->tenor) - 1);
+        // Check for existing active/pending loans
+        $hasActiveLoan = Loan::where('user_id', Auth::id())
+            ->whereIn('status', ['SUBMITTED', 'APPROVED', 'DISBURSED', 'ACTIVE'])
+            ->exists();
+
+        if ($hasActiveLoan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda masih memiliki pinjaman yang aktif atau sedang diproses. Selesaikan pinjaman tersebut sebelum mengajukan yang baru.'
+            ], 422);
+        }
+
+        // Calculate installment — rate per period disesuaikan dengan tenor_unit
+        $tenorUnit = $loanProduct->tenor_unit ?? 'BULAN';
+        if ($tenorUnit === 'MINGGU') {
+            // Konversi rate tahunan ke rate mingguan (52 minggu/tahun)
+            $periodRate = $loanProduct->interest_rate_pa / 100 / 52;
+        } else {
+            // Rate bulanan (12 bulan/tahun)
+            $periodRate = $loanProduct->interest_rate_pa / 100 / 12;
+        }
+
+        if ($periodRate == 0) {
+            $monthlyInstallment = $request->loan_amount / $request->tenor;
+        } else {
+            $monthlyInstallment = ($request->loan_amount * $periodRate * pow(1 + $periodRate, $request->tenor)) /
+                                  (pow(1 + $periodRate, $request->tenor) - 1);
+        }
         $totalInterest = ($monthlyInstallment * $request->tenor) - $request->loan_amount;
         $totalRepayment = $request->loan_amount + $totalInterest;
 

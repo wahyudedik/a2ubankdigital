@@ -15,8 +15,10 @@ const useApi = () => {
         setLoading(true);
         setError(null);
 
-        // Get CSRF token from meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        // Get CSRF token dari meta tag (selalu fresh karena diupdate oleh Inertia event listener di app.jsx)
+        const getCsrfToken = () => {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        };
 
         const headers = {
             'Content-Type': 'application/json',
@@ -25,8 +27,11 @@ const useApi = () => {
         };
 
         // Add CSRF token for non-GET requests
-        if (csrfToken && method !== 'GET') {
-            headers['X-CSRF-TOKEN'] = csrfToken;
+        if (method !== 'GET') {
+            const token = getCsrfToken();
+            if (token) {
+                headers['X-CSRF-TOKEN'] = token;
+            }
         }
 
         const config = {
@@ -71,7 +76,7 @@ const useApi = () => {
                 : e.message;
 
             setError(finalError);
-            console.error("API call failed:", finalError);
+
             return null;
         } finally {
             setLoading(false);

@@ -29,7 +29,7 @@ const AdminNotificationsPage = () => {
     }, []);
 
     const markAllAsRead = async () => {
-        const result = await callApi('user_mark_notification_read.php', 'PUT', {});
+        const result = await callApi('/admin/notifications/mark-all-read', 'PUT', {});
         if (result && result.status === 'success') { router.reload(); }
     };
 

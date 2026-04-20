@@ -38,7 +38,7 @@ export const NotificationProvider = ({ children }) => {
                 setStatus(Notification.permission === 'denied' ? 'denied' : 'prompt');
             }
         } catch (error) {
-            console.error("Gagal mendapatkan status langganan:", error);
+
             setStatus('error_checking');
         }
     }, []);
@@ -77,7 +77,7 @@ export const NotificationProvider = ({ children }) => {
                 throw new Error(result?.message || 'Gagal menyimpan langganan.');
             }
         } catch (err) {
-            console.error("Gagal berlangganan push notification: ", err);
+
             modal.showAlert({ title: 'Gagal', message: err.message, type: 'warning' });
         } finally {
             updateSubscriptionStatus();

@@ -140,12 +140,10 @@ class GoalSavingsController extends Controller
             );
 
             // Send notification
-            $this->notificationService->send(
+            $this->notificationService->notifyUser(
                 Auth::id(),
                 'Tabungan Berjangka Dibuat',
-                "Tabungan berjangka '{$request->goal_name}' berhasil dibuat dengan target " . number_format($request->goal_amount, 0, ',', '.'),
-                'goal_savings',
-                ['account_id' => $goalAccount->id]
+                "Tabungan berjangka '{$request->goal_name}' berhasil dibuat dengan target " . number_format($request->goal_amount, 0, ',', '.')
             );
 
             DB::commit();
@@ -223,12 +221,10 @@ class GoalSavingsController extends Controller
             // Check if goal is achieved
             $detail = $goalAccount->goalSavingsDetail;
             if ($goalAccount->balance >= $detail->goal_amount) {
-                $this->notificationService->send(
+                $this->notificationService->notifyUser(
                     Auth::id(),
                     '🎉 Target Tercapai!',
-                    "Selamat! Target tabungan '{$detail->goal_name}' sebesar " . number_format($detail->goal_amount, 0, ',', '.') . " telah tercapai!",
-                    'goal_savings',
-                    ['account_id' => $goalAccount->id]
+                    "Selamat! Target tabungan '{$detail->goal_name}' sebesar " . number_format($detail->goal_amount, 0, ',', '.') . " telah tercapai!"
                 );
             }
 

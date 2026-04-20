@@ -23,7 +23,6 @@ const ReceiptRow = ({ label, value, isTotal = false, fullWidth = false }) => (
     </div>
 );
 
-
 const PrintableReceiptPage = () => {
     const { routeParams } = usePage().props;
     const transactionId = routeParams?.transactionId;
@@ -31,7 +30,7 @@ const PrintableReceiptPage = () => {
     const [receiptData, setReceiptData] = useState(null);
 
     const fetchReceiptData = useCallback(async () => {
-        const result = await callApi(`admin_get_receipt_data.php?id=${transactionId}`);
+        const result = await callApi(`/admin/receipts/${transactionId}`);
         if (result && result.status === 'success') {
             setReceiptData(result.data);
         }

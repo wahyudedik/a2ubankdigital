@@ -81,7 +81,7 @@ class RegisterController extends Controller
 
             // Create user
             $user = User::create([
-                'bank_id' => date('Ymd') . str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT),
+                'bank_id' => 'CIF-' . date('Ym') . '-' . str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT),
                 'role_id' => 9, // Customer
                 'full_name' => $request->full_name,
                 'email' => $request->email,
@@ -176,10 +176,16 @@ class RegisterController extends Controller
             // Activate user
             $user->update(['status' => 'ACTIVE']);
 
-            // Create savings account
+            // Create savings account with unique account number
+            $accountNumber = '9' . str_pad($user->id, 11, '0', STR_PAD_LEFT);
+            // Pastikan unik
+            while (Account::where('account_number', $accountNumber)->exists()) {
+                $accountNumber = '9' . str_pad(rand(10000000000, 99999999999), 11, '0', STR_PAD_LEFT);
+            }
+
             Account::create([
                 'user_id' => $user->id,
-                'account_number' => '',
+                'account_number' => $accountNumber,
                 'account_type' => 'TABUNGAN',
                 'balance' => 0,
                 'status' => 'ACTIVE'

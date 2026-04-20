@@ -27,6 +27,13 @@ class NotificationController extends Controller
         $limit = $request->input('limit', 20);
         $unreadOnly = $request->input('unread_only', false);
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         $query = Notification::where('user_id', Auth::id());
 
         if ($unreadOnly) {

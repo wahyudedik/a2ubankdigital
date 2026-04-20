@@ -85,12 +85,10 @@ class AccountClosureController extends Controller
             // Notify admins
             $admins = User::whereIn('role_id', [1, 2])->where('status', 'ACTIVE')->get();
             foreach ($admins as $admin) {
-                $this->notificationService->send(
+                $this->notificationService->notifyUser(
                     $admin->id,
                     'Permintaan Penutupan Akun',
-                    "Nasabah {$user->full_name} mengajukan penutupan akun",
-                    'account_closure',
-                    ['closure_id' => $closureId, 'user_id' => $user->id]
+                    "Nasabah {$user->full_name} mengajukan penutupan akun"
                 );
             }
 

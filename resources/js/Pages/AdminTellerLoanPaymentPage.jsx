@@ -1,151 +1,247 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import React, { useState, useCallback } from 'react';
 import useApi from '@/hooks/useApi';
 import { useModal } from '@/contexts/ModalContext.jsx';
-import Input from '@/components/ui/Input';
+import { Search, CheckCircle, Printer, RotateCcw } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { ArrowLeft, Search, Loader2, Info } from 'lucide-react';
 
 const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
 const AdminTellerLoanPaymentPage = () => {
-    const { loading, error, callApi, setError } = useApi();
+    const { loading, error, callApi } = useApi();
     const modal = useModal();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [selectedInstallment, setSelectedInstallment] = useState(null);
-    const [cashAmount, setCashAmount] = useState('');
+    const [step, setStep] = useState(1); // 1: Input, 2: Konfirmasi, 3: Hasil
+    const [loanId, setLoanId] = useState('');
+    const [amount, setAmount] = useState('');
+    const [loanInfo, setLoanInfo] = useState(null);
+    const [transactionResult, setTransactionResult] = useState(null);
 
-    useEffect(() => {
-        if (searchTerm.length < 3) {
-            setSearchResults([]);
+    const searchLoan = useCallback(async () => {
+        if (!loanId.trim()) {
+            await modal.showAlert({ title: 'Peringatan', message: 'Masukkan ID Pinjaman terlebih dahulu.', type: 'warning' });
             return;
         }
-        const handler = setTimeout(() => {
-            handleSearch();
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [searchTerm]);
 
-    const handleSearch = async () => {
-        if (searchTerm.length < 3) return;
-        setSelectedInstallment(null);
-        const result = await callApi(`admin_search_installments.php?q=${searchTerm}`);
+        const result = await callApi('/admin/loans/inquiry', 'POST', { loan_id: loanId });
         if (result && result.status === 'success') {
-            setSearchResults(result.data);
-        } else {
-            setSearchResults([]);
+            setLoanInfo(result.data);
+            setStep(2);
         }
-    };
+    }, [loanId, callApi, modal]);
 
-    const handleSelectInstallment = (installment) => {
-        setSelectedInstallment(installment);
-        const totalDue = parseFloat(installment.amount_due) + parseFloat(installment.penalty_amount);
-        setCashAmount(totalDue.toString());
-        setError(null);
-    };
-    
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const payload = {
-            installment_id: selectedInstallment.installment_id,
-            cash_amount: cashAmount
-        };
+    const processPayment = async () => {
+        if (!amount || parseFloat(amount) < 1000) {
+            await modal.showAlert({ title: 'Peringatan', message: 'Masukkan jumlah pembayaran minimal Rp 1.000.', type: 'warning' });
+            return;
+        }
 
         const confirmed = await modal.showConfirmation({
-            title: "Konfirmasi Pembayaran",
-            message: `Anda akan memproses pembayaran tunai sebesar ${formatCurrency(cashAmount)} untuk angsuran pinjaman ${selectedInstallment.customer_name}. Lanjutkan?`,
+            title: "Konfirmasi Pembayaran Pinjaman",
+            message: `Anda akan memproses pembayaran pinjaman sebesar ${formatCurrency(amount)} untuk pinjaman ${loanInfo.loan_code}. Lanjutkan?`,
             confirmText: "Ya, Proses Pembayaran"
         });
 
         if (confirmed) {
-            const result = await callApi('admin_teller_pay_installment.php', 'POST', payload);
+            const result = await callApi('/admin/teller/loan-payment', 'POST', {
+                loan_id: loanId,
+                amount: parseFloat(amount)
+            });
+
             if (result && result.status === 'success') {
-                await modal.showAlert({ title: "Berhasil", message: result.message, type: 'success' });
-                
-                // --- PERUBAHAN DI SINI ---
-                // Buka tab baru untuk cetak nota, lalu reset form
-                window.open(`/admin/print-receipt/${result.data.transaction_id}`, '_blank');
-                resetForm();
-                // --- AKHIR PERUBAHAN ---
+                setTransactionResult(result.data);
+                setStep(3);
             }
         }
     };
-    
+
     const resetForm = () => {
-        setSearchTerm('');
-        setSearchResults([]);
-        setSelectedInstallment(null);
-        setCashAmount('');
+        setStep(1);
+        setLoanId('');
+        setAmount('');
+        setLoanInfo(null);
+        setTransactionResult(null);
     };
 
-    const totalDue = selectedInstallment ? parseFloat(selectedInstallment.amount_due) + parseFloat(selectedInstallment.penalty_amount) : 0;
+    const handlePrintReceipt = () => {
+        if (transactionResult?.transaction_id) {
+            window.open(`/admin/print-receipt/${transactionResult.transaction_id}`, '_blank');
+        }
+    };
+
+    const renderContent = () => {
+        // Step 3: Transaction Result
+        if (step === 3 && transactionResult) {
+            return (
+                <div>
+                    <div className="text-center mb-6">
+                        <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-2" />
+                        <h2 className="text-xl font-semibold text-gray-800">Pembayaran Berhasil</h2>
+                        <p className="text-gray-600">Transaksi telah diproses dengan sukses</p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span className="text-gray-600">Kode Transaksi:</span>
+                                <p className="font-semibold">{transactionResult.transaction_code}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Jumlah Pembayaran:</span>
+                                <p className="font-semibold text-green-600">{formatCurrency(transactionResult.amount)}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Pinjaman:</span>
+                                <p className="font-semibold">{loanInfo?.loan_code}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Nasabah:</span>
+                                <p className="font-semibold">{loanInfo?.customer_name}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Button onClick={handlePrintReceipt} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                            <Printer size={16} className="mr-2" />
+                            Cetak Struk
+                        </Button>
+                        <Button onClick={resetForm} variant="outline" className="flex-1">
+                            <RotateCcw size={16} className="mr-2" />
+                            Transaksi Baru
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Step 2: Confirmation
+        if (step === 2 && loanInfo) {
+            return (
+                <div>
+                    <h2 className="text-lg font-semibold mb-4">Konfirmasi Data Pinjaman</h2>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span className="text-gray-600">Kode Pinjaman:</span>
+                                <p className="font-semibold">{loanInfo.loan_code}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Nama Nasabah:</span>
+                                <p className="font-semibold">{loanInfo.customer_name}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Jumlah Pinjaman:</span>
+                                <p className="font-semibold">{formatCurrency(loanInfo.loan_amount)}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Sisa Pinjaman:</span>
+                                <p className="font-semibold text-red-600">{formatCurrency(loanInfo.remaining_balance)}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Angsuran Bulanan:</span>
+                                <p className="font-semibold">{formatCurrency(loanInfo.monthly_installment)}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Status:</span>
+                                <p className="font-semibold text-green-600">{loanInfo.status}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Jumlah Pembayaran
+                        </label>
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="Masukkan jumlah pembayaran"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min="1000"
+                            step="1000"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Minimal pembayaran: Rp 1.000
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={processPayment}
+                            disabled={loading || !amount}
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                        >
+                            Proses Pembayaran
+                        </Button>
+                        <Button
+                            onClick={() => setStep(1)}
+                            variant="outline"
+                            className="flex-1"
+                        >
+                            Kembali
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Step 1: Input Loan ID
+        return (
+            <div>
+                <h2 className="text-lg font-semibold mb-4">Cari Data Pinjaman</h2>
+
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        ID Pinjaman
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={loanId}
+                            onChange={(e) => setLoanId(e.target.value)}
+                            placeholder="Masukkan ID Pinjaman"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onKeyPress={(e) => e.key === 'Enter' && searchLoan()}
+                        />
+                        <Button
+                            onClick={searchLoan}
+                            disabled={loading || !loanId.trim()}
+                            className="px-4"
+                        >
+                            <Search size={16} className="mr-2" />
+                            Cari
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h3 className="font-medium text-yellow-800 mb-2">Petunjuk:</h3>
+                    <ul className="text-sm text-yellow-700 space-y-1">
+                        <li>• Masukkan ID Pinjaman yang valid</li>
+                        <li>• Pastikan pinjaman dalam status aktif</li>
+                        <li>• Verifikasi identitas nasabah sebelum memproses</li>
+                        <li>• Cetak struk pembayaran untuk nasabah</li>
+                    </ul>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div>
-            <Link href="/admin/dashboard" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-                <ArrowLeft size={20} />
-                <h1 className="text-2xl font-bold text-gray-800">Pembayaran Angsuran Tunai</h1>
-            </Link>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">
+                Pembayaran Pinjaman Teller
+            </h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-lg font-semibold mb-4">1. Cari Angsuran Nasabah</h2>
-                    <div className="relative">
-                        <Input 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Ketik nama atau ID pinjaman..."
-                        />
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                    </div>
-                    {loading && <div className="text-center mt-4"><Loader2 className="animate-spin inline-block"/></div>}
-                    <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-                        {searchResults.map(item => (
-                            <div 
-                                key={item.installment_id}
-                                onClick={() => handleSelectInstallment(item)}
-                                className={`p-3 border rounded-lg cursor-pointer ${selectedInstallment?.installment_id === item.installment_id ? 'bg-blue-100 border-blue-400' : 'hover:bg-gray-50'}`}
-                            >
-                                <p className="font-bold">{item.customer_name}</p>
-                                <p className="text-sm">{item.product_name} - Angsuran ke-{item.installment_number}</p>
-                                <p className="text-xs text-gray-500">Jatuh Tempo: {new Date(item.due_date).toLocaleDateString('id-ID')}</p>
-                            </div>
-                        ))}
-                    </div>
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <p className="text-red-700">{error}</p>
                 </div>
+            )}
 
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-lg font-semibold mb-4">2. Konfirmasi Pembayaran</h2>
-                    {selectedInstallment ? (
-                        <form onSubmit={handleSubmit}>
-                            <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
-                                <div className="flex justify-between"><span className="text-sm text-gray-600">Angsuran Pokok</span><span className="font-semibold">{formatCurrency(selectedInstallment.amount_due)}</span></div>
-                                <div className="flex justify-between"><span className="text-sm text-gray-600">Denda</span><span className="font-semibold">{formatCurrency(selectedInstallment.penalty_amount)}</span></div>
-                                <div className="flex justify-between font-bold text-base border-t pt-2 mt-2"><span >Total Tagihan</span><span>{formatCurrency(totalDue)}</span></div>
-                            </div>
-                             <div className="mt-4">
-                                <Input label="Jumlah Uang Tunai Diterima (Rp)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} required />
-                             </div>
-                             {parseFloat(cashAmount) > totalDue && (
-                                <div className="mt-2 text-sm text-blue-700 bg-blue-100 p-2 rounded-md flex items-center gap-2">
-                                    <Info size={16}/>
-                                    Kembalian: {formatCurrency(cashAmount - totalDue)}
-                                </div>
-                             )}
-                             {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
-                             <div className="mt-6">
-                                <Button type="submit" fullWidth disabled={loading || parseFloat(cashAmount) < totalDue}>
-                                    {loading ? 'Memproses...' : 'Proses Pembayaran'}
-                                </Button>
-                             </div>
-                        </form>
-                    ) : (
-                        <div className="text-center text-gray-500 h-full flex flex-col justify-center items-center">
-                            <p>Pilih angsuran dari hasil pencarian untuk melanjutkan.</p>
-                        </div>
-                    )}
-                </div>
+            <div className="bg-white rounded-lg shadow-md p-6">
+                {renderContent()}
             </div>
         </div>
     );

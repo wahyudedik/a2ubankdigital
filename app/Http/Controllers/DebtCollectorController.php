@@ -123,7 +123,7 @@ class DebtCollectorController extends Controller
             ];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'assignments' => $assignments,
                     'pagination' => [
@@ -140,7 +140,7 @@ class DebtCollectorController extends Controller
             $this->logService->log('debt_collector_assignments_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch assignments'
             ], 500);
         }
@@ -168,7 +168,7 @@ class DebtCollectorController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -184,7 +184,7 @@ class DebtCollectorController extends Controller
 
             if (!$assignment) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Assignment not found or not authorized'
                 ], 404);
             }
@@ -292,7 +292,7 @@ class DebtCollectorController extends Controller
             }
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'Visit report submitted successfully',
                 'data' => [
                     'report_id' => $reportId,
@@ -309,7 +309,7 @@ class DebtCollectorController extends Controller
             $this->logService->log('debt_collection_report_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to submit visit report'
             ], 500);
         }
@@ -331,7 +331,7 @@ class DebtCollectorController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -347,7 +347,7 @@ class DebtCollectorController extends Controller
 
             if (!$assignment) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Assignment not found or not authorized'
                 ], 404);
             }
@@ -416,7 +416,7 @@ class DebtCollectorController extends Controller
             }
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'Assignment updated successfully',
                 'data' => [
                     'assignment_id' => $id,
@@ -430,7 +430,7 @@ class DebtCollectorController extends Controller
             $this->logService->log('debt_collection_update_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to update assignment'
             ], 500);
         }
@@ -468,7 +468,7 @@ class DebtCollectorController extends Controller
 
             if (!$assignment) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Assignment not found'
                 ], 404);
             }
@@ -488,7 +488,7 @@ class DebtCollectorController extends Controller
                 ->get();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'assignment' => $assignment,
                     'reports' => $reports,
@@ -498,7 +498,7 @@ class DebtCollectorController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch assignment details'
             ], 500);
         }

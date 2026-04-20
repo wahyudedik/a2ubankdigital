@@ -61,8 +61,20 @@ const LandingPage = () => {
                 <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">Kelola keuangan Anda dengan mudah, aman, dan sesuai prinsip syariah kapan pun dan di mana pun.</p>
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4"><Link href="/register"><Button className="py-3 px-8 text-lg">Mulai Sekarang</Button></Link></div>
                 <div className="mt-12 flex justify-center items-center gap-4">
-                    <a href={appLinks.ios} target="_blank" rel="noopener noreferrer"><img src="/app-store-badge.svg" alt="Download on the App Store" className="h-12" /></a>
-                    <a href={appLinks.android} target="_blank" rel="noopener noreferrer"><img src="/google-play-badge.svg" alt="Get it on Google Play" className="h-12" /></a>
+                    {appLinks.ios && appLinks.ios !== '#' ? (
+                        <a href={appLinks.ios} target="_blank" rel="noopener noreferrer">
+                            <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-12 hover:opacity-80 transition-opacity" />
+                        </a>
+                    ) : (
+                        <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-12 opacity-40 cursor-not-allowed" title="Segera hadir" />
+                    )}
+                    {appLinks.android && appLinks.android !== '#' ? (
+                        <a href={appLinks.android} target="_blank" rel="noopener noreferrer">
+                            <img src="/google-play-badge.svg" alt="Get it on Google Play" className="h-12 hover:opacity-80 transition-opacity" />
+                        </a>
+                    ) : (
+                        <img src="/google-play-badge.svg" alt="Get it on Google Play" className="h-12 opacity-40 cursor-not-allowed" title="Segera hadir" />
+                    )}
                 </div>
             </main>
             <section className="container mx-auto px-6 mb-20"><div className={`transition-opacity duration-1000 ease-in ${isImageVisible ? 'opacity-100' : 'opacity-0'}`}><div className="bg-white rounded-2xl shadow-2xl p-2 sm:p-4 max-w-4xl mx-auto"><div className="rounded-lg overflow-hidden"><img src="/app-mockup.png" alt="A2U Bank Digital App Mockup" className="w-full h-auto object-cover" /></div></div></div></section>

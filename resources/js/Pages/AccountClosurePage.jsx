@@ -24,7 +24,7 @@ export default function AccountClosurePage({ auth }) {
                 setClosureRequest(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch status:', error);
+
         } finally {
             setLoading(false);
         }
@@ -58,7 +58,7 @@ export default function AccountClosurePage({ auth }) {
                 alert(data.message || 'Gagal mengajukan penutupan akun');
             }
         } catch (error) {
-            console.error('Request failed:', error);
+
             alert('Terjadi kesalahan');
         } finally {
             setProcessing(false);
@@ -87,7 +87,7 @@ export default function AccountClosurePage({ auth }) {
                 alert(data.message || 'Gagal membatalkan permintaan');
             }
         } catch (error) {
-            console.error('Cancel failed:', error);
+
             alert('Terjadi kesalahan');
         }
     };

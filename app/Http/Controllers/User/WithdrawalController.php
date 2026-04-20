@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\WithdrawalAccount;
 use App\Models\WithdrawalRequest;
 use App\Models\Account;
+use App\Services\EmailService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,10 +16,12 @@ use Illuminate\Support\Facades\DB;
 class WithdrawalController extends Controller
 {
     protected $notificationService;
+    protected $emailService;
 
-    public function __construct(NotificationService $notificationService)
+    public function __construct(NotificationService $notificationService, EmailService $emailService)
     {
         $this->notificationService = $notificationService;
+        $this->emailService = $emailService;
     }
 
     /**
@@ -82,8 +85,19 @@ class WithdrawalController extends Controller
         $request->validate([
             'withdrawal_account_id' => 'required|exists:withdrawal_accounts,id',
             'amount' => 'required|numeric|min:50000|max:20000000',
-            'purpose' => 'sometimes|string|max:255'
+            'purpose' => 'sometimes|string|max:255',
+            'pin' => 'required|string|size:6'
         ]);
+
+        $user = Auth::user();
+
+        // Validate PIN
+        if (!$user->pin_hash || !\Illuminate\Support\Facades\Hash::check($request->pin, $user->pin_hash)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'PIN transaksi tidak sesuai.'
+            ], 400);
+        }
 
         // Verify withdrawal account belongs to user
         $withdrawalAccount = WithdrawalAccount::where('id', $request->withdrawal_account_id)
@@ -109,15 +123,15 @@ class WithdrawalController extends Controller
             ], 400);
         }
 
-        // Check for pending withdrawal requests
+        // Check for pending or approved withdrawal requests
         $pendingRequest = WithdrawalRequest::where('user_id', Auth::id())
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'approved'])
             ->first();
 
         if ($pendingRequest) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Anda masih memiliki permintaan penarikan yang sedang diproses.'
+                'message' => 'Anda masih memiliki permintaan penarikan yang sedang diproses atau telah disetujui.'
             ], 400);
         }
 
@@ -135,6 +149,22 @@ class WithdrawalController extends Controller
                 [1, 2, 3, 5], // Super Admin, Admin, Manager, Teller
                 'Permintaan Penarikan Baru',
                 'Nasabah ' . Auth::user()->full_name . ' mengajukan penarikan sebesar ' . number_format($request->amount, 0, ',', '.') . '.'
+            );
+
+            // Notify the customer (in-app)
+            $this->notificationService->notifyUser(
+                Auth::id(),
+                'Pengajuan Penarikan Diterima',
+                'Permintaan penarikan sebesar Rp ' . number_format($request->amount, 0, ',', '.') . ' ke rekening ' . $withdrawalAccount->bank_name . ' - ' . $withdrawalAccount->account_number . ' sedang diproses.'
+            );
+
+            // Send confirmation email to the customer
+            $this->emailService->send(
+                Auth::user()->email,
+                Auth::user()->full_name,
+                'Konfirmasi Pengajuan Penarikan',
+                'notification',
+                ['full_name' => Auth::user()->full_name, 'message' => 'Permintaan penarikan sebesar Rp ' . number_format($request->amount, 0, ',', '.') . ' telah kami terima dan sedang diproses.']
             );
 
             DB::commit();
@@ -164,6 +194,13 @@ class WithdrawalController extends Controller
 
         $query = WithdrawalRequest::where('user_id', Auth::id())
             ->with('withdrawalAccount');
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         $totalRecords = $query->count();
         $requests = $query

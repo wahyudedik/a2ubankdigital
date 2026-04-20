@@ -33,6 +33,13 @@ class WithdrawalRequestController extends Controller
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
 
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
+
             // Query with joins to get customer and account information
             $query = DB::table('withdrawal_requests as wr')
                 ->join('users as u', 'wr.user_id', '=', 'u.id')
@@ -179,7 +186,7 @@ class WithdrawalRequestController extends Controller
             if (!$withdrawalRequest) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Withdrawal request not found or already processed'
+                    'message' => 'Permintaan penarikan tidak ditemukan atau sudah diproses.'
                 ], 404);
             }
 
@@ -187,7 +194,7 @@ class WithdrawalRequestController extends Controller
             if (!$user) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Customer not found'
+                    'message' => 'Data nasabah tidak ditemukan.'
                 ], 404);
             }
 
@@ -206,24 +213,24 @@ class WithdrawalRequestController extends Controller
                 }
 
                 $status = 'approved';
-                $message = 'Withdrawal request approved';
-                
+                $message = 'Permintaan penarikan disetujui.';
+
                 // Send notification to customer
                 $this->notificationService->notifyUser(
                     $user->id,
-                    'Withdrawal Approved',
-                    "Your withdrawal request of " . number_format($withdrawalRequest->amount, 0, ',', '.') . " has been approved and will be processed soon."
+                    'Penarikan Disetujui',
+                    'Permintaan penarikan Anda sebesar Rp ' . number_format($withdrawalRequest->amount, 0, ',', '.') . ' telah disetujui dan akan segera diproses.'
                 );
 
             } else {
                 $status = 'rejected';
-                $message = 'Withdrawal request rejected';
-                
+                $message = 'Permintaan penarikan ditolak.';
+
                 // Send notification to customer
                 $this->notificationService->notifyUser(
                     $user->id,
-                    'Withdrawal Rejected',
-                    'Your withdrawal request has been rejected. ' . ($request->admin_notes ?? '')
+                    'Penarikan Ditolak',
+                    'Permintaan penarikan Anda telah ditolak.' . ($request->admin_notes ? ' Alasan: ' . $request->admin_notes : '')
                 );
             }
 
@@ -300,7 +307,7 @@ class WithdrawalRequestController extends Controller
             if (!$withdrawalRequest) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Withdrawal request not found or not approved'
+                    'message' => 'Permintaan penarikan tidak ditemukan atau belum disetujui.'
                 ], 404);
             }
 
@@ -308,7 +315,7 @@ class WithdrawalRequestController extends Controller
             if (!$user) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Customer not found'
+                    'message' => 'Data nasabah tidak ditemukan.'
                 ], 404);
             }
 
@@ -324,7 +331,7 @@ class WithdrawalRequestController extends Controller
                 DB::rollBack();
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Customer account not found'
+                    'message' => 'Rekening tabungan nasabah tidak ditemukan.'
                 ], 404);
             }
 
@@ -335,7 +342,17 @@ class WithdrawalRequestController extends Controller
                 DB::rollBack();
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Insufficient account balance'
+                    'message' => 'Saldo rekening nasabah tidak mencukupi.'
+                ], 400);
+            }
+
+            // Card validation: blocked card
+            $card = \App\Models\Card::where('user_id', $user->id)->where('status', '!=', 'closed')->first();
+            if ($card && $card->status === 'blocked') {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kartu nasabah sedang diblokir. Pencairan tidak dapat diproses.'
                 ], 400);
             }
 
@@ -371,8 +388,8 @@ class WithdrawalRequestController extends Controller
             // Send notification to customer
             $this->notificationService->notifyUser(
                 $user->id,
-                'Withdrawal Completed',
-                "Your withdrawal of " . number_format($netAmount, 0, ',', '.') . " has been processed and transferred to your registered account."
+                'Penarikan Selesai Diproses',
+                'Penarikan Anda sebesar Rp ' . number_format($netAmount, 0, ',', '.') . ' telah berhasil diproses dan ditransfer ke rekening tujuan Anda.'
             );
 
             // Log the action
@@ -390,7 +407,7 @@ class WithdrawalRequestController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Withdrawal has been successfully disbursed',
+                'message' => 'Penarikan berhasil dicairkan.',
                 'data' => [
                     'request_id' => $id,
                     'transaction_id' => $transactionId,
@@ -405,7 +422,7 @@ class WithdrawalRequestController extends Controller
             
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to disburse withdrawal'
+                'message' => 'Gagal memproses pencairan penarikan: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -28,9 +28,16 @@ class LoyaltyController extends Controller
      */
     public function getLoyaltyPoints(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = Auth::user()->load('customerProfile');
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 10);
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         // Get points history
         $query = LoyaltyPointsHistory::where('user_id', $user->id);
@@ -51,10 +58,12 @@ class LoyaltyController extends Controller
             ->redeemed()
             ->sum('points'));
 
+        $currentBalance = $user->customerProfile?->loyalty_points ?? 0;
+
         return response()->json([
             'status' => 'success',
             'data' => [
-                'current_balance' => $user->loyalty_points_balance,
+                'current_balance' => $currentBalance,
                 'total_earned' => $totalEarned,
                 'total_redeemed' => $totalRedeemed,
                 'points_history' => $pointsHistory,
@@ -77,14 +86,15 @@ class LoyaltyController extends Controller
             'reward_description' => 'sometimes|string|max:255'
         ]);
 
-        $user = Auth::user();
+        $user = Auth::user()->load('customerProfile');
         $pointsToRedeem = $request->points;
 
         // Check if user has enough points
-        if ($user->loyalty_points_balance < $pointsToRedeem) {
+        $currentBalance = $user->customerProfile?->loyalty_points ?? 0;
+        if ($currentBalance < $pointsToRedeem) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Poin tidak mencukupi. Saldo poin Anda: ' . number_format($user->loyalty_points_balance, 0, ',', '.')
+                'message' => 'Poin tidak mencukupi. Saldo poin Anda: ' . number_format($currentBalance, 0, ',', '.')
             ], 400);
         }
 
@@ -114,7 +124,9 @@ class LoyaltyController extends Controller
             $rewardValue = $this->calculateRewardValue($request->reward_type, $pointsToRedeem);
             
             // Deduct points from user balance
-            $user->decrement('loyalty_points_balance', $pointsToRedeem);
+            if ($user->customerProfile) {
+                $user->customerProfile->decrement('loyalty_points', $pointsToRedeem);
+            }
 
             // Create redemption record
             $description = $request->reward_description ?? $this->getRedemptionDescription($request->reward_type, $rewardValue);
@@ -154,7 +166,7 @@ class LoyaltyController extends Controller
                     'reward_value' => $rewardValue,
                     'reward_code' => $rewardCode,
                     'description' => $description,
-                    'remaining_balance' => $user->fresh()->loyalty_points_balance
+                    'remaining_balance' => $user->fresh()->load('customerProfile')->customerProfile?->loyalty_points ?? 0
                 ]
             ]);
 
@@ -172,7 +184,7 @@ class LoyaltyController extends Controller
      */
     public function getAvailableRewards(): JsonResponse
     {
-        $user = Auth::user();
+        $user = Auth::user()->load('customerProfile');
         $rewardConfig = $this->getRewardConfig();
         
         $availableRewards = [];
@@ -184,14 +196,14 @@ class LoyaltyController extends Controller
                 'description' => $config['description'],
                 'min_points' => $config['min_points'],
                 'rate' => $config['rate'],
-                'is_available' => $user->loyalty_points_balance >= $config['min_points']
+                'is_available' => ($user->customerProfile?->loyalty_points ?? 0) >= $config['min_points']
             ];
         }
 
         return response()->json([
             'status' => 'success',
             'data' => [
-                'current_balance' => $user->loyalty_points_balance,
+                'current_balance' => $user->customerProfile?->loyalty_points ?? 0,
                 'available_rewards' => $availableRewards
             ]
         ]);

@@ -29,10 +29,17 @@ class DepositController extends Controller
 
     public function show($id): JsonResponse
     {
-        $deposit = Account::where('user_id', Auth::id())
-            ->where('account_type', 'DEPOSITO')
-            ->with('depositProduct')
-            ->findOrFail($id);
+        try {
+            $deposit = Account::where('user_id', Auth::id())
+                ->where('account_type', 'DEPOSITO')
+                ->with('depositProduct')
+                ->findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Deposito tidak ditemukan.'
+            ], 404);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -58,10 +65,10 @@ class DepositController extends Controller
             ], 400);
         }
 
-        if ($request->amount < $product->min_amount) {
+        if ($request->amount < $product->min_amount || ($product->max_amount !== null && $request->amount > $product->max_amount)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Jumlah penempatan di bawah minimum yang disyaratkan produk.'
+                'message' => "Jumlah penempatan harus antara Rp " . number_format($product->min_amount, 0, ',', '.') . " dan Rp " . number_format($product->max_amount, 0, ',', '.') . "."
             ], 400);
         }
 
@@ -86,6 +93,7 @@ class DepositController extends Controller
             // Create deposit account
             $depositAccount = Account::create([
                 'user_id' => Auth::id(),
+                'account_number' => 'DEP' . time() . rand(1000, 9999),
                 'account_type' => 'DEPOSITO',
                 'balance' => $request->amount,
                 'status' => 'ACTIVE',
@@ -136,6 +144,13 @@ class DepositController extends Controller
             ], 400);
         }
 
+        if (!$deposit->depositProduct) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Produk deposito tidak ditemukan atau sudah tidak aktif.'
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
             // Get savings account
@@ -150,8 +165,8 @@ class DepositController extends Controller
 
             // Calculate interest
             $principal = $deposit->balance;
-            $interestRate = $deposit->depositProduct->interest_rate_pa / 100;
-            $months = $deposit->depositProduct->tenor_months;
+            $interestRate = $deposit->depositProduct?->interest_rate_pa / 100;
+            $months = $deposit->depositProduct?->tenor_months;
             $interest = $principal * $interestRate * ($months / 12);
             $totalAmount = $principal + $interest;
 

@@ -3,17 +3,24 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Api\AdminApiController;
 
 /*
 |--------------------------------------------------------------------------
 | AJAX Routes (web routes that return JSON)
 | These handle interactive flows: inquiry/execute, search, file upload, etc.
-| All routes use web middleware (session auth, CSRF via X-XSRF-TOKEN header)
+|
+| CSRF Protection: This file is loaded under Route::middleware('web') in
+| bootstrap/app.php, which includes the VerifyCsrfToken middleware.
+| The SPA sends the XSRF-TOKEN cookie value in the X-XSRF-TOKEN request
+| header on every AJAX call, satisfying CSRF verification automatically.
+| All route groups below explicitly declare their middleware requirements.
 |--------------------------------------------------------------------------
 */
 
 // Shared routes - all authenticated users (notifications, push)
-Route::middleware(['auth:web'])->prefix('user')->group(function () {
+// CSRF protection: active via 'web' middleware group (VerifyCsrfToken)
+Route::middleware(['web', 'auth:web', 'throttle:60,1'])->prefix('user')->group(function () {
     Route::get('/notifications', [App\Http\Controllers\User\NotificationController::class, 'index']);
     Route::put('/notifications/mark-all-read', [App\Http\Controllers\User\NotificationController::class, 'markAllAsRead']);
     // Push notification subscribe
@@ -28,15 +35,21 @@ Route::middleware(['auth:web'])->prefix('user')->group(function () {
 });
 
 // Public auth routes (register, forgot password)
-Route::prefix('auth')->group(function () {
+// CSRF protection: active via 'web' middleware group (VerifyCsrfToken)
+// Note: These are intentionally public (no auth required) but still CSRF-protected.
+Route::middleware(['web', 'throttle:10,1'])->prefix('auth')->group(function () {
     Route::post('/register/request-otp', [App\Http\Controllers\Auth\RegisterController::class, 'requestOtp']);
     Route::post('/register/verify-otp', [App\Http\Controllers\Auth\RegisterController::class, 'verifyOtp']);
     Route::post('/forgot-password/request', [App\Http\Controllers\Auth\RegisterController::class, 'forgotPasswordRequest']);
     Route::post('/forgot-password/reset', [App\Http\Controllers\Auth\RegisterController::class, 'forgotPasswordReset']);
+    Route::post('/forgot-pin/request', [App\Http\Controllers\User\SecurityController::class, 'forgotPin']);
+    Route::post('/forgot-pin/reset', [App\Http\Controllers\User\SecurityController::class, 'resetPin']);
 });
 
-// Public utility
-Route::prefix('utility')->group(function () {
+// Public utility routes
+// CSRF protection: active via 'web' middleware group (VerifyCsrfToken)
+// Note: These are intentionally public (no auth required) but still CSRF-protected.
+Route::middleware(['web'])->prefix('utility')->group(function () {
     Route::get('/faq', [App\Http\Controllers\UtilityController::class, 'getFaq']);
     Route::get('/public-config', [App\Http\Controllers\UtilityController::class, 'getPublicConfig']);
     Route::post('/loan-calculator', [App\Http\Controllers\UtilityController::class, 'loanCalculator']);
@@ -47,7 +60,8 @@ Route::prefix('utility')->group(function () {
 });
 
 // Authenticated user routes (for interactive flows) - Customer only
-Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function () {
+// CSRF protection: active via 'web' middleware group (VerifyCsrfToken)
+Route::middleware(['web', 'auth:web', 'role:customer', 'throttle:120,1'])->prefix('user')->group(function () {
     // Transfer inquiry/execute
     Route::post('/transfer/internal/inquiry', [App\Http\Controllers\User\TransactionController::class, 'internalTransferInquiry']);
     Route::post('/transfer/internal/execute', [App\Http\Controllers\User\TransactionController::class, 'internalTransferExecute']);
@@ -58,6 +72,19 @@ Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function
     // QR Payment
     Route::post('/payment/qr-generate', [App\Http\Controllers\User\QrPaymentController::class, 'generate']);
     // Top-up (file upload)
+    Route::get('/topup-requests', function(Request $request) {
+        $page = $request->input('page', 1);
+        $limit = $request->input('limit', 10);
+        $query = DB::table('topup_requests')->where('user_id', auth()->id());
+        $total = $query->count();
+        $data = $query->orderBy('created_at', 'desc')
+            ->skip(($page - 1) * $limit)->take($limit)->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+            'pagination' => ['current_page' => (int)$page, 'total_records' => (int)$total]
+        ]);
+    });
     Route::post('/topup-requests', function(Request $request) {
         $user = $request->user();
         $proofPath = null;
@@ -83,6 +110,8 @@ Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function
     });
     // Withdrawal requests
     Route::post('/withdrawal-requests', [App\Http\Controllers\User\WithdrawalController::class, 'createRequest']);
+    Route::get('/withdrawal-requests', [App\Http\Controllers\User\WithdrawalController::class, 'getRequests']);
+    Route::delete('/withdrawal-requests/{id}', [App\Http\Controllers\User\WithdrawalController::class, 'cancelRequest']);
     // Loans
     Route::get('/loans', [App\Http\Controllers\User\LoanController::class, 'index']);
     Route::get('/loans/{id}', [App\Http\Controllers\User\LoanController::class, 'show']);
@@ -100,6 +129,7 @@ Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function
     Route::post('/cards/request', [App\Http\Controllers\User\CardController::class, 'requestCard']);
     Route::put('/cards/{id}/limit', [App\Http\Controllers\User\CardController::class, 'setLimit']);
     Route::put('/cards/{id}/status', [App\Http\Controllers\User\CardController::class, 'updateStatus']);
+    Route::post('/cards/{id}/reveal', [App\Http\Controllers\User\CardController::class, 'revealNumber']);
     // Accounts
     Route::get('/accounts', [App\Http\Controllers\User\AccountController::class, 'index']);
     // Profile
@@ -178,7 +208,8 @@ Route::middleware(['auth:web', 'role:customer'])->prefix('user')->group(function
 });
 
 // Admin routes (for interactive flows) - Staff only
-Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,cs,analyst,debt_collector'])->prefix('admin')->group(function () {
+// CSRF protection: active via 'web' middleware group (VerifyCsrfToken)
+Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,teller,cs,analyst,debt_collector', 'throttle:200,1'])->prefix('admin')->group(function () {
     // Teller operations
     Route::post('/teller/deposit', [App\Http\Controllers\Admin\TellerController::class, 'deposit']);
     Route::post('/teller/account-inquiry', function(Request $request) {
@@ -232,6 +263,7 @@ Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,
     });
     // Process topup/withdrawal
     Route::post('/processing/process-topup', [App\Http\Controllers\Admin\AdvancedProcessingController::class, 'processTopupRequest']);
+    Route::post('/topup-requests/process', [App\Http\Controllers\Api\AdminApiController::class, 'processTopupRequest']);
     Route::put('/withdrawal-requests/{id}/process', [App\Http\Controllers\Admin\WithdrawalRequestController::class, 'process']);
     Route::post('/withdrawal-requests/{id}/disburse', [App\Http\Controllers\Admin\WithdrawalRequestController::class, 'disburse']);
     // Card requests
@@ -271,6 +303,7 @@ Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,
     Route::put('/loans/{id}/status', [App\Http\Controllers\Admin\LoanController::class, 'updateStatus']);
     Route::post('/loans/{id}/disburse', [App\Http\Controllers\Admin\LoanController::class, 'disburse']);
     Route::post('/loans/{id}/force-pay-installment', [App\Http\Controllers\Admin\LoanController::class, 'forcePayInstallment']);
+    Route::delete('/loans/{id}', [App\Http\Controllers\Admin\LoanController::class, 'destroy']);
     // Products
     Route::get('/loan-products', [App\Http\Controllers\Admin\ProductController::class, 'getLoanProducts']);
     Route::post('/loan-products', [App\Http\Controllers\Admin\ProductController::class, 'createLoanProduct']);
@@ -279,6 +312,7 @@ Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,
     Route::get('/deposit-products', [App\Http\Controllers\Admin\ProductController::class, 'getDepositProducts']);
     Route::post('/deposit-products', [App\Http\Controllers\Admin\ProductController::class, 'createDepositProduct']);
     Route::put('/deposit-products/{id}', [App\Http\Controllers\Admin\ProductController::class, 'updateDepositProduct']);
+    Route::delete('/deposit-products/{id}', [App\Http\Controllers\Admin\ProductController::class, 'deleteDepositProduct']);
     // Units
     Route::get('/units', [App\Http\Controllers\Admin\UnitController::class, 'index']);
     Route::post('/units', [App\Http\Controllers\Admin\UnitController::class, 'store']);
@@ -288,6 +322,67 @@ Route::middleware(['auth:web', 'role:super_admin,admin,manager,marketing,teller,
     // Dashboard
     Route::get('/dashboard/summary', [App\Http\Controllers\Admin\DashboardController::class, 'summary']);
     // Transactions
+    Route::get('/transactions/export', function(Request $request) {
+        $search = $request->input('search', '');
+        $type   = $request->input('type', '');
+
+        $query = DB::table('transactions as t')
+            ->leftJoin('accounts as fa', 't.from_account_id', '=', 'fa.id')
+            ->leftJoin('users as fu', 'fa.user_id', '=', 'fu.id')
+            ->leftJoin('accounts as ta', 't.to_account_id', '=', 'ta.id')
+            ->leftJoin('users as tu', 'ta.user_id', '=', 'tu.id')
+            ->select([
+                't.transaction_code', 't.transaction_type', 't.amount', 't.fee',
+                't.status', 't.description', 't.created_at',
+                DB::raw('fu.full_name as from_name'),
+                DB::raw('fa.account_number as from_account'),
+                DB::raw('tu.full_name as to_name'),
+                DB::raw('ta.account_number as to_account'),
+            ]);
+
+        if ($search) {
+            $query->where(fn($q) => $q
+                ->where('t.transaction_code', 'like', "%{$search}%")
+                ->orWhere('t.description', 'like', "%{$search}%")
+                ->orWhere('fu.full_name', 'like', "%{$search}%")
+                ->orWhere('tu.full_name', 'like', "%{$search}%")
+            );
+        }
+        if ($type) $query->where('t.transaction_type', $type);
+
+        $rows = $query->orderBy('t.created_at', 'desc')->get();
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="transaksi-' . now()->format('Ymd-His') . '.csv"',
+            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
+        ];
+
+        $callback = function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            // BOM for Excel UTF-8
+            fputs($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Kode Transaksi', 'Jenis', 'Dari', 'No. Rek Asal', 'Ke', 'No. Rek Tujuan', 'Jumlah', 'Biaya Admin', 'Status', 'Keterangan', 'Tanggal']);
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row->transaction_code,
+                    $row->transaction_type,
+                    $row->from_name  ?? '-',
+                    $row->from_account ?? '-',
+                    $row->to_name    ?? '-',
+                    $row->to_account ?? '-',
+                    $row->amount,
+                    $row->fee ?? 0,
+                    $row->status,
+                    $row->description ?? '',
+                    $row->created_at,
+                ]);
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    });
     Route::get('/transactions', function(Request $request) {
         $page = $request->input('page', 1);
         $search = $request->input('search', '');

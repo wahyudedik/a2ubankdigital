@@ -99,7 +99,7 @@ const TopUpPage = () => {
                 modal.showAlert({ title: "Gagal", message: result.message || 'Terjadi kesalahan.', type: "warning" });
             }
         } catch (err) {
-            console.error('Error:', err);
+
             modal.showAlert({ title: "Error", message: 'Gagal menghubungi server. Silakan coba lagi.', type: "warning" });
         }
     };

@@ -1,16 +1,26 @@
 import '../css/app.css';
 import React from 'react';
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { ModalProvider } from '@/contexts/ModalContext.jsx';
 import { NotificationProvider } from '@/contexts/NotificationContext.jsx';
 import CustomerLayout from '@/Layouts/CustomerLayout.jsx';
 import AdminLayoutWrapper from '@/Layouts/AdminLayoutWrapper.jsx';
 
+// Update meta csrf-token setiap kali Inertia menerima response baru
+// Ini memastikan token selalu fresh setelah session regenerate (login/logout)
+router.on('success', (event) => {
+    const token = event.detail?.page?.props?.csrf_token;
+    if (token) {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) meta.setAttribute('content', token);
+    }
+});
+
 // Pages that should NOT have any layout (public pages)
 const noLayoutPages = [
     'LandingPage', 'LoginPage', 'RegisterPage', 'ForgotPasswordPage', 'ResetPasswordPage',
-    'PrintableReceiptPage', 'AdminBuildPage'
+    'ForgotPinPage', 'PrintableReceiptPage', 'AdminBuildPage'
 ];
 
 // Pages that use Admin layout

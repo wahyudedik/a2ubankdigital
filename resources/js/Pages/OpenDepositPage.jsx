@@ -25,7 +25,7 @@ const OpenDepositPage = () => {
         confirmed_promise.then(confirmed => {
             if (confirmed) {
                 setLoading(true); setError(null);
-                router.post('/deposits/open', { product_id: selectedProductId, amount }, {
+                router.post('/deposits/create', { product_id: selectedProductId, amount }, {
                     onSuccess: () => { modal.showAlert({ title: "Berhasil", message: "Deposito berhasil dibuka.", type: "success" }); navigate('/deposits'); },
                     onError: (errors) => { setError(Object.values(errors).flat()[0] || 'Terjadi kesalahan.'); },
                     onFinish: () => setLoading(false),

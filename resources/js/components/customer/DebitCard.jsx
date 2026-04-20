@@ -15,7 +15,7 @@ const DebitCard = ({ card }) => {
         <div className="bg-gradient-to-br from-bpn-blue to-bpn-blue-dark text-white rounded-xl p-6 shadow-lg">
             <div className="flex justify-between items-start mb-8">
                 <span className="text-sm font-medium opacity-80">A2U Bank Digital</span>
-                <span className="text-xs opacity-60">{card.card_type || 'DEBIT'}</span>
+                <span className="text-xs opacity-60">{card.card_type ? card.card_type.charAt(0).toUpperCase() + card.card_type.slice(1).toLowerCase() : 'Debit'}</span>
             </div>
             <p className="font-mono text-lg tracking-wider mb-4">
                 {card.card_number_masked || '**** **** **** ****'}

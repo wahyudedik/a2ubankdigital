@@ -198,7 +198,7 @@ class MarketingController extends Controller
             ];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'segments' => $segments,
                     'insights' => $insights,
@@ -210,7 +210,7 @@ class MarketingController extends Controller
             $this->logService->log('customer_segments_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch customer segments'
             ], 500);
         }
@@ -239,7 +239,7 @@ class MarketingController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -274,7 +274,7 @@ class MarketingController extends Controller
             if ($targetCustomers->isEmpty()) {
                 DB::rollBack();
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'No customers found for the selected segments'
                 ], 400);
             }
@@ -314,7 +314,7 @@ class MarketingController extends Controller
             );
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => $request->schedule_type === 'immediate' 
                     ? 'Campaign sent successfully' 
                     : 'Campaign scheduled successfully',
@@ -332,7 +332,7 @@ class MarketingController extends Controller
             $this->logService->log('marketing_campaign_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to send promotion'
             ], 500);
         }
@@ -406,7 +406,7 @@ class MarketingController extends Controller
             });
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'campaigns' => $campaigns,
                     'period' => [
@@ -418,7 +418,7 @@ class MarketingController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch campaign performance'
             ], 500);
         }

@@ -125,6 +125,21 @@ class EWalletController extends Controller
                 throw new \Exception("Saldo tidak mencukupi untuk top-up ini.");
             }
 
+            // Card validation: blocked card and daily limit
+            $card = \App\Models\Card::where('user_id', $user->id)->where('status', '!=', 'closed')->first();
+            if ($card && $card->status === 'blocked') {
+                throw new \Exception('Kartu Anda sedang diblokir. Transaksi tidak dapat diproses.');
+            }
+            if ($card && $card->daily_limit > 0) {
+                $todayTotal = Transaction::where('from_account_id', $fromAccount->id)
+                    ->whereDate('created_at', today())
+                    ->sum('amount');
+                if (($todayTotal + $request->amount) > $card->daily_limit) {
+                    $remaining = max(0, $card->daily_limit - $todayTotal);
+                    throw new \Exception('Melebihi limit harian. Sisa limit hari ini: Rp ' . number_format($remaining, 0, ',', '.'));
+                }
+            }
+
             // Deduct from source account
             $fromAccount->decrement('balance', $totalAmount);
 

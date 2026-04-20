@@ -15,6 +15,7 @@ class AuthPageController extends Controller
     public function loginPage() { return Inertia::render('LoginPage'); }
     public function registerPage() { return Inertia::render('RegisterPage'); }
     public function forgotPasswordPage() { return Inertia::render('ForgotPasswordPage'); }
+    public function forgotPinPage() { return Inertia::render('ForgotPinPage'); }
     public function resetPasswordPage() { return Inertia::render('ResetPasswordPage'); }
 
     public function login(Request $request)

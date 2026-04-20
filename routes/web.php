@@ -5,6 +5,7 @@ use App\Http\Controllers\Inertia\AuthPageController;
 use App\Http\Controllers\Inertia\UserPageController;
 use App\Http\Controllers\Inertia\AdminPageController;
 use App\Http\Controllers\Inertia\ActionController;
+use App\Http\Controllers\Api\AdminApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +19,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthPageController::class, 'login']);
     Route::get('/register', [AuthPageController::class, 'registerPage']);
     Route::get('/forgot-password', [AuthPageController::class, 'forgotPasswordPage']);
+    Route::get('/forgot-pin', [AuthPageController::class, 'forgotPinPage']);
     Route::get('/reset-password', [AuthPageController::class, 'resetPasswordPage']);
 });
 
@@ -92,6 +94,16 @@ Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,a
 
     // Nasabah - semua staff bisa lihat
     Route::get('/customers', [AdminPageController::class, 'customers']);
+
+    // Tambah/edit nasabah - teller, cs, manager ke atas (harus sebelum wildcard {customerId})
+    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
+        Route::get('/customers/add', [AdminPageController::class, 'customerAdd']);
+        Route::post('/customers', [ActionController::class, 'storeCustomer']);
+        Route::get('/customers/edit/{customerId}', [AdminPageController::class, 'customerEdit']);
+        Route::put('/customers/{id}', [ActionController::class, 'updateCustomer']);
+        Route::put('/customers/{id}/status', [ActionController::class, 'updateCustomerStatus']);
+    });
+
     Route::get('/customers/{customerId}', [AdminPageController::class, 'customerDetail'])->where('customerId', '[0-9]+');
 
     // Teller operations - teller & cs
@@ -132,15 +144,6 @@ Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,a
         Route::get('/deposit-accounts', [AdminPageController::class, 'depositsAccounts']);
     });
 
-    // Tambah/edit nasabah - teller, cs, manager ke atas
-    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
-        Route::get('/customers/add', [AdminPageController::class, 'customerAdd']);
-        Route::post('/customers', [ActionController::class, 'storeCustomer']);
-        Route::get('/customers/edit/{customerId}', [AdminPageController::class, 'customerEdit']);
-        Route::put('/customers/{id}', [ActionController::class, 'updateCustomer']);
-        Route::put('/customers/{id}/status', [ActionController::class, 'updateCustomerStatus']);
-    });
-
     // Struktur organisasi - admin ke atas
     Route::middleware('role:super_admin,admin')->group(function () {
         Route::get('/units', [AdminPageController::class, 'units']);
@@ -165,6 +168,47 @@ Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,a
         Route::get('/settings', [AdminPageController::class, 'settings']);
         Route::get('/audit-log', [AdminPageController::class, 'auditLog']);
         Route::get('/build', [AdminPageController::class, 'build']);
+    });
+
+    // ===== API ENDPOINTS =====
+    // Notifications API
+    Route::put('/notifications/mark-all-read', [AdminApiController::class, 'markAllNotificationsRead']);
+
+    // Teller Operations API
+    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
+        Route::post('/teller/account-inquiry', [AdminApiController::class, 'tellerAccountInquiry']);
+        Route::post('/teller/deposit', [AdminApiController::class, 'tellerDeposit']);
+        Route::post('/teller/loan-payment', [AdminApiController::class, 'tellerLoanPayment']);
+    });
+
+    // Request Processing API
+    Route::middleware('role:super_admin,admin,manager,teller,cs')->group(function () {
+        Route::post('/topup-requests/process', [AdminApiController::class, 'processTopupRequest']);
+        Route::put('/withdrawal-requests/process', [AdminApiController::class, 'processWithdrawalRequest']);
+        Route::post('/withdrawal-requests/disburse', [AdminApiController::class, 'disburseWithdrawal']);
+        Route::put('/card-requests/{cardId}/process', [AdminApiController::class, 'processCardRequest']);
+    });
+
+    // Transaction API
+    Route::get('/transactions/detail', [AdminApiController::class, 'getTransactionDetail']);
+
+    // Loan Applications API
+    Route::middleware('role:super_admin,admin,manager,analyst')->group(function () {
+        Route::post('/loans/inquiry', [AdminApiController::class, 'loanInquiry']);
+        Route::put('/loan-applications/status', [AdminApiController::class, 'updateLoanApplicationStatus']);
+        Route::post('/loan-applications/disburse', [AdminApiController::class, 'disburseLoan']);
+    });
+
+    // Audit Log API
+    Route::middleware('role:super_admin,admin')->group(function () {
+        Route::get('/audit-log/data', [AdminApiController::class, 'getAuditLog']);
+    });
+
+    // System Settings API
+    Route::middleware('role:super_admin,admin')->group(function () {
+        Route::get('/system/settings', [AdminApiController::class, 'getSystemSettings']);
+        Route::put('/system/settings', [AdminApiController::class, 'updateSystemSettings']);
+        Route::put('/security/update-password', [AdminApiController::class, 'updatePassword']);
     });
 });
 

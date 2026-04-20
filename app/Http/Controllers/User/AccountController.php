@@ -100,8 +100,7 @@ class AccountController extends Controller
             // Notify admin
             $this->notificationService->notifyAdmins(
                 'Account Closure Request',
-                "User {$user->name} has requested account closure. Reason: {$request->reason}",
-                ['type' => 'account_closure', 'user_id' => $user->id]
+                "User {$user->full_name} has requested account closure. Reason: {$request->reason}"
             );
 
             DB::commit();
@@ -156,7 +155,7 @@ class AccountController extends Controller
             }
 
             $user = Auth::user();
-            $currentLimit = $user->account->credit_limit ?? 0;
+            $currentLimit = $user->accounts()->where('account_type', 'TABUNGAN')->value('credit_limit') ?? 0;
 
             // Check if requested limit is higher than current
             if ($request->requested_limit <= $currentLimit) {
@@ -220,8 +219,7 @@ class AccountController extends Controller
             // Notify admin
             $this->notificationService->notifyAdmins(
                 'Credit Limit Increase Request',
-                "User {$user->name} has requested credit limit increase from " . number_format($currentLimit) . " to " . number_format($request->requested_limit),
-                ['type' => 'credit_limit_request', 'user_id' => $user->id]
+                "User {$user->full_name} has requested credit limit increase from " . number_format($currentLimit) . " to " . number_format($request->requested_limit)
             );
 
             DB::commit();

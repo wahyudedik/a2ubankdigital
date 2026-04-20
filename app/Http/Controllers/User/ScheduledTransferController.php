@@ -20,18 +20,18 @@ class ScheduledTransferController extends Controller
         $user = Auth::user();
         
         $transfers = ScheduledTransfer::where('user_id', $user->id)
-            ->with(['fromAccount', 'toAccount'])
-            ->orderBy('next_execution_date', 'asc')
+            ->with(['fromAccount'])
+            ->orderBy('scheduled_date', 'asc')
             ->get()
             ->map(function($transfer) {
                 return [
                     'id' => $transfer->id,
                     'from_account_number' => $transfer->fromAccount?->account_number,
-                    'to_account_number' => $transfer->toAccount?->account_number,
+                    'to_account_number' => $transfer->to_account_number,
                     'recipient_name' => $transfer->recipient_name,
                     'amount' => (float)$transfer->amount,
                     'frequency' => $transfer->frequency,
-                    'next_execution_date' => $transfer->next_execution_date,
+                    'scheduled_date' => $transfer->scheduled_date,
                     'end_date' => $transfer->end_date,
                     'description' => $transfer->description,
                     'status' => $transfer->status,
@@ -91,14 +91,14 @@ class ScheduledTransferController extends Controller
             $scheduledTransfer = ScheduledTransfer::create([
                 'user_id' => $user->id,
                 'from_account_id' => $fromAccount->id,
-                'to_account_id' => $toAccount->id,
+                'to_account_number' => $toAccount->account_number,
                 'recipient_name' => $toAccount->user->full_name,
                 'amount' => $request->amount,
                 'frequency' => $request->frequency,
-                'next_execution_date' => $request->start_date,
+                'scheduled_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'description' => $request->description ?? 'Transfer Terjadwal',
-                'status' => 'ACTIVE'
+                'status' => 'pending'
             ]);
 
             DB::commit();

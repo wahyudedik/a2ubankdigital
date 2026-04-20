@@ -13,6 +13,7 @@ class DepositProduct extends Model
         'product_code',
         'description',
         'min_amount',
+        'max_amount',
         'interest_rate_pa',
         'tenor_months',
         'is_active'
@@ -20,6 +21,7 @@ class DepositProduct extends Model
 
     protected $casts = [
         'min_amount' => 'decimal:2',
+        'max_amount' => 'decimal:2',
         'interest_rate_pa' => 'decimal:2',
         'tenor_months' => 'integer',
         'is_active' => 'boolean'

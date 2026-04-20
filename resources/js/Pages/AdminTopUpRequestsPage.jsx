@@ -41,7 +41,7 @@ const AdminTopUpRequestsPage = () => {
         if (selectedRequest) setSelectedRequest(null);
         if (isRejectionModalOpen) setRejectionModalOpen(false);
         const payload = { request_id: requestId, action: action.toLowerCase(), admin_notes: reason };
-        const result = await callApi('admin_process_topup_request.php', 'POST', payload);
+        const result = await callApi('/admin/topup-requests/process', 'POST', payload);
         if (result && result.status === 'success') { await modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
         else { await modal.showAlert({ title: 'Gagal', message: error || result?.message || 'Terjadi kesalahan', type: 'warning' }); }
     };

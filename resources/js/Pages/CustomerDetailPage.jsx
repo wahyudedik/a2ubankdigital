@@ -36,8 +36,16 @@ const DetailItem = ({ label, value }) => (
 );
 
 const KycImage = ({ label, path }) => {
-    if (!path) return null;
-    const fullUrl = `${AppConfig.api.baseUrl.replace('/app', '')}${path}`;
+    if (!path) return (
+        <div>
+            <p className="text-sm font-semibold text-gray-600">{label}</p>
+            <div className="mt-2 rounded-lg border bg-gray-50 flex items-center justify-center h-32 text-gray-400 text-sm">
+                Foto belum diupload
+            </div>
+        </div>
+    );
+    // path sudah berisi '/storage/...' dari backend, langsung pakai sebagai URL relatif
+    const fullUrl = path.startsWith('http') ? path : path;
     return (
         <div>
             <p className="text-sm font-semibold text-gray-600">{label}</p>

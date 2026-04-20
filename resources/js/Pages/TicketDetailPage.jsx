@@ -21,7 +21,7 @@ export default function TicketDetailPage({ ticketId }) {
                 setTicket(data.data);
             }
         } catch (error) {
-            console.error('Error:', error);
+
         } finally {
             setLoading(false);
         }
@@ -51,7 +51,7 @@ export default function TicketDetailPage({ ticketId }) {
                 alert(data.message || 'Gagal mengirim balasan');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         } finally {
             setSending(false);
@@ -78,7 +78,7 @@ export default function TicketDetailPage({ ticketId }) {
                 alert(data.message || 'Gagal menutup tiket');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         }
     };

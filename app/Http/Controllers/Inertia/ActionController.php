@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class ActionController extends Controller
 {
@@ -31,44 +32,92 @@ class ActionController extends Controller
     public function storeCustomer(Request $request)
     {
         $request->validate([
-            'full_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'nik' => 'required|string|digits:16',
+            'full_name'          => 'required|string|max:255',
+            'email'              => 'required|email|unique:users,email',
+            'nik'                => 'required|string|digits:16',
             'mother_maiden_name' => 'required|string',
-            'phone_number' => 'required|string',
-            'unit_id' => 'required|exists:units,id',
+            'phone_number'       => 'required|string',
+            'unit_id'            => 'required|exists:units,id',
+            'ktp_image'          => 'required|image|mimes:jpg,jpeg,png|max:2048',
+            'selfie_image'       => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ], [
-            'nik.digits' => 'NIK harus terdiri dari 16 digit angka.',
-            'email.unique' => 'Email sudah terdaftar.',
+            'nik.digits'         => 'NIK harus terdiri dari 16 digit angka.',
+            'email.unique'       => 'Email sudah terdaftar.',
+            'ktp_image.required' => 'Foto KTP wajib diupload.',
+            'selfie_image.required' => 'Foto selfie dengan KTP wajib diupload.',
+            'ktp_image.max'      => 'Ukuran foto KTP maksimal 2MB.',
+            'selfie_image.max'   => 'Ukuran foto selfie maksimal 2MB.',
         ]);
+
+        // Check duplicate NIK
+        if (CustomerProfile::where('nik', $request->nik)->exists()) {
+            return back()->withErrors(['nik' => 'NIK sudah terdaftar.']);
+        }
 
         DB::beginTransaction();
         try {
+            // Upload KTP & selfie
+            $nikSanitized = preg_replace('/[^a-zA-Z0-9]/', '', $request->nik);
+            $ktpPath = $request->file('ktp_image')->storeAs(
+                'documents',
+                $nikSanitized . '_ktp_image_' . time() . '.' . $request->file('ktp_image')->extension(),
+                'public'
+            );
+            $selfiePath = $request->file('selfie_image')->storeAs(
+                'documents',
+                $nikSanitized . '_selfie_image_' . time() . '.' . $request->file('selfie_image')->extension(),
+                'public'
+            );
+
             $bankId = 'CIF-' . now()->format('Ym') . '-' . rand(100000, 999999);
             $user = User::create([
-                'bank_id' => $bankId, 'role_id' => 9, 'full_name' => $request->full_name,
-                'email' => $request->email, 'password_hash' => bcrypt('password123'),
-                'phone_number' => $request->phone_number, 'status' => 'ACTIVE',
+                'bank_id'       => $bankId,
+                'role_id'       => 9,
+                'full_name'     => $request->full_name,
+                'email'         => $request->email,
+                'password_hash' => bcrypt('password123'),
+                'phone_number'  => $request->phone_number,
+                'status'        => 'ACTIVE',
             ]);
 
             $gender = $request->gender;
-            if ($gender === 'MALE') $gender = 'L';
+            if ($gender === 'MALE')   $gender = 'L';
             if ($gender === 'FEMALE') $gender = 'P';
 
             CustomerProfile::create([
-                'user_id' => $user->id, 'unit_id' => $request->unit_id, 'nik' => $request->nik,
-                'mother_maiden_name' => $request->mother_maiden_name, 'pob' => $request->pob,
-                'dob' => $request->dob, 'gender' => $gender, 'address_ktp' => $request->address_ktp,
-                'kyc_status' => 'VERIFIED',
+                'user_id'            => $user->id,
+                'unit_id'            => $request->unit_id,
+                'nik'                => $request->nik,
+                'mother_maiden_name' => $request->mother_maiden_name,
+                'pob'                => $request->pob,
+                'dob'                => $request->dob,
+                'gender'             => $gender,
+                'address_ktp'        => $request->address_ktp,
+                'ktp_image_path'     => '/storage/' . $ktpPath,
+                'selfie_image_path'  => '/storage/' . $selfiePath,
+                'kyc_status'         => 'VERIFIED',
             ]);
 
+            // Generate unique account number
             $accountNumber = '1100' . str_pad($user->id, 6, '0', STR_PAD_LEFT) . rand(100, 999);
-            Account::create(['user_id' => $user->id, 'account_number' => $accountNumber, 'account_type' => 'TABUNGAN', 'balance' => 0, 'status' => 'ACTIVE']);
+            while (Account::where('account_number', $accountNumber)->exists()) {
+                $accountNumber = '1100' . str_pad($user->id, 6, '0', STR_PAD_LEFT) . rand(100, 999);
+            }
+            Account::create([
+                'user_id'        => $user->id,
+                'account_number' => $accountNumber,
+                'account_type'   => 'TABUNGAN',
+                'balance'        => 0,
+                'status'         => 'ACTIVE',
+            ]);
 
             DB::commit();
             return redirect('/admin/customers')->with('success', 'Nasabah baru berhasil ditambahkan.');
         } catch (\Exception $e) {
             DB::rollBack();
+            // Clean up uploaded files on failure
+            if (isset($ktpPath))    \Illuminate\Support\Facades\Storage::disk('public')->delete($ktpPath);
+            if (isset($selfiePath)) \Illuminate\Support\Facades\Storage::disk('public')->delete($selfiePath);
             return back()->withErrors(['error' => 'Gagal menambahkan nasabah: ' . $e->getMessage()]);
         }
     }
@@ -133,6 +182,11 @@ class ActionController extends Controller
                 'description' => 'Pencairan Pinjaman ' . ($loan->loanProduct?->product_name ?? ''),
                 'status' => 'SUCCESS',
             ]);
+
+            // Generate installments if not already created
+            if ($loan->installments()->count() === 0) {
+                $this->generateInstallments($loan);
+            }
             
             // Send notification to customer
             $this->notificationService->notifyUser(
@@ -149,33 +203,129 @@ class ActionController extends Controller
         }
     }
 
+    private function generateInstallments(\App\Models\Loan $loan): void
+    {
+        $installmentAmount = $loan->monthly_installment;
+        $remainingPrincipal = $loan->loan_amount;
+        $tenorUnit = $loan->tenor_unit ?? 'BULAN';
+
+        $periodRate = $tenorUnit === 'MINGGU'
+            ? $loan->interest_rate_pa / 100 / 52
+            : $loan->interest_rate_pa / 100 / 12;
+
+        for ($i = 1; $i <= $loan->tenor; $i++) {
+            $dueDate = $tenorUnit === 'MINGGU'
+                ? now()->addWeeks($i)
+                : now()->addMonths($i);
+
+            $interest = round($remainingPrincipal * $periodRate, 2);
+            $principal = round($installmentAmount - $interest, 2);
+
+            if ($i === $loan->tenor) {
+                $principal = round($remainingPrincipal, 2);
+                $interest = round($installmentAmount - $principal, 2);
+                if ($interest < 0) $interest = 0;
+            }
+
+            \App\Models\LoanInstallment::create([
+                'loan_id' => $loan->id,
+                'installment_number' => $i,
+                'due_date' => $dueDate,
+                'principal_amount' => $principal,
+                'interest_amount' => $interest,
+                'total_amount' => $principal + $interest,
+                'status' => 'PENDING',
+            ]);
+
+            $remainingPrincipal = round($remainingPrincipal - $principal, 2);
+        }
+    }
+
     public function storeLoanProduct(Request $request)
     {
-        LoanProduct::create($request->all());
+        $request->validate([
+            'product_name' => 'required|string|max:255',
+            'min_amount' => 'required|numeric|min:0',
+            'max_amount' => 'required|numeric|gt:min_amount',
+            'interest_rate_pa' => 'required|numeric|min:0|max:100',
+            'min_tenor' => 'required|integer|min:1',
+            'max_tenor' => 'required|integer|gte:min_tenor',
+            'tenor_unit' => 'required|in:BULAN,MINGGU',
+            'is_active' => 'sometimes|boolean',
+        ]);
+        LoanProduct::create($request->only([
+            'product_name', 'min_amount', 'max_amount', 'interest_rate_pa',
+            'min_tenor', 'max_tenor', 'tenor_unit', 'is_active', 'description',
+        ]));
         return back()->with('success', 'Produk pinjaman berhasil ditambahkan.');
     }
 
     public function updateLoanProduct(Request $request, $id)
     {
-        LoanProduct::findOrFail($id)->update($request->all());
+        $request->validate([
+            'product_name' => 'sometimes|string|max:255',
+            'min_amount' => 'sometimes|numeric|min:0',
+            'max_amount' => 'sometimes|numeric',
+            'interest_rate_pa' => 'sometimes|numeric|min:0|max:100',
+            'min_tenor' => 'sometimes|integer|min:1',
+            'max_tenor' => 'sometimes|integer|min:1',
+            'tenor_unit' => 'sometimes|in:BULAN,MINGGU',
+            'is_active' => 'sometimes|boolean',
+        ]);
+        LoanProduct::findOrFail($id)->update($request->only([
+            'product_name', 'min_amount', 'max_amount', 'interest_rate_pa',
+            'min_tenor', 'max_tenor', 'tenor_unit', 'is_active', 'description',
+        ]));
         return back()->with('success', 'Produk pinjaman berhasil diperbarui.');
     }
 
     public function deleteLoanProduct($id)
     {
-        LoanProduct::findOrFail($id)->delete();
+        $product = LoanProduct::findOrFail($id);
+
+        $activeLoansCount = $product->loans()
+            ->whereIn('status', ['SUBMITTED', 'APPROVED', 'DISBURSED', 'ACTIVE'])
+            ->count();
+
+        if ($activeLoansCount > 0) {
+            return back()->with('error', 'Tidak dapat menghapus produk yang masih memiliki pinjaman aktif.');
+        }
+
+        $product->delete();
         return back()->with('success', 'Produk pinjaman berhasil dihapus.');
     }
 
     public function storeDepositProduct(Request $request)
     {
-        DepositProduct::create($request->all());
+        $request->validate([
+            'product_name' => 'required|string|max:255',
+            'min_amount' => 'required|numeric|min:0',
+            'max_amount' => 'nullable|numeric',
+            'interest_rate_pa' => 'required|numeric|min:0|max:100',
+            'tenor_months' => 'required|integer|min:1',
+            'is_active' => 'sometimes|boolean',
+        ]);
+        DepositProduct::create($request->only([
+            'product_name', 'min_amount', 'max_amount', 'interest_rate_pa',
+            'tenor_months', 'is_active', 'description',
+        ]));
         return back()->with('success', 'Produk deposito berhasil ditambahkan.');
     }
 
     public function updateDepositProduct(Request $request, $id)
     {
-        DepositProduct::findOrFail($id)->update($request->all());
+        $request->validate([
+            'product_name' => 'sometimes|string|max:255',
+            'min_amount' => 'sometimes|numeric|min:0',
+            'max_amount' => 'nullable|numeric',
+            'interest_rate_pa' => 'sometimes|numeric|min:0|max:100',
+            'tenor_months' => 'sometimes|integer|min:1',
+            'is_active' => 'sometimes|boolean',
+        ]);
+        DepositProduct::findOrFail($id)->update($request->only([
+            'product_name', 'min_amount', 'max_amount', 'interest_rate_pa',
+            'tenor_months', 'is_active', 'description',
+        ]));
         return back()->with('success', 'Produk deposito berhasil diperbarui.');
     }
 
@@ -305,10 +455,12 @@ class ActionController extends Controller
     {
         $request->validate(['destination_account_number' => 'required', 'amount' => 'required|numeric|min:1000', 'pin' => 'required']);
         $user = Auth::user();
+        if (!$user->pin_hash) return back()->withErrors(['pin' => 'Anda belum mengatur PIN transaksi.']);
         if (!Hash::check($request->pin, $user->pin_hash)) return back()->withErrors(['pin' => 'PIN salah.']);
 
         $fromAccount = $user->accounts()->where('account_type', 'TABUNGAN')->first();
         $toAccount = Account::where('account_number', $request->destination_account_number)->first();
+        if (!$fromAccount) return back()->withErrors(['error' => 'Rekening tabungan tidak ditemukan.']);
         if (!$toAccount) return back()->withErrors(['destination_account_number' => 'Rekening tujuan tidak ditemukan.']);
         if ($fromAccount->balance < $request->amount) return back()->withErrors(['amount' => 'Saldo tidak mencukupi.']);
 

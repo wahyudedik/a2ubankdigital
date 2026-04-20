@@ -29,6 +29,13 @@ class TicketController extends Controller
         $limit = $request->input('limit', 10);
         $status = $request->input('status');
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         $query = Ticket::where('user_id', Auth::id())
             ->with(['messages' => function($q) {
                 $q->latest()->limit(1);
@@ -61,7 +68,7 @@ class TicketController extends Controller
     public function show($id): JsonResponse
     {
         $ticket = Ticket::where('user_id', Auth::id())
-            ->with(['messages.sender'])
+            ->with(['messages.user'])
             ->findOrFail($id);
 
         return response()->json([
@@ -160,7 +167,7 @@ class TicketController extends Controller
             $this->notificationService->notifyStaffByRole(
                 [6], // CS role
                 'Balasan Tiket',
-                'Nasabah membalas tiket #' . $ticket->ticket_number
+                'Nasabah membalas tiket #' . $ticket->ticket_code
             );
 
             DB::commit();

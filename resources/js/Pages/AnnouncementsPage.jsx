@@ -19,7 +19,7 @@ export default function AnnouncementsPage() {
                 setAnnouncements(data.data);
             }
         } catch (error) {
-            console.error('Error:', error);
+
         } finally {
             setLoading(false);
         }

@@ -29,7 +29,7 @@ export default function StandingInstructionsPage() {
                 setInstructions(data.data);
             }
         } catch (error) {
-            console.error('Error:', error);
+
         } finally {
             setLoading(false);
         }
@@ -75,7 +75,7 @@ export default function StandingInstructionsPage() {
                 alert(data.message || 'Terjadi kesalahan');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         } finally {
             setLoading(false);
@@ -116,7 +116,7 @@ export default function StandingInstructionsPage() {
                 alert(data.message || 'Gagal menghapus');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         }
     };
@@ -142,7 +142,7 @@ export default function StandingInstructionsPage() {
                 alert(data.message || 'Gagal mengubah status');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         }
     };

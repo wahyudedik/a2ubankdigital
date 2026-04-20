@@ -28,7 +28,7 @@ export default function ExternalTransferPage() {
                 setBanks(data.data);
             }
         } catch (error) {
-            console.error('Error:', error);
+
         }
     };
 
@@ -56,7 +56,7 @@ export default function ExternalTransferPage() {
                 setError(data.message || 'Terjadi kesalahan saat inquiry');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             setError('Terjadi kesalahan koneksi');
         } finally {
             setLoading(false);
@@ -86,7 +86,7 @@ export default function ExternalTransferPage() {
                 setStep(1);
             }
         } catch (error) {
-            console.error('Error:', error);
+
             setError('Terjadi kesalahan koneksi');
             setStep(1);
         } finally {

@@ -26,7 +26,7 @@ export default function LoyaltyPointsPage({ auth }) {
                 setPointsData(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch points:', error);
+
         } finally {
             setLoading(false);
         }
@@ -42,7 +42,7 @@ export default function LoyaltyPointsPage({ auth }) {
                 setRewards(data.data.available_rewards);
             }
         } catch (error) {
-            console.error('Failed to fetch rewards:', error);
+
         }
     };
 
@@ -85,7 +85,7 @@ export default function LoyaltyPointsPage({ auth }) {
                 alert(data.message || 'Gagal menukar poin');
             }
         } catch (error) {
-            console.error('Redeem failed:', error);
+
             alert('Terjadi kesalahan saat menukar poin');
         } finally {
             setProcessing(false);

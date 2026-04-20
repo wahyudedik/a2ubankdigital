@@ -20,7 +20,7 @@ export default function DebtCollectionPage({ auth }) {
             // For now, using mock data
             setOverdueLoans([]);
         } catch (error) {
-            console.error('Failed to fetch overdue loans:', error);
+
         } finally {
             setLoading(false);
         }
@@ -37,7 +37,7 @@ export default function DebtCollectionPage({ auth }) {
             setShowContactModal(false);
             setContactNote('');
         } catch (error) {
-            console.error('Failed to save contact:', error);
+
             alert('Gagal menyimpan catatan');
         } finally {
             setProcessing(false);

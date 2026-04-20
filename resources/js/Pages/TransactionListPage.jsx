@@ -34,11 +34,25 @@ const TransactionListPage = () => {
     };
 
     const handleTypeChange = (e) => { const val = e.target.value; setTypeFilter(val); doSearch(searchTerm, val, 1); };
-    const handleExport = async () => { setExporting(true); setExporting(false); };
+    const handleExport = () => {
+        setExporting(true);
+        const params = new URLSearchParams();
+        if (searchTerm) params.append('search', searchTerm);
+        if (typeFilter) params.append('type', typeFilter);
+        const url = `${AppConfig.api.baseUrl}/admin/transactions/export?${params.toString()}`;
+        // Buat link tersembunyi untuk trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `transaksi-${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => setExporting(false), 1500);
+    };
 
     const handleViewDetail = async (txId) => {
         setIsModalOpen(true);
-        const result = await callDetailApi(`admin_get_transaction_detail.php?id=${txId}`);
+        const result = await callDetailApi('/admin/transactions/detail?id=' + txId);
         if (result && result.status === 'success') { setSelectedTx(result.data); }
     };
 

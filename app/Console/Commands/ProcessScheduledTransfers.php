@@ -29,10 +29,15 @@ class ProcessScheduledTransfers extends Command
             DB::beginTransaction();
             try {
                 $fromAccount = Account::where('id', $transfer->from_account_id)->lockForUpdate()->first();
-                $toAccount = Account::where('account_number', $transfer->to_account_number)->first();
+                $toAccount = Account::where('account_number', $transfer->to_account_number)
+                    ->where('status', 'ACTIVE')
+                    ->first();
 
                 if (!$fromAccount || !$toAccount || $fromAccount->balance < $transfer->amount) {
-                    $transfer->update(['status' => 'failed', 'failure_reason' => 'Saldo tidak mencukupi atau rekening tidak ditemukan']);
+                    $transfer->update([
+                        'status' => 'failed',
+                        'failure_reason' => 'Saldo tidak mencukupi atau rekening tidak ditemukan'
+                    ]);
                     $failed++;
                     DB::commit();
                     continue;
@@ -52,10 +57,34 @@ class ProcessScheduledTransfers extends Command
                     'status' => 'SUCCESS',
                 ]);
 
-                $transfer->update(['status' => 'executed', 'executed_at' => now()]);
+                // Re-schedule if recurring, otherwise mark executed
+                $nextDate = null;
+                if (!empty($transfer->frequency)) {
+                    $nextDate = match ($transfer->frequency) {
+                        'DAILY'   => now()->addDay()->toDateString(),
+                        'WEEKLY'  => now()->addWeek()->toDateString(),
+                        'MONTHLY' => now()->addMonth()->toDateString(),
+                        default   => null,
+                    };
+                }
+
+                if ($nextDate && (!$transfer->end_date || $nextDate <= $transfer->end_date)) {
+                    $transfer->update([
+                        'status' => 'pending',
+                        'scheduled_date' => $nextDate,
+                        'executed_at' => now(),
+                    ]);
+                } else {
+                    $transfer->update(['status' => 'executed', 'executed_at' => now()]);
+                }
+
                 $processed++;
 
-                app(NotificationService::class)->notifyUser($transfer->user_id, 'Transfer Terjadwal Berhasil', 'Transfer sebesar Rp ' . number_format($transfer->amount, 0, ',', '.') . ' telah berhasil dieksekusi.');
+                app(NotificationService::class)->notifyUser(
+                    $transfer->user_id,
+                    'Transfer Terjadwal Berhasil',
+                    'Transfer sebesar Rp ' . number_format($transfer->amount, 0, ',', '.') . ' telah berhasil dieksekusi.'
+                );
 
                 DB::commit();
             } catch (\Exception $e) {

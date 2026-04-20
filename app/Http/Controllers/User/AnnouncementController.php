@@ -10,6 +10,14 @@ use Illuminate\Http\Request;
 class AnnouncementController extends Controller
 {
     /**
+     * Get active announcements for users (alias for getActiveAnnouncements)
+     */
+    public function index(Request $request): JsonResponse
+    {
+        return $this->getActiveAnnouncements($request);
+    }
+
+    /**
      * Get active announcements for users
      */
     public function getActiveAnnouncements(Request $request): JsonResponse
@@ -17,6 +25,13 @@ class AnnouncementController extends Controller
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 10);
         $type = $request->input('type');
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         $query = Announcement::active()
             ->current()

@@ -38,7 +38,7 @@ export default function DigitalProductsPage({ auth }) {
                 setProducts(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch products:', error);
+
         } finally {
             setLoading(false);
         }
@@ -76,7 +76,7 @@ export default function DigitalProductsPage({ auth }) {
                 alert(data.message || 'Pembelian gagal');
             }
         } catch (error) {
-            console.error('Purchase failed:', error);
+
             alert('Terjadi kesalahan saat melakukan pembelian');
         } finally {
             setProcessing(false);

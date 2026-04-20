@@ -64,7 +64,6 @@ const InvestmentPage = () => {
     const [marketData, setMarketData] = useState([]);
     const [lastUpdated, setLastUpdated] = useState(null);
 
-
     const fetchData = useCallback(async () => {
         const result = await callApi('utility_get_market_data.php');
         if (result && result.status === 'success' && result.data.stocks) {

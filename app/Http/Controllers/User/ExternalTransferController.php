@@ -4,8 +4,10 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\Card;
 use App\Models\Transaction;
 use App\Models\ExternalBank;
+use App\Services\EmailService;
 use App\Services\LogService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -17,11 +19,13 @@ class ExternalTransferController extends Controller
 {
     protected $logService;
     protected $notificationService;
+    protected $emailService;
 
-    public function __construct(LogService $logService, NotificationService $notificationService)
+    public function __construct(LogService $logService, NotificationService $notificationService, EmailService $emailService)
     {
         $this->logService = $logService;
         $this->notificationService = $notificationService;
+        $this->emailService = $emailService;
     }
 
     /**
@@ -73,6 +77,27 @@ class ExternalTransferController extends Controller
                 'status' => 'error',
                 'message' => 'Saldo tidak mencukupi. Dibutuhkan Rp ' . number_format($totalAmount, 2, ',', '.') . ' (termasuk biaya admin Rp ' . number_format($transferFee, 2, ',', '.') . ').'
             ], 400);
+        }
+
+        // Check daily limit via card
+        $card = Card::where('user_id', $user->id)->where('status', '!=', 'closed')->first();
+        if ($card && $card->status === 'blocked') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Kartu Anda sedang diblokir. Transfer tidak dapat diproses.'
+            ], 400);
+        }
+        if ($card && $card->daily_limit > 0) {
+            $todayTotal = Transaction::where('from_account_id', $fromAccount->id)
+                ->whereDate('created_at', today())
+                ->sum('amount');
+            if (($todayTotal + $request->amount) > $card->daily_limit) {
+                $remaining = max(0, $card->daily_limit - $todayTotal);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Melebihi limit harian. Sisa limit hari ini: Rp ' . number_format($remaining, 0, ',', '.')
+                ], 400);
+            }
         }
 
         // Simulate account validation (in real implementation, this would call external API)
@@ -147,6 +172,21 @@ class ExternalTransferController extends Controller
                 throw new \Exception("Saldo tidak mencukupi untuk transfer ini.");
             }
 
+            // Check daily limit via card
+            $card = Card::where('user_id', $user->id)->where('status', '!=', 'closed')->first();
+            if ($card && $card->status === 'blocked') {
+                throw new \Exception('Kartu Anda sedang diblokir. Transfer tidak dapat diproses.');
+            }
+            if ($card && $card->daily_limit > 0) {
+                $todayTotal = Transaction::where('from_account_id', $fromAccount->id)
+                    ->whereDate('created_at', today())
+                    ->sum('amount');
+                if (($todayTotal + $request->amount) > $card->daily_limit) {
+                    $remaining = max(0, $card->daily_limit - $todayTotal);
+                    throw new \Exception('Melebihi limit harian. Sisa limit hari ini: Rp ' . number_format($remaining, 0, ',', '.'));
+                }
+            }
+
             // Deduct from source account
             $fromAccount->decrement('balance', $totalAmount);
 
@@ -182,6 +222,25 @@ class ExternalTransferController extends Controller
                 'Transfer sebesar Rp ' . number_format($request->amount, 2, ',', '.') . ' ke ' . $destinationBank->bank_name . ' berhasil diproses.'
             );
 
+            // Email konfirmasi transfer eksternal
+            try {
+                $amountFormatted = 'Rp ' . number_format($request->amount, 0, ',', '.');
+                $this->emailService->send(
+                    $user->email,
+                    $user->full_name,
+                    'Konfirmasi Transfer ke ' . $destinationBank->bank_name,
+                    'transfer_confirmation',
+                    [
+                        'full_name' => $user->full_name,
+                        'amount' => $amountFormatted,
+                        'destination_account' => $destinationBank->bank_name . ' - ' . $request->to_account_number,
+                        'description' => $description,
+                        'transaction_code' => $transaction->transaction_code,
+                        'preheader' => 'Transfer Anda sebesar ' . $amountFormatted . ' ke ' . $destinationBank->bank_name . ' telah berhasil.'
+                    ]
+                );
+            } catch (\Exception $emailEx) {}
+
             DB::commit();
 
             return response()->json([
@@ -210,9 +269,9 @@ class ExternalTransferController extends Controller
     /**
      * Get interbank list
      */
-    public function getInterbankList(): JsonResponse
+    public function getBanks(): JsonResponse
     {
-        $banks = ExternalBank::active()
+        $banks = ExternalBank::where('is_active', true)
             ->orderBy('bank_name')
             ->get(['id', 'bank_name', 'bank_code']);
 

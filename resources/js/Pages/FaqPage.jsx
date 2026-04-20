@@ -39,7 +39,7 @@ export default function FaqPage() {
                 setFaqs(data.data);
             }
         } catch (error) {
-            console.error('Error:', error);
+
         } finally {
             setLoading(false);
         }

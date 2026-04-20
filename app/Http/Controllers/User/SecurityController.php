@@ -70,7 +70,7 @@ class SecurityController extends Controller
         $user = Auth::user();
 
         // Check current PIN if user already has one
-        if ($user->transaction_pin && !Hash::check($request->current_pin, $user->transaction_pin)) {
+        if ($user->pin_hash && !Hash::check($request->current_pin, $user->pin_hash)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'PIN lama tidak sesuai.'
@@ -78,7 +78,7 @@ class SecurityController extends Controller
         }
 
         $user->update([
-            'transaction_pin' => Hash::make($request->new_pin)
+            'pin_hash' => Hash::make($request->new_pin)
         ]);
 
         // Log PIN change
@@ -88,6 +88,117 @@ class SecurityController extends Controller
             'status' => 'success',
             'message' => 'PIN transaksi berhasil diperbarui.'
         ]);
+    }
+
+    /**
+     * Request PIN reset OTP (public - no auth required)
+     */
+    public function forgotPin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Email tidak terdaftar.'
+            ], 400);
+        }
+
+        $otpCode = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        UserOtp::create([
+            'user_id'    => $user->id,
+            'otp_code'   => $otpCode,
+            'expires_at' => now()->addMinutes(10),
+            'purpose'    => 'PIN_RESET',
+            'is_used'    => false,
+        ]);
+
+        $this->emailService->send(
+            $user->email,
+            $user->full_name,
+            'Reset PIN Transaksi - Kode Verifikasi',
+            'otp',
+            [
+                'full_name'  => $user->full_name,
+                'otp_code'   => $otpCode,
+                'preheader'  => 'Kode verifikasi untuk reset PIN transaksi Anda.',
+            ]
+        );
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Kode OTP telah dikirim ke email Anda.',
+        ]);
+    }
+
+    /**
+     * Reset PIN using OTP (public - no auth required)
+     */
+    public function resetPin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email'    => 'required|email',
+            'otp_code' => 'required|string|size:6',
+            'new_pin'  => 'required|string|size:6|confirmed',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Email tidak terdaftar.',
+            ], 400);
+        }
+
+        $otp = UserOtp::where('user_id', $user->id)
+            ->where('otp_code', $request->otp_code)
+            ->where('purpose', 'PIN_RESET')
+            ->where('is_used', false)
+            ->first();
+
+        if (!$otp) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Kode OTP tidak valid.',
+            ], 400);
+        }
+
+        if ($otp->expires_at->isPast()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Kode OTP sudah kadaluarsa.',
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $otp->update(['is_used' => true]);
+
+            $user->update([
+                'pin_hash' => Hash::make($request->new_pin),
+            ]);
+
+            $this->logService->logAudit('PIN_RESET', 'users', $user->id);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'PIN transaksi berhasil direset.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal mereset PIN.',
+            ], 500);
+        }
     }
 
     /**
@@ -132,7 +243,7 @@ class SecurityController extends Controller
             ]);
         } else {
             // Disable 2FA
-            $user->update(['two_factor_enabled' => false]);
+            $user->update(['is_2fa_enabled' => false]);
 
             $this->logService->logAudit('2FA_DISABLED', 'users', $user->id);
 
@@ -174,7 +285,7 @@ class SecurityController extends Controller
             $otp->update(['is_used' => true]);
 
             // Enable 2FA
-            $user->update(['two_factor_enabled' => true]);
+            $user->update(['is_2fa_enabled' => true]);
 
             // Log 2FA enabled
             $this->logService->logAudit('2FA_ENABLED', 'users', $user->id);
@@ -246,6 +357,13 @@ class SecurityController extends Controller
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 20);
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         $query = DB::table('audit_logs')
             ->where('user_id', Auth::id())
             ->whereIn('action', ['LOGIN_SUCCESS', 'LOGIN_FAILED'])
@@ -274,6 +392,13 @@ class SecurityController extends Controller
     {
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 20);
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         $securityActions = [
             'PASSWORD_CHANGED',

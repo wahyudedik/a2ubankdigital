@@ -42,7 +42,7 @@ export default function EWalletPage({ auth }) {
             alert('Top-up berhasil! Fitur ini masih dalam pengembangan.');
             resetForm();
         } catch (error) {
-            console.error('Top-up failed:', error);
+
             alert('Top-up gagal');
         } finally {
             setProcessing(false);

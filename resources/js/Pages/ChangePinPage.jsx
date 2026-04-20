@@ -39,6 +39,9 @@ const ChangePinPage = () => {
                     </div>
                     {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
                     <div className="mt-6 border-t pt-6"><Button type="submit" fullWidth disabled={loading}>{loading ? 'Menyimpan...' : 'Simpan PIN'}</Button></div>
+                    <div className="mt-3 text-center">
+                        <Link href="/forgot-pin" className="text-sm text-blue-600 hover:text-blue-800">Lupa PIN? Reset di sini</Link>
+                    </div>
                 </form>
             </div>
         </div>

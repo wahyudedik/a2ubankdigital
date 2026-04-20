@@ -34,6 +34,13 @@ class SecurityActivityController extends Controller
             $limit = $request->input('limit', 20);
             $days = $request->input('days', 30); // Default last 30 days
 
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
+
             $query = DB::table('user_sessions')
                 ->where('user_id', $user->id)
                 ->where('created_at', '>=', now()->subDays($days))
@@ -93,6 +100,13 @@ class SecurityActivityController extends Controller
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
             $days = $request->input('days', 30);
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             // Get security-related activities from audit logs
             $query = DB::table('audit_logs')

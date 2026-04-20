@@ -20,17 +20,18 @@ class StandingInstructionController extends Controller
         $user = Auth::user();
         
         $instructions = StandingInstruction::where('user_id', $user->id)
-            ->with(['fromAccount', 'toAccount'])
+            ->with(['fromAccount'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($instruction) {
                 return [
                     'id' => $instruction->id,
                     'from_account_number' => $instruction->fromAccount?->account_number,
-                    'to_account_number' => $instruction->toAccount?->account_number,
+                    'to_account_number' => $instruction->to_account_number,
                     'recipient_name' => $instruction->recipient_name,
                     'amount' => (float)$instruction->amount,
                     'instruction_type' => $instruction->instruction_type,
+                    'frequency' => $instruction->frequency,
                     'execution_day' => $instruction->execution_day,
                     'start_date' => $instruction->start_date,
                     'end_date' => $instruction->end_date,
@@ -93,15 +94,16 @@ class StandingInstructionController extends Controller
             $standingInstruction = StandingInstruction::create([
                 'user_id' => $user->id,
                 'from_account_id' => $fromAccount->id,
-                'to_account_id' => $toAccount->id,
-                'recipient_name' => $toAccount->user->full_name,
+                'to_account_number' => $toAccount->account_number,
+                'recipient_name' => $toAccount->user?->full_name ?? $toAccount->account_number,
                 'amount' => $request->amount,
                 'instruction_type' => $request->instruction_type,
+                'frequency' => $request->instruction_type === 'MONTHLY' ? 'monthly' : 'monthly',
                 'execution_day' => $request->execution_day,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'description' => $request->description ?? 'Standing Instruction',
-                'status' => 'ACTIVE'
+                'status' => 'active'
             ]);
 
             DB::commit();

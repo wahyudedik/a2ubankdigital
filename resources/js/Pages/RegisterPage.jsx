@@ -28,7 +28,6 @@ const ImageUpload = ({ label, name, required, onChange, previewSrc }) => (
     </div>
 );
 
-
 const RegisterPage = () => {
     const navigate = useNavigate();
     const modal = useModal();
@@ -48,7 +47,7 @@ const RegisterPage = () => {
     const [selfiePreview, setSelfiePreview] = useState(null);
 
     const fetchNearestLocations = useCallback(async (lat, lon) => {
-        const result = await callApi(`utility_get_nearest_units.php?lat=${lat}&lon=${lon}`);
+        const result = await callApi(`/utility/nearest-units?lat=${lat}&lon=${lon}`);
         if (result && result.status === 'success' && result.data) {
             const locations = Array.isArray(result.data) ? result.data : [];
             setNearestLocations(locations);
@@ -125,7 +124,7 @@ const RegisterPage = () => {
 
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
-        const result = await callApi('auth_register_verify_otp.php', 'POST', { email: formData.email, otp_code: formData.otp_code });
+        const result = await callApi('/auth/register/verify-otp', 'POST', { email: formData.email, otp_code: formData.otp_code });
         if (result && result.status === 'success') {
             await modal.showAlert({ title: 'Pendaftaran Berhasil', message: result.message, type: 'success' });
             navigate('/login');

@@ -221,7 +221,7 @@ class ReportsController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -300,7 +300,7 @@ class ReportsController extends Controller
             ];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'summary' => $summary,
                     'dormant_customers' => $dormantCustomers->take(100), // Limit for performance
@@ -316,7 +316,7 @@ class ReportsController extends Controller
             $this->logService->log('dormant_customer_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to generate dormant customer report'
             ], 500);
         }
@@ -336,7 +336,7 @@ class ReportsController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -448,7 +448,7 @@ class ReportsController extends Controller
             ];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'period' => [
                         'start_date' => $startDate->toDateString(),
@@ -467,7 +467,7 @@ class ReportsController extends Controller
             $this->logService->log('user_activity_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to generate user activity report'
             ], 500);
         }
@@ -486,7 +486,7 @@ class ReportsController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -578,7 +578,7 @@ class ReportsController extends Controller
             ];
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'reconciliation_summary' => $reconciliationSummary,
                     'transaction_summary' => $transactionSummary,
@@ -597,7 +597,7 @@ class ReportsController extends Controller
             $this->logService->log('reconciliation_report_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to generate reconciliation report'
             ], 500);
         }
@@ -612,6 +612,13 @@ class ReportsController extends Controller
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
             $action = $request->input('action', '');
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             $query = DB::table('audit_logs as al')
                 ->leftJoin('users as u', 'al.user_id', '=', 'u.id')
@@ -671,7 +678,7 @@ class ReportsController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
@@ -681,6 +688,13 @@ class ReportsController extends Controller
             $endDate = Carbon::parse($request->end_date)->endOfDay();
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 50);
+
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
 
             $query = DB::table('system_logs')
                 ->whereBetween('created_at', [$startDate, $endDate])
@@ -735,7 +749,7 @@ class ReportsController extends Controller
                 ->get();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => [
                     'period' => [
                         'start_date' => $startDate->toDateString(),
@@ -764,7 +778,7 @@ class ReportsController extends Controller
             $this->logService->log('system_log_error', $e->getMessage(), Auth::id());
             
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to fetch system logs'
             ], 500);
         }

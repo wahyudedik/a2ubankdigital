@@ -127,6 +127,13 @@ class TransactionReversalController extends Controller
         $limit = $request->input('limit', 10);
         $transactionType = $request->input('transaction_type');
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         // Get transactions from last 24 hours that can be reversed
         $query = Transaction::with(['fromAccount.user', 'toAccount.user'])
             ->where('status', 'SUCCESS')

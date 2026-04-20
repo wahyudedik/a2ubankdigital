@@ -41,6 +41,13 @@ class CustomerController extends Controller
         $limit = $request->input('limit', 10);
         $search = $request->input('search', '');
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         // Build query
         $query = User::with('customerProfile')
             ->where('role_id', 9); // Only customers
@@ -81,7 +88,6 @@ class CustomerController extends Controller
 
         // Get paginated data
         $customers = $query
-            ->select(['id', 'bank_id', 'full_name', 'email', 'phone_number', 'status', 'created_at'])
             ->orderBy('created_at', 'desc')
             ->skip(($page - 1) * $limit)
             ->take($limit)
@@ -134,6 +140,18 @@ class CustomerController extends Controller
             'unit_id.required' => 'Unit penempatan wajib dipilih.',
         ]);
 
+        // Check unit accessibility for non-super-admin
+        $adminUser = Auth::user();
+        if ($adminUser->role_id !== 1) {
+            $accessibleUnitIds = $this->getAccessibleUnitIds($adminUser);
+            if (!in_array($request->unit_id, $accessibleUnitIds)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak memiliki akses ke unit tersebut.'
+                ], 403);
+            }
+        }
+
         // Check duplicate NIK
         $existingProfile = CustomerProfile::where('nik', $request->nik)->first();
         if ($existingProfile) {
@@ -177,8 +195,11 @@ class CustomerController extends Controller
                 'kyc_status' => 'VERIFIED'
             ]);
 
-            // Create savings account
-            $accountNumber = '1100' . str_pad($user->id, 6, '0', STR_PAD_LEFT) . rand(100, 999);
+            // Create savings account with unique account number
+            do {
+                $accountNumber = '1100' . str_pad($user->id, 6, '0', STR_PAD_LEFT) . rand(100, 999);
+            } while (Account::where('account_number', $accountNumber)->exists());
+            
             Account::create([
                 'user_id' => $user->id,
                 'account_number' => $accountNumber,
@@ -278,10 +299,35 @@ class CustomerController extends Controller
 
     private function getAccessibleUnitIds($user): array
     {
-        // Logic to get accessible unit IDs based on user's unit assignment
-        // This would typically come from a staff_unit_assignments table
-        // For now, return user's unit_id if exists
-        return $user->unit_id ? [$user->unit_id] : [];
+        if (!$user->unit_id) {
+            return [];
+        }
+
+        // Start with the user's own unit
+        $unitIds = [$user->unit_id];
+
+        // Recursively collect all descendant unit IDs
+        $this->collectChildUnitIds($user->unit_id, $unitIds);
+
+        return $unitIds;
+    }
+
+    /**
+     * Recursively collect all child unit IDs for a given parent unit ID.
+     */
+    private function collectChildUnitIds(int $parentUnitId, array &$unitIds): void
+    {
+        $childIds = \DB::table('units')
+            ->where('parent_id', $parentUnitId)
+            ->pluck('id')
+            ->toArray();
+
+        foreach ($childIds as $childId) {
+            if (!in_array($childId, $unitIds)) {
+                $unitIds[] = $childId;
+                $this->collectChildUnitIds($childId, $unitIds);
+            }
+        }
     }
 
     /**
@@ -306,7 +352,7 @@ class CustomerController extends Controller
 
             if (!$closureRequest) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Account closure request not found or already processed'
                 ], 404);
             }
@@ -314,7 +360,7 @@ class CustomerController extends Controller
             $user = User::find($closureRequest->user_id);
             if (!$user) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
@@ -324,7 +370,15 @@ class CustomerController extends Controller
             if ($request->action === 'approve') {
                 // Process account closure
                 $account = $user->account;
-                
+
+                if (!$account) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'User account not found'
+                    ], 404);
+                }
+
                 // Transfer remaining balance if requested
                 if ($closureRequest->transfer_remaining_balance && $account->balance > 0) {
                     // Create transfer transaction
@@ -404,7 +458,7 @@ class CustomerController extends Controller
             DB::commit();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => $message,
                 'data' => [
                     'request_id' => $requestId,
@@ -424,7 +478,7 @@ class CustomerController extends Controller
             );
 
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to process account closure request'
             ], 500);
         }
@@ -453,7 +507,7 @@ class CustomerController extends Controller
 
             if (!$limitRequest) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'Credit limit request not found or already processed'
                 ], 404);
             }
@@ -461,7 +515,7 @@ class CustomerController extends Controller
             $user = User::find($limitRequest->user_id);
             if (!$user) {
                 return response()->json([
-                    'success' => false,
+                    'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
@@ -470,7 +524,17 @@ class CustomerController extends Controller
 
             if ($request->action === 'approve') {
                 // Update user's credit limit
-                $user->account->update([
+                $userAccount = $user->account;
+
+                if (!$userAccount) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'User account not found'
+                    ], 404);
+                }
+
+                $userAccount->update([
                     'credit_limit' => $request->approved_limit
                 ]);
 
@@ -528,7 +592,7 @@ class CustomerController extends Controller
             DB::commit();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => $message,
                 'data' => [
                     'request_id' => $requestId,
@@ -549,7 +613,7 @@ class CustomerController extends Controller
             );
 
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to process credit limit request'
             ], 500);
         }
@@ -574,13 +638,13 @@ class CustomerController extends Controller
                 ->get();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => $requests
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to retrieve account closure requests'
             ], 500);
         }
@@ -606,13 +670,13 @@ class CustomerController extends Controller
                 ->get();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'data' => $requests
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Failed to retrieve credit limit requests'
             ], 500);
         }

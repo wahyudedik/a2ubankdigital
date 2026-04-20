@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\Transaction;
+use App\Services\EmailService;
 use App\Services\LogService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -17,11 +18,13 @@ class BillPaymentController extends Controller
 {
     protected $logService;
     protected $notificationService;
+    protected $emailService;
 
-    public function __construct(LogService $logService, NotificationService $notificationService)
+    public function __construct(LogService $logService, NotificationService $notificationService, EmailService $emailService)
     {
         $this->logService = $logService;
         $this->notificationService = $notificationService;
+        $this->emailService = $emailService;
     }
 
     /**
@@ -133,6 +136,21 @@ class BillPaymentController extends Controller
                 throw new \Exception('Saldo tidak mencukupi untuk pembayaran tagihan.');
             }
 
+            // Card validation: blocked card and daily limit
+            $card = \App\Models\Card::where('user_id', Auth::id())->where('status', '!=', 'closed')->first();
+            if ($card && $card->status === 'blocked') {
+                throw new \Exception('Kartu Anda sedang diblokir. Transaksi tidak dapat diproses.');
+            }
+            if ($card && $card->daily_limit > 0) {
+                $todayTotal = Transaction::where('from_account_id', $account->id)
+                    ->whereDate('created_at', today())
+                    ->sum('amount');
+                if (($todayTotal + $request->amount) > $card->daily_limit) {
+                    $remaining = max(0, $card->daily_limit - $todayTotal);
+                    throw new \Exception('Melebihi limit harian. Sisa limit hari ini: Rp ' . number_format($remaining, 0, ',', '.'));
+                }
+            }
+
             // Create transaction
             $transaction = Transaction::create([
                 'transaction_code' => 'BILL-' . time() . '-' . rand(100000, 999999),
@@ -144,47 +162,63 @@ class BillPaymentController extends Controller
                 'status' => 'PENDING'
             ]);
 
-            // Deduct balance
-            $account->decrement('balance', $totalAmount);
-
             // Simulate payment to biller (in production, call actual API)
             $paymentResult = $this->simulatePaymentExecution($request->biller_id, $request->customer_number, $request->amount);
 
-            if ($paymentResult['success']) {
-                $transaction->update(['status' => 'SUCCESS']);
-                
-                // Log successful payment
-                $this->logService->logTransaction('BILL_PAYMENT', $transaction->id, [
-                    'biller_id' => $request->biller_id,
-                    'customer_number' => $request->customer_number,
-                    'amount' => $request->amount,
-                    'fee' => $request->admin_fee
-                ]);
-
-                // Send notification
-                $this->notificationService->notifyUser(
-                    Auth::id(),
-                    'Pembayaran Berhasil',
-                    "Pembayaran tagihan {$request->biller_id} sebesar " . number_format($request->amount, 0, ',', '.') . " berhasil diproses."
-                );
-
-                DB::commit();
-
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Pembayaran tagihan berhasil.',
-                    'data' => [
-                        'transaction' => $transaction,
-                        'receipt_number' => $paymentResult['receipt_number']
-                    ]
-                ]);
-            } else {
-                // Payment failed, refund balance
-                $account->increment('balance', $totalAmount);
-                $transaction->update(['status' => 'FAILED']);
-
+            if (!$paymentResult['success']) {
                 throw new \Exception($paymentResult['message'] ?? 'Pembayaran gagal diproses.');
             }
+
+            // Deduct balance only after biller confirms success
+            $account->decrement('balance', $totalAmount);
+
+            $transaction->update(['status' => 'SUCCESS']);
+            
+            // Log successful payment
+            $this->logService->logTransaction('BILL_PAYMENT', $transaction->id, [
+                'biller_id' => $request->biller_id,
+                'customer_number' => $request->customer_number,
+                'amount' => $request->amount,
+                'fee' => $request->admin_fee
+            ]);
+
+            // Send notification
+            $this->notificationService->notifyUser(
+                Auth::id(),
+                'Pembayaran Berhasil',
+                "Pembayaran tagihan {$request->biller_id} sebesar " . number_format($request->amount, 0, ',', '.') . " berhasil diproses."
+            );
+
+            // Email konfirmasi pembayaran tagihan
+            try {
+                $user = \Illuminate\Support\Facades\Auth::user();
+                $amountFormatted = 'Rp ' . number_format($request->amount, 0, ',', '.');
+                $this->emailService->send(
+                    $user->email,
+                    $user->full_name,
+                    'Konfirmasi Pembayaran Tagihan ' . $request->biller_id,
+                    'transfer_confirmation',
+                    [
+                        'full_name' => $user->full_name,
+                        'amount' => $amountFormatted,
+                        'destination_account' => $request->biller_id . ' - ' . $request->customer_number,
+                        'description' => 'Pembayaran tagihan ' . $request->biller_id,
+                        'transaction_code' => $transaction->transaction_code,
+                        'preheader' => 'Pembayaran tagihan ' . $request->biller_id . ' sebesar ' . $amountFormatted . ' berhasil.'
+                    ]
+                );
+            } catch (\Exception $emailEx) {}
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pembayaran tagihan berhasil.',
+                'data' => [
+                    'transaction' => $transaction,
+                    'receipt_number' => $paymentResult['receipt_number']
+                ]
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -208,6 +242,13 @@ class BillPaymentController extends Controller
     {
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 15);
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         $userAccountIds = Account::where('user_id', Auth::id())->pluck('id');
 

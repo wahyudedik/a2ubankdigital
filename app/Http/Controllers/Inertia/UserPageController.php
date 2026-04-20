@@ -69,7 +69,7 @@ class UserPageController extends Controller
 
         $query = DB::table('transactions as t')
             ->where(fn($q) => $q->where('t.from_account_id', $account?->id)->orWhere('t.to_account_id', $account?->id))
-            ->select('t.*', DB::raw("IF(t.to_account_id = " . intval($account?->id ?? 0) . ", 'KREDIT', 'DEBIT') as flow"));
+            ->select('t.*', DB::raw("IF(t.to_account_id = " . intval($account?->id ?? 0) . ", 'Kredit', 'Debit') as flow"));
 
         if ($request->type) $query->where('t.transaction_type', $request->type);
         if ($request->start_date) $query->whereDate('t.created_at', '>=', $request->start_date);
@@ -78,10 +78,45 @@ class UserPageController extends Controller
         $total = $query->count();
         $transactions = $query->orderBy('t.created_at', 'desc')->skip(($page - 1) * $limit)->take($limit)->get();
 
+        // Topup requests history
+        $topupRequests = DB::table('topup_requests')
+            ->where('user_id', $user->id)
+            ->select('id', 'amount', 'payment_method', 'status', 'created_at', 'processed_at', 'rejection_reason')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Withdrawal requests history
+        $withdrawalRequests = DB::table('withdrawal_requests as wr')
+            ->leftJoin('withdrawal_accounts as wa', 'wr.withdrawal_account_id', '=', 'wa.id')
+            ->where('wr.user_id', $user->id)
+            ->select('wr.id', 'wr.amount', 'wr.status', 'wr.created_at', 'wr.processed_at',
+                'wa.bank_name', 'wa.account_number', 'wa.account_name')
+            ->orderBy('wr.created_at', 'desc')
+            ->get();
+
+        // Loan applications history
+        $loanApplications = Loan::where('user_id', $user->id)
+            ->with('loanProduct')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn($l) => [
+                'id' => $l->id,
+                'product_name' => $l->loanProduct?->product_name,
+                'loan_amount' => (float)$l->loan_amount,
+                'tenor' => $l->tenor,
+                'tenor_unit' => $l->tenor_unit,
+                'status' => $l->status,
+                'created_at' => $l->created_at,
+                'disbursed_at' => $l->disbursed_at,
+            ]);
+
         return Inertia::render('HistoryPage', [
             'transactions' => $transactions,
             'pagination' => ['current_page' => (int)$page, 'total_pages' => (int)ceil($total / $limit), 'has_more' => $page < ceil($total / $limit)],
             'filters' => $request->only(['type', 'start_date', 'end_date']),
+            'withdrawalRequests' => $withdrawalRequests,
+            'loanApplications' => $loanApplications,
+            'topupRequests' => $topupRequests,
         ]);
     }
 
@@ -106,7 +141,15 @@ class UserPageController extends Controller
     public function myLoans()
     {
         $loans = Loan::where('user_id', Auth::id())->with('loanProduct')->orderBy('created_at', 'desc')->get()
-            ->map(fn($l) => ['id' => $l->id, 'product_name' => $l->loanProduct?->product_name, 'loan_amount' => (float)$l->loan_amount, 'status' => $l->status, 'disbursement_date' => $l->disbursed_at]);
+            ->map(fn($l) => [
+                'id' => $l->id,
+                'product_name' => $l->loanProduct?->product_name,
+                'loan_amount' => (float)$l->loan_amount,
+                'status' => $l->status,
+                'disbursement_date' => $l->disbursed_at,
+                'disbursed_at' => $l->disbursed_at,
+                'created_at' => $l->created_at,
+            ]);
         return Inertia::render('MyLoansPage', ['loans' => $loans]);
     }
 

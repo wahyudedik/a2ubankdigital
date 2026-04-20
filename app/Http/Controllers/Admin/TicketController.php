@@ -31,6 +31,13 @@ class TicketController extends Controller
         $priority = $request->input('priority');
         $category = $request->input('category');
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         $query = Ticket::with(['user', 'assignedTo', 'messages' => function($q) {
             $q->latest()->limit(1);
         }]);

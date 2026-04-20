@@ -26,7 +26,7 @@ export default function TicketsPage() {
                 setTickets(data.data);
             }
         } catch (error) {
-            console.error('Error:', error);
+
         } finally {
             setLoading(false);
         }
@@ -62,7 +62,7 @@ export default function TicketsPage() {
                 alert(data.message || 'Terjadi kesalahan');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         } finally {
             setLoading(false);

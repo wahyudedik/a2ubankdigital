@@ -38,7 +38,7 @@ const ResetPasswordPage = () => {
             return;
         }
 
-        const result = await callApi('auth_forgot_password_reset.php', 'POST', {
+        const result = await callApi('/auth/forgot-password/reset', 'POST', {
             token: token,
             new_password: formData.new_password
         });

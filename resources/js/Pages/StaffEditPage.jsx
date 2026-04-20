@@ -26,7 +26,7 @@ const StaffEditPage = () => {
     const handleUpdateProfile = (e) => {
         e.preventDefault();
         setLoading(true); setError(null);
-        router.post(`/admin/staff/${staffId}`, { full_name: formData.full_name, email: formData.email, role_id: formData.role_id }, {
+        router.put(`/admin/staff/${staffId}`, { full_name: formData.full_name, email: formData.email, role_id: formData.role_id }, {
             onSuccess: () => { modal.showAlert({ title: 'Berhasil', message: 'Profil staf berhasil diperbarui.', type: 'success' }); navigate('/admin/staff'); },
             onError: (errors) => setError(Object.values(errors).flat()[0] || 'Terjadi kesalahan.'),
             onFinish: () => setLoading(false),
@@ -36,7 +36,7 @@ const StaffEditPage = () => {
     const handleResetPassword = async () => {
         const confirmed = await modal.showConfirmation({ title: 'Konfirmasi Reset Password', message: `Anda yakin ingin mereset password untuk ${formData.full_name}? Password baru akan ditampilkan setelahnya.`, confirmText: 'Ya, Reset Password' });
         if (confirmed) {
-            const result = await callApi('admin_reset_staff_password.php', 'POST', { staff_id: staffId });
+            const result = await callApi(`/admin/staff/${staffId}/reset-password`, 'POST', { staff_id: staffId });
             if (result && result.status === 'success') {
                 modal.showAlert({ title: 'Password Berhasil Direset', message: `Password sementara baru adalah: ${result.data.temporary_password}. Harap segera berikan kepada staf yang bersangkutan.`, type: 'success' });
             }

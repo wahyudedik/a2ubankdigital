@@ -34,7 +34,7 @@ export default function QrPaymentPage({ auth }) {
                 alert(data.message || 'Gagal membuat QR Code');
             }
         } catch (error) {
-            console.error('Failed to generate QR:', error);
+
             alert('Terjadi kesalahan saat membuat QR Code');
         } finally {
             setGenerating(false);
@@ -69,7 +69,7 @@ export default function QrPaymentPage({ auth }) {
                 alert(data.message || 'QR Code tidak valid');
             }
         } catch (error) {
-            console.error('Failed to scan QR:', error);
+
             alert('Terjadi kesalahan saat memindai QR Code');
         }
     };
@@ -106,7 +106,7 @@ export default function QrPaymentPage({ auth }) {
                 alert(data.message || 'Pembayaran gagal');
             }
         } catch (error) {
-            console.error('Payment failed:', error);
+
             alert('Terjadi kesalahan saat melakukan pembayaran');
         } finally {
             setProcessing(false);

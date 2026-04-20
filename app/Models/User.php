@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\AuditLog;
 
 class User extends Authenticatable
 {
@@ -15,6 +16,7 @@ class User extends Authenticatable
     protected $fillable = [
         'bank_id',
         'role_id',
+        'unit_id',
         'full_name',
         'email',
         'phone_number',
@@ -89,12 +91,12 @@ class User extends Authenticatable
 
     public function supportTickets()
     {
-        return $this->hasMany(SupportTicket::class);
+        return $this->hasMany(Ticket::class);
     }
 
     public function beneficiaries()
     {
-        return $this->hasMany(Beneficiary::class);
+        return $this->hasMany(WithdrawalAccount::class); // beneficiaries stored in DB table directly
     }
 
     public function withdrawalAccounts()
@@ -114,7 +116,8 @@ class User extends Authenticatable
 
     public function loginHistory()
     {
-        return $this->hasMany(LoginHistory::class);
+        // Login history stored in audit_logs table
+        return $this->hasMany(AuditLog::class)->whereIn('action', ['LOGIN_SUCCESS', 'LOGIN_FAILED']);
     }
 
     public function pushSubscriptions()

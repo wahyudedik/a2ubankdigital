@@ -29,7 +29,7 @@ export default function ScheduledTransfersPage() {
                 setTransfers(data.data);
             }
         } catch (error) {
-            console.error('Error fetching transfers:', error);
+
         } finally {
             setLoading(false);
         }
@@ -74,7 +74,7 @@ export default function ScheduledTransfersPage() {
                 alert(data.message || 'Terjadi kesalahan');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan saat menyimpan data');
         } finally {
             setLoading(false);
@@ -114,7 +114,7 @@ export default function ScheduledTransfersPage() {
                 alert(data.message || 'Gagal menghapus');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         }
     };
@@ -140,7 +140,7 @@ export default function ScheduledTransfersPage() {
                 alert(data.message || 'Gagal mengubah status');
             }
         } catch (error) {
-            console.error('Error:', error);
+
             alert('Terjadi kesalahan');
         }
     };

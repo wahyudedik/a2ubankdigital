@@ -23,7 +23,7 @@ const DepositProductsPage = () => {
     const handleDelete = async (productId) => {
         try {
             hideModal();
-            const result = await callApi('admin_loan_products_delete.php', 'DELETE', { id: productId });
+            const result = await callApi('admin_update_deposit_product.php', 'DELETE', { id: productId });
             if (result.status === 'success') { router.reload(); }
             else { showModal(<AlertDialog title="Gagal Menghapus" message={result.message || "Gagal menghapus produk."} onConfirm={hideModal} />); }
         } catch (err) {
@@ -79,7 +79,7 @@ const DepositProductsPage = () => {
                     </tbody>
                 </table>
             </div>
-            {isEditModalOpen && <DepositProductModal product={selectedProduct} onClose={() => setIsEditModalOpen(false)} onSuccess={handleSaveSuccess} />}
+            {isEditModalOpen && <DepositProductModal product={selectedProduct} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveSuccess} />}
         </div>
     );
 };

@@ -172,7 +172,22 @@ class DigitalProductController extends Controller
                 throw new \Exception('Saldo tidak mencukupi untuk pembelian produk digital.');
             }
 
-            // Create transaction
+            // Card validation: blocked card and daily limit
+            $card = \App\Models\Card::where('user_id', Auth::id())->where('status', '!=', 'closed')->first();
+            if ($card && $card->status === 'blocked') {
+                throw new \Exception('Kartu Anda sedang diblokir. Transaksi tidak dapat diproses.');
+            }
+            if ($card && $card->daily_limit > 0) {
+                $todayTotal = Transaction::where('from_account_id', $account->id)
+                    ->whereDate('created_at', today())
+                    ->sum('amount');
+                if (($todayTotal + $product['price']) > $card->daily_limit) {
+                    $remaining = max(0, $card->daily_limit - $todayTotal);
+                    throw new \Exception('Melebihi limit harian. Sisa limit hari ini: Rp ' . number_format($remaining, 0, ',', '.'));
+                }
+            }
+
+            // Create transaction record (PENDING until delivery confirmed)
             $transaction = Transaction::create([
                 'transaction_code' => 'DIG-' . time() . '-' . rand(100000, 999999),
                 'from_account_id' => $account->id,
@@ -183,14 +198,16 @@ class DigitalProductController extends Controller
                 'status' => 'PENDING'
             ]);
 
-            // Deduct balance
-            $account->decrement('balance', $product['price']);
-
             // Simulate product delivery (in production, call actual API)
             $deliveryResult = $this->simulateProductDelivery($product, $request->destination);
 
-            if ($deliveryResult['success']) {
-                $transaction->update(['status' => 'SUCCESS']);
+            if (!$deliveryResult['success']) {
+                throw new \Exception($deliveryResult['message'] ?? 'Pembelian gagal diproses.');
+            }
+
+            // Deduct balance only after delivery confirmed
+            $account->decrement('balance', $product['price']);
+            $transaction->update(['status' => 'SUCCESS']);
                 
                 // Log successful purchase
                 $this->logService->logTransaction('DIGITAL_PRODUCT', $transaction->id, [
@@ -216,13 +233,6 @@ class DigitalProductController extends Controller
                         'serial_number' => $deliveryResult['serial_number'] ?? null
                     ]
                 ]);
-            } else {
-                // Purchase failed, refund balance
-                $account->increment('balance', $product['price']);
-                $transaction->update(['status' => 'FAILED']);
-
-                throw new \Exception($deliveryResult['message'] ?? 'Pembelian gagal diproses.');
-            }
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -246,6 +256,13 @@ class DigitalProductController extends Controller
     {
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 15);
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         $userAccountIds = Account::where('user_id', Auth::id())->pluck('id');
 

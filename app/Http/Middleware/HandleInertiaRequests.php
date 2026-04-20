@@ -46,6 +46,8 @@ class HandleInertiaRequests extends Middleware
                     'email' => $request->user()->email,
                 ] : null,
             ],
+            // Share CSRF token so frontend always has the latest token
+            'csrf_token' => csrf_token(),
         ];
     }
 }

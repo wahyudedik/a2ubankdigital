@@ -15,7 +15,7 @@ const TransferPage = () => {
     const modal = useModal();
     const location = useLocation(); // Hook untuk mengakses data dari navigasi
     const { loading, error, callApi } = useApi();
-    
+
     const [step, setStep] = useState(1);
     const [accountNumber, setAccountNumber] = useState('');
     const [amount, setAmount] = useState('');
@@ -37,10 +37,9 @@ const TransferPage = () => {
         }
     }, [location.state]);
 
-
     const handleInquiry = async (e) => {
         e.preventDefault();
-        const result = await callApi('transfer_internal_inquiry.php', 'POST', { destination_account_number: accountNumber });
+        const result = await callApi('/user/transfer/internal/inquiry', 'POST', { destination_account_number: accountNumber });
         if (result && result.status === 'success') {
             setRecipient(result.data.recipient_name);
             setDescription(`Transfer ke ${result.data.recipient_name}`);
@@ -55,7 +54,7 @@ const TransferPage = () => {
             message: `Anda akan mentransfer ${formatCurrency(amount)} ke ${recipient}. Lanjutkan?`,
         });
         if (confirmed) {
-            const result = await callApi('transfer_internal_execute.php', 'POST', { 
+            const result = await callApi('/user/transfer/internal/execute', 'POST', {
                 destination_account_number: accountNumber,
                 amount: amount,
                 description: description,
@@ -67,7 +66,7 @@ const TransferPage = () => {
             }
         }
     };
-    
+
     return (
         <div className="p-4">
             <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
@@ -103,7 +102,7 @@ const TransferPage = () => {
                         </div>
                         {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
                         <div className="mt-6 flex gap-2">
-                             <Button type="button" onClick={() => { setStep(1); navigate('/transfer', { replace: true }); }} className="bg-gray-200 text-gray-800 hover:bg-gray-300 w-1/3">Kembali</Button>
+                            <Button type="button" onClick={() => { setStep(1); navigate('/transfer', { replace: true }); }} className="bg-gray-200 text-gray-800 hover:bg-gray-300 w-1/3">Kembali</Button>
                             <Button type="submit" fullWidth disabled={loading}>{loading ? 'Memproses...' : 'Transfer Sekarang'}</Button>
                         </div>
                     </form>

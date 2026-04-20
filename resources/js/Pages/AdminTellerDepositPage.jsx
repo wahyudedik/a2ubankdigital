@@ -27,7 +27,7 @@ const AdminTellerDepositPage = () => {
 
     const handleInquiry = async (e) => {
         e.preventDefault();
-        const result = await callApi('admin_teller_account_inquiry.php', 'POST', { destination_account_number: accountNumber });
+        const result = await callApi('/admin/teller/account-inquiry', 'POST', { account_number: accountNumber });
         if (result && result.status === 'success') {
             setCustomerInfo(result.data);
             setStep(2);
@@ -43,7 +43,7 @@ const AdminTellerDepositPage = () => {
         });
 
         if (confirmed) {
-            const result = await callApi('admin_teller_deposit.php', 'POST', { account_number: accountNumber, amount });
+            const result = await callApi('/admin/teller/deposit', 'POST', { account_number: accountNumber, amount });
             if (result && result.status === 'success') {
                 // Simpan hasil transaksi ke state
                 setTransactionResult(result.data);

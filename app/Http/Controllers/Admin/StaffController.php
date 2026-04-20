@@ -42,6 +42,13 @@ class StaffController extends Controller
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 10);
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         $query = User::with(['role', 'unit'])
             ->where('role_id', '!=', 9); // Exclude customers
 

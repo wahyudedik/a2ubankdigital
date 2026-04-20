@@ -148,11 +148,15 @@ class ProductController extends Controller
 
         $product = LoanProduct::findOrFail($id);
 
-        // Check if product is being used
-        if ($product->loans()->count() > 0) {
+        // Check if product is being actively used (exclude completed/rejected/cancelled loans)
+        $activeLoansCount = $product->loans()
+            ->whereIn('status', ['SUBMITTED', 'APPROVED', 'DISBURSED', 'ACTIVE'])
+            ->count();
+
+        if ($activeLoansCount > 0) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Tidak dapat menghapus produk yang sedang digunakan.'
+                'message' => 'Tidak dapat menghapus produk yang masih memiliki pinjaman aktif.'
             ], 400);
         }
 
@@ -259,6 +263,48 @@ class ProductController extends Controller
             'status' => 'success',
             'message' => 'Produk deposito berhasil diperbarui.',
             'data' => $product
+        ]);
+    }
+
+    // ==================== DIGITAL PRODUCTS ====================
+
+    /**
+     * Delete deposit product
+     */
+    public function deleteDepositProduct($id): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($user->role_id > 3) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akses ditolak.'
+            ], 403);
+        }
+
+        $product = DepositProduct::findOrFail($id);
+
+        // Cek apakah produk masih digunakan oleh deposito aktif
+        $activeCount = \App\Models\Account::where('deposit_product_id', $product->id)
+            ->where('account_type', 'DEPOSITO')
+            ->where('status', 'ACTIVE')
+            ->count();
+
+        if ($activeCount > 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tidak dapat menghapus produk yang masih memiliki deposito aktif.'
+            ], 400);
+        }
+
+        $oldData = $product->toArray();
+        $product->delete();
+
+        $this->logService->logAudit('DEPOSIT_PRODUCT_DELETED', 'deposit_products', $id, $oldData, []);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Produk deposito berhasil dihapus.'
         ]);
     }
 

@@ -34,6 +34,13 @@ class SecureMessageController extends Controller
             $limit = $request->input('limit', 20);
             $status = $request->input('status', 'all');
 
+            if ($page < 1 || $limit < 1 || $limit > 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+                ], 422);
+            }
+
             $query = SecureMessage::with(['sender'])
                 ->where(function($q) use ($user) {
                     $q->where('sender_id', $user->id)
@@ -151,12 +158,10 @@ class SecureMessageController extends Controller
             ]);
 
             // Send notification to admin
-            $this->notificationService->send(
+            $this->notificationService->notifyUser(
                 $admin->id,
                 'New Message from Customer',
-                "You have received a new message from {$user->full_name}",
-                'message',
-                ['message_id' => $message->id]
+                "You have received a new message from {$user->full_name}"
             );
 
             DB::commit();

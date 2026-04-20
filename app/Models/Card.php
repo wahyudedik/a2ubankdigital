@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 
 class Card extends Model
 {
@@ -12,6 +13,7 @@ class Card extends Model
         'user_id',
         'account_id',
         'card_number_masked',
+        'card_number_encrypted',
         'card_type',
         'status',
         'daily_limit',
@@ -27,9 +29,25 @@ class Card extends Model
         'expiry_date' => 'date'
     ];
 
-    protected $hidden = [];
+    // Sembunyikan dari response JSON biasa
+    protected $hidden = [
+        'card_number_encrypted',
+    ];
 
-    protected $appends = [];
+    /**
+     * Dekripsi nomor kartu penuh
+     */
+    public function getFullCardNumber(): ?string
+    {
+        if (!$this->card_number_encrypted) {
+            return null;
+        }
+        try {
+            return Crypt::decryptString($this->card_number_encrypted);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
 
     public function user()
     {
@@ -41,17 +59,11 @@ class Card extends Model
         return $this->belongsTo(Account::class);
     }
 
-    /**
-     * Scope for active cards
-     */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
     }
 
-    /**
-     * Scope for specific card type
-     */
     public function scopeType($query, $type)
     {
         return $query->where('card_type', $type);

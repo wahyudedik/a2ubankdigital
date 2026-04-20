@@ -34,7 +34,7 @@ export default function MarketingDashboardPage({ auth }) {
                 ]
             });
         } catch (error) {
-            console.error('Failed to fetch stats:', error);
+
         } finally {
             setLoading(false);
         }

@@ -14,8 +14,8 @@ const PaymentPage = () => {
             <h1 className="text-2xl font-bold text-gray-800 mb-4">Bayar / Terima QR</h1>
             <div className="bg-white rounded-lg shadow-md">
                 <div className="flex border-b">
-                    <TabButton id="scan" activeTab={activeTab} setActiveTab={setActiveTab} icon={<Camera/>}>Bayar (Scan)</TabButton>
-                    <TabButton id="my_qr" activeTab={activeTab} setActiveTab={setActiveTab} icon={<QrCode/>}>Terima Uang</TabButton>
+                    <TabButton id="scan" activeTab={activeTab} setActiveTab={setActiveTab} icon={<Camera />}>Bayar (Scan)</TabButton>
+                    <TabButton id="my_qr" activeTab={activeTab} setActiveTab={setActiveTab} icon={<QrCode />}>Terima Uang</TabButton>
                 </div>
                 <div className="p-4">
                     {activeTab === 'scan' ? <ScanQr /> : <MyQr />}
@@ -26,7 +26,7 @@ const PaymentPage = () => {
 };
 
 const TabButton = ({ id, activeTab, setActiveTab, icon, children }) => (
-    <button 
+    <button
         onClick={() => setActiveTab(id)}
         className={`flex-1 p-3 font-semibold text-sm flex items-center justify-center gap-2 ${activeTab === id ? 'border-b-2 border-taskora-green-700 text-taskora-green-700' : 'text-gray-500'}`}
     >
@@ -41,7 +41,7 @@ const ScanQr = () => {
 
     useEffect(() => {
         const scanner = new Html5QrcodeScanner(
-            "qr-reader", 
+            "qr-reader",
             { fps: 10, qrbox: { width: 250, height: 250 } },
             false // verbose
         );
@@ -62,11 +62,11 @@ const ScanQr = () => {
                 }
             }
         };
-        
+
         const onScanFailure = (error) => {
             // Tidak melakukan apa-apa saat gagal
         };
-        
+
         scanner.render(onScanSuccess, onScanFailure);
 
         // Fungsi cleanup saat komponen dibongkar
@@ -92,7 +92,7 @@ const MyQr = () => {
     const [qrCode, setQrCode] = useState('');
 
     const generateQr = async () => {
-        const result = await callApi('user_payment_qr_generate.php', 'POST', { amount });
+        const result = await callApi('/user/payment/qr-generate', 'POST', { amount });
         if (result && result.status === 'success') {
             setQrCode(result.data.qr_base64);
         }
@@ -109,7 +109,7 @@ const MyQr = () => {
             ) : (
                 <>
                     <p className="text-gray-600 mb-4">Masukkan jumlah (opsional) untuk ditampilkan di QR Code.</p>
-                    <Input 
+                    <Input
                         type="number"
                         placeholder="Rp 0 (Opsional)"
                         value={amount}

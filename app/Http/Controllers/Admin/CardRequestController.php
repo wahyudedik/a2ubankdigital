@@ -29,6 +29,13 @@ class CardRequestController extends Controller
         $limit = $request->input('limit', 10);
         $status = $request->input('status');
 
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
+
         $query = CardRequest::with('user');
 
         if ($status) {
@@ -104,11 +111,13 @@ class CardRequestController extends Controller
                     ->where('account_type', 'TABUNGAN')
                     ->first();
 
-                // Create card
+                // Create card with encrypted full number
+                $fullCardNumber = $this->formatCardNumber($cardNumber);
                 Card::create([
                     'user_id' => $cardRequest->user_id,
                     'account_id' => $userAccount ? $userAccount->id : null,
                     'card_number_masked' => $maskedCardNumber,
+                    'card_number_encrypted' => \Illuminate\Support\Facades\Crypt::encryptString($fullCardNumber),
                     'card_type' => strtolower($cardRequest->card_type),
                     'status' => 'active',
                     'daily_limit' => $cardRequest->card_type === 'DEBIT' ? 5000000 : 10000000,
@@ -159,6 +168,14 @@ class CardRequestController extends Controller
                 'message' => 'Gagal memproses permintaan: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Format card number with dashes: XXXX-XXXX-XXXX-XXXX
+     */
+    private function formatCardNumber(string $raw): string
+    {
+        return implode('-', str_split($raw, 4));
     }
 
     /**

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Card;
 use App\Models\Transaction;
 use App\Models\Account;
+use App\Services\EmailService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +14,13 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
+    protected $emailService;
+
+    public function __construct(EmailService $emailService)
+    {
+        $this->emailService = $emailService;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
@@ -20,6 +29,13 @@ class TransactionController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $type = $request->input('type');
+
+        if ($page < 1 || $limit < 1 || $limit > 100) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter pagination tidak valid. Halaman minimal 1, limit antara 1 dan 100.'
+            ], 422);
+        }
 
         // Get all user account IDs
         $userAccountIds = Account::where('user_id', $user->id)->pluck('id')->toArray();
@@ -100,12 +116,19 @@ class TransactionController extends Controller
         $user = Auth::user();
         $userAccountIds = Account::where('user_id', $user->id)->pluck('id')->toArray();
 
-        $transaction = Transaction::with(['fromAccount', 'toAccount'])
-            ->where(function($q) use ($userAccountIds) {
-                $q->whereIn('from_account_id', $userAccountIds)
-                  ->orWhereIn('to_account_id', $userAccountIds);
-            })
-            ->findOrFail($id);
+        try {
+            $transaction = Transaction::with(['fromAccount', 'toAccount'])
+                ->where(function($q) use ($userAccountIds) {
+                    $q->whereIn('from_account_id', $userAccountIds)
+                      ->orWhereIn('to_account_id', $userAccountIds);
+                })
+                ->findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Transaksi tidak ditemukan.'
+            ], 404);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -143,7 +166,7 @@ class TransactionController extends Controller
             'status' => 'success',
             'data' => [
                 'account_number' => $destinationAccount->account_number,
-                'recipient_name' => $destinationAccount->user->full_name
+                'recipient_name' => $destinationAccount->user?->full_name
             ]
         ]);
     }
@@ -171,8 +194,24 @@ class TransactionController extends Controller
                 throw new \Exception('Saldo tidak mencukupi.');
             }
 
+            // Card validation: blocked card and daily limit
+            $card = Card::where('user_id', $user->id)->where('status', '!=', 'closed')->first();
+            if ($card && $card->status === 'blocked') {
+                throw new \Exception('Kartu Anda sedang diblokir. Transfer tidak dapat diproses.');
+            }
+            if ($card && $card->daily_limit > 0) {
+                $todayTotal = Transaction::where('from_account_id', $sourceAccount->id)
+                    ->whereDate('created_at', today())
+                    ->sum('amount');
+                if (($todayTotal + $amount) > $card->daily_limit) {
+                    $remaining = $card->daily_limit - $todayTotal;
+                    throw new \Exception('Melebihi limit harian. Sisa limit hari ini: Rp ' . number_format($remaining, 0, ',', '.'));
+                }
+            }
+
             // Get destination account
-            $destinationAccount = Account::where('account_number', $request->destination_account_number)
+            $destinationAccount = Account::with('user')
+                ->where('account_number', $request->destination_account_number)
                 ->where('status', 'ACTIVE')
                 ->lockForUpdate()
                 ->first();
@@ -198,6 +237,49 @@ class TransactionController extends Controller
             $destinationAccount->increment('balance', $amount);
 
             DB::commit();
+
+            // Send email notifications (non-blocking)
+            try {
+                $amountFormatted = 'Rp ' . number_format($amount, 0, ',', '.');
+                $description = $request->description ?? 'Transfer Internal';
+
+                // Email to sender
+                $this->emailService->send(
+                    $user->email,
+                    $user->full_name,
+                    'Konfirmasi Transfer Internal',
+                    'transfer_confirmation',
+                    [
+                        'full_name' => $user->full_name,
+                        'amount' => $amountFormatted,
+                        'destination_account' => $request->destination_account_number,
+                        'description' => $description,
+                        'transaction_code' => $transaction->transaction_code,
+                        'preheader' => 'Transfer Anda sebesar ' . $amountFormatted . ' telah berhasil.'
+                    ]
+                );
+
+                // Email to recipient
+                $recipientUser = $destinationAccount->user;
+                if ($recipientUser) {
+                    $this->emailService->send(
+                        $recipientUser->email,
+                        $recipientUser->full_name,
+                        'Notifikasi Dana Masuk',
+                        'transfer_received',
+                        [
+                            'full_name' => $recipientUser->full_name,
+                            'amount' => $amountFormatted,
+                            'sender_name' => $user->full_name,
+                            'description' => $description,
+                            'transaction_code' => $transaction->transaction_code,
+                            'preheader' => 'Dana sebesar ' . $amountFormatted . ' telah masuk ke rekening Anda.'
+                        ]
+                    );
+                }
+            } catch (\Exception $emailEx) {
+                // Email failure should not break the main flow
+            }
 
             return response()->json([
                 'status' => 'success',

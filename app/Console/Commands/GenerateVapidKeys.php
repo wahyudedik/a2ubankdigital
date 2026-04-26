@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Minishlink\WebPush\VAPID;
 
 class GenerateVapidKeys extends Command
 {
@@ -11,7 +12,7 @@ class GenerateVapidKeys extends Command
      *
      * @var string
      */
-    protected $signature = 'vapid:generate';
+    protected $signature = 'vapid:generate {--force : Force overwrite existing keys}';
 
     /**
      * The console command description.
@@ -26,24 +27,49 @@ class GenerateVapidKeys extends Command
     public function handle()
     {
         try {
-            // Generate VAPID keys using web-push library approach
-            $vapidKeys = $this->generateVapidKeyPair();
+            // Check if keys already exist
+            if (!$this->option('force') && (config('services.vapid.public_key') || config('services.vapid.private_key'))) {
+                if (!$this->confirm('VAPID keys already exist. Do you want to generate new ones?')) {
+                    $this->info('Operation cancelled.');
+                    return 0;
+                }
+            }
+
+            // Generate VAPID keys using the proper web-push library
+            $vapidKeys = VAPID::createVapidKeys();
 
             $this->info('✓ VAPID Keys Generated Successfully!');
             $this->newLine();
             
-            $this->info('Add these to your .env file:');
+            $this->info('🔑 Your new VAPID keys:');
             $this->newLine();
             
+            // Display keys in a nice format
+            $this->line('📋 Copy these to your .env file:');
+            $this->newLine();
+            
+            $this->line('# VAPID Keys for Push Notifications');
             $this->line('VITE_VAPID_PUBLIC_KEY=' . $vapidKeys['publicKey']);
             $this->line('VAPID_PUBLIC_KEY=' . $vapidKeys['publicKey']);
             $this->line('VAPID_PRIVATE_KEY=' . $vapidKeys['privateKey']);
             
             $this->newLine();
-            $this->info('Then run: php artisan config:cache');
+            $this->info('📝 Next steps:');
+            $this->line('1. Add the keys above to your .env file');
+            $this->line('2. Run: php artisan config:cache');
+            $this->line('3. Update your frontend with the new public key');
+            
+            $this->newLine();
+            $this->warn('⚠️  Important: Keep your private key secure and never expose it publicly!');
+            
+            // Optionally write to .env file directly
+            if ($this->confirm('Do you want to automatically update your .env file?')) {
+                $this->updateEnvFile($vapidKeys);
+            }
             
         } catch (\Exception $e) {
-            $this->error('Error generating VAPID keys: ' . $e->getMessage());
+            $this->error('❌ Error generating VAPID keys: ' . $e->getMessage());
+            $this->error('Make sure the minishlink/web-push package is installed.');
             return 1;
         }
 
@@ -51,83 +77,39 @@ class GenerateVapidKeys extends Command
     }
 
     /**
-     * Generate VAPID key pair
+     * Update .env file with new VAPID keys
      */
-    private function generateVapidKeyPair(): array
+    private function updateEnvFile(array $vapidKeys): void
     {
-        // Generate EC key pair (P-256 curve)
-        $config = [
-            'private_key_type' => OPENSSL_KEYTYPE_EC,
-            'curve_name' => 'prime256v1'
+        $envPath = base_path('.env');
+        
+        if (!file_exists($envPath)) {
+            $this->error('.env file not found!');
+            return;
+        }
+
+        $envContent = file_get_contents($envPath);
+        
+        // Update or add VAPID keys
+        $keys = [
+            'VITE_VAPID_PUBLIC_KEY' => $vapidKeys['publicKey'],
+            'VAPID_PUBLIC_KEY' => $vapidKeys['publicKey'],
+            'VAPID_PRIVATE_KEY' => $vapidKeys['privateKey']
         ];
 
-        $res = openssl_pkey_new($config);
-        if (!$res) {
-            throw new \Exception('Failed to generate key pair');
-        }
-
-        openssl_pkey_export($res, $privateKeyPem);
-        $publicKeyDetails = openssl_pkey_get_details($res);
-        $publicKeyPem = $publicKeyDetails['key'];
-
-        // Extract raw key bytes
-        $privateKey = $this->extractPrivateKey($privateKeyPem);
-        $publicKey = $this->extractPublicKey($publicKeyPem);
-
-        // Encode to base64url format
-        $publicKeyBase64Url = rtrim(strtr(base64_encode($publicKey), '+/', '-_'), '=');
-        $privateKeyBase64Url = rtrim(strtr(base64_encode($privateKey), '+/', '-_'), '=');
-
-        return [
-            'publicKey' => $publicKeyBase64Url,
-            'privateKey' => $privateKeyBase64Url
-        ];
-    }
-
-    /**
-     * Extract private key bytes from PEM format
-     */
-    private function extractPrivateKey(string $pem): string
-    {
-        // Parse PEM to get DER
-        $lines = explode("\n", $pem);
-        $der = '';
-        foreach ($lines as $line) {
-            if (strpos($line, '-----') === false) {
-                $der .= $line;
+        foreach ($keys as $key => $value) {
+            if (preg_match("/^{$key}=.*$/m", $envContent)) {
+                // Update existing key
+                $envContent = preg_replace("/^{$key}=.*$/m", "{$key}={$value}", $envContent);
+            } else {
+                // Add new key
+                $envContent .= "\n{$key}={$value}";
             }
         }
-        $der = base64_decode($der);
 
-        // Extract the private key value (last 32 bytes for P-256)
-        // This is a simplified extraction - the actual structure is more complex
-        // For production, consider using a proper library like web-push
-        return substr($der, -32);
-    }
-
-    /**
-     * Extract public key bytes from PEM format
-     */
-    private function extractPublicKey(string $pem): string
-    {
-        // Parse PEM to get DER
-        $lines = explode("\n", $pem);
-        $der = '';
-        foreach ($lines as $line) {
-            if (strpos($line, '-----') === false) {
-                $der .= $line;
-            }
-        }
-        $der = base64_decode($der);
-
-        // Extract the public key value (65 bytes for P-256 uncompressed)
-        // This is a simplified extraction - the actual structure is more complex
-        // For production, consider using a proper library like web-push
-        $pos = strpos($der, "\x04");
-        if ($pos !== false) {
-            return substr($der, $pos, 65);
-        }
-
-        return substr($der, -65);
+        file_put_contents($envPath, $envContent);
+        
+        $this->info('✓ .env file updated successfully!');
+        $this->line('Run: php artisan config:cache to apply changes');
     }
 }

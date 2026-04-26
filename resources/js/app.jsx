@@ -20,7 +20,7 @@ router.on('success', (event) => {
 // Pages that should NOT have any layout (public pages)
 const noLayoutPages = [
     'LandingPage', 'LoginPage', 'RegisterPage', 'ForgotPasswordPage', 'ResetPasswordPage',
-    'ForgotPinPage', 'PrintableReceiptPage', 'AdminBuildPage'
+    'PrintableReceiptPage', 'AdminBuildPage'
 ];
 
 // Pages that use Admin layout

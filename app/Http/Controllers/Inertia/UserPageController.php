@@ -197,7 +197,31 @@ class UserPageController extends Controller
 
     public function depositDetail($depositId)
     {
-        $deposit = Account::where('user_id', Auth::id())->where('account_type', 'DEPOSITO')->with('depositProduct')->findOrFail($depositId);
+        $account = Account::where('user_id', Auth::id())
+            ->where('account_type', 'DEPOSITO')
+            ->with('depositProduct')
+            ->findOrFail($depositId);
+
+        // Calculate interest
+        $principal = $account->balance;
+        $interestRate = $account->depositProduct?->interest_rate_pa ?? 0;
+        $months = $account->depositProduct?->tenor_months ?? 0;
+        $interestEarned = $principal * ($interestRate / 100) * ($months / 12);
+
+        // Format deposit data for frontend
+        $deposit = [
+            'id' => $account->id,
+            'account_number' => $account->account_number,
+            'product_name' => $account->depositProduct?->product_name ?? 'N/A',
+            'status' => $account->status,
+            'principal' => $principal,
+            'interest_rate_pa' => $interestRate,
+            'placement_date' => $account->created_at,
+            'maturity_date' => $account->maturity_date,
+            'interest_earned' => $interestEarned,
+            'total_amount' => $principal + $interestEarned,
+        ];
+
         return Inertia::render('DepositDetailPage', ['deposit' => $deposit]);
     }
 
@@ -241,6 +265,7 @@ class UserPageController extends Controller
     }
     public function changePassword() { return Inertia::render('ChangePasswordPage'); }
     public function changePin() { return Inertia::render('ChangePinPage'); }
+    public function forgotPin() { return Inertia::render('ForgotPinPage'); }
     public function investments() { return Inertia::render('InvestmentPage'); }
     public function scheduledTransfers() { return Inertia::render('ScheduledTransfersPage'); }
     public function standingInstructions() { return Inertia::render('StandingInstructionsPage'); }

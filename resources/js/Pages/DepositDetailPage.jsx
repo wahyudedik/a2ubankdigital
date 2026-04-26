@@ -5,7 +5,7 @@ import { useModal } from '@/contexts/ModalContext.jsx';
 import Button from '@/components/ui/Button';
 import { ArrowLeft } from 'lucide-react';
 
-const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 }).format(amount);
+const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 const DetailItem = ({ label, value }) => (<div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4"><dt className="text-sm font-medium text-gray-500">{label}</dt><dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{value || '-'}</dd></div>);
 
 const DepositDetailPage = () => {
@@ -15,16 +15,32 @@ const DepositDetailPage = () => {
     const modal = useModal();
 
     const handleDisburse = async () => {
-        const confirmed = await modal.showConfirmation({ title: "Konfirmasi Pencairan Deposito", message: "Anda akan mencairkan dana pokok beserta bunga ke rekening tabungan Anda. Lanjutkan?", confirmText: "Ya, Cairkan Dana" });
+        const confirmed = await modal.showConfirmation({
+            title: "Konfirmasi Pencairan Deposito",
+            message: `Anda akan mencairkan dana pokok ${formatCurrency(detail?.principal)} beserta bunga ${formatCurrency(detail?.interest_earned)} (Total: ${formatCurrency(detail?.total_amount)}) ke rekening tabungan Anda. Lanjutkan?`,
+            confirmText: "Ya, Cairkan Dana"
+        });
         if (confirmed) {
-            const result = await callApi('deposit_account_disburse.php', 'POST', { deposit_id: detail?.id });
-            if (result && result.status === 'success') { await modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
-            else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
+            const result = await callApi('/user/deposits/' + detail?.id + '/disburse', 'POST', {});
+            if (result && result.status === 'success') {
+                await modal.showAlert({
+                    title: 'Berhasil',
+                    message: result.message,
+                    type: 'success'
+                });
+                router.visit('/deposits');
+            } else {
+                modal.showAlert({
+                    title: 'Gagal',
+                    message: error || result?.message || 'Terjadi kesalahan',
+                    type: 'warning'
+                });
+            }
         }
     };
 
     if (!detail) return <div className="p-4 text-center">Data tidak ditemukan.</div>;
-    const isMatured = new Date(detail.maturity_date) <= new Date();
+    const isMatured = detail.maturity_date && new Date(detail.maturity_date) <= new Date();
 
     return (
         <div>
@@ -33,8 +49,13 @@ const DepositDetailPage = () => {
                 <div className="p-4 border-b"><h3 className="text-lg font-medium text-gray-900">{detail.product_name}</h3><p className="text-sm text-gray-500">{detail.account_number}</p></div>
                 <div className="p-4">
                     <dl className="divide-y divide-gray-200">
-                        <DetailItem label="Status" value={detail.status} /><DetailItem label="Pokok Penempatan" value={formatCurrency(detail.principal)} /><DetailItem label="Suku Bunga" value={`${detail.interest_rate_pa}% per tahun`} />
-                        <DetailItem label="Tanggal Penempatan" value={new Date(detail.placement_date).toLocaleDateString('id-ID')} /><DetailItem label="Tanggal Jatuh Tempo" value={new Date(detail.maturity_date).toLocaleDateString('id-ID')} /><DetailItem label="Estimasi Bunga Diperoleh" value={formatCurrency(detail.interest_earned)} />
+                        <DetailItem label="Status" value={detail.status} />
+                        <DetailItem label="Pokok Penempatan" value={formatCurrency(detail.principal || 0)} />
+                        <DetailItem label="Suku Bunga" value={`${detail.interest_rate_pa || 0}% per tahun`} />
+                        <DetailItem label="Tanggal Penempatan" value={detail.placement_date ? new Date(detail.placement_date).toLocaleDateString('id-ID') : '-'} />
+                        <DetailItem label="Tanggal Jatuh Tempo" value={detail.maturity_date ? new Date(detail.maturity_date).toLocaleDateString('id-ID') : '-'} />
+                        <DetailItem label="Estimasi Bunga Diperoleh" value={formatCurrency(detail.interest_earned || 0)} />
+                        <DetailItem label="Total Pencairan" value={formatCurrency(detail.total_amount || 0)} />
                     </dl>
                 </div>
                 {detail.status === 'ACTIVE' && isMatured && (<div className="p-4 bg-gray-50 border-t"><Button onClick={handleDisburse} disabled={loading} fullWidth>{loading ? 'Memproses...' : 'Cairkan Dana'}</Button></div>)}

@@ -62,11 +62,33 @@ class NotificationService
     {
         if (empty($roleIds)) return;
         try {
-            foreach (User::whereIn('role_id', $roleIds)->where('status', 'ACTIVE')->pluck('id') as $id) {
-                Notification::create(['user_id' => $id, 'title' => $title, 'message' => $message, 'is_read' => false]);
+            $staffUsers = User::whereIn('role_id', $roleIds)->where('status', 'ACTIVE')->get();
+            
+            Log::info('Notifying staff by role', [
+                'role_ids' => $roleIds,
+                'staff_count' => $staffUsers->count(),
+                'staff_ids' => $staffUsers->pluck('id')->toArray(),
+                'title' => $title,
+                'message' => $message
+            ]);
+            
+            foreach ($staffUsers as $staff) {
+                Notification::create([
+                    'user_id' => $staff->id,
+                    'title' => $title,
+                    'message' => $message,
+                    'is_read' => false
+                ]);
+                
+                // Also send web push notification
+                $this->sendWebPush($staff->id, $title, $message);
             }
+            
+            Log::info('Staff notifications created successfully', [
+                'count' => $staffUsers->count()
+            ]);
         } catch (\Exception $e) {
-            Log::error('Staff notification failed', ['error' => $e->getMessage()]);
+            Log::error('Staff notification failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
         }
     }
 

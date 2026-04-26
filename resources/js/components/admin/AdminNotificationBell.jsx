@@ -7,19 +7,29 @@ const AdminNotificationBell = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const { callApi } = useApi();
 
-    useEffect(() => {
-        const fetchNotifications = async () => {
-            const result = await callApi('notifications_get_list.php');
-            if (result && result.status === 'success') {
-                const unread = result.data.filter(n => !n.is_read).length;
-                setUnreadCount(unread);
-            }
-        };
+    const fetchNotifications = async () => {
+        const result = await callApi('/user/notifications');
+        if (result && result.status === 'success') {
+            const unreadCount = result.pagination?.unread_count || 0;
+            setUnreadCount(unreadCount);
+        }
+    };
 
+    useEffect(() => {
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 60000);
         return () => clearInterval(interval);
     }, [callApi]);
+
+    // Listen for custom events to update notification count
+    useEffect(() => {
+        const handleNotificationUpdate = () => {
+            fetchNotifications();
+        };
+
+        window.addEventListener('notificationsUpdated', handleNotificationUpdate);
+        return () => window.removeEventListener('notificationsUpdated', handleNotificationUpdate);
+    }, []);
 
     return (
         <Link href="/admin/notifications" className="relative p-2 rounded-full text-gray-500 hover:bg-gray-100">

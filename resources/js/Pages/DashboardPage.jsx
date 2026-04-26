@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { CreditCard, Send, QrCode, Database, PiggyBank, Briefcase, Download, Upload, Receipt, ArrowDown, ArrowUp, TrendingUp } from 'lucide-react';
+import { CreditCard, Send, QrCode, Database, PiggyBank, Briefcase, Download, Upload, Receipt, ArrowDown, ArrowUp, TrendingUp, Eye, EyeOff } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import Button from '@/components/ui/Button';
@@ -24,7 +24,13 @@ const TransactionIcon = ({ type, flow }) => {
 
 const DashboardPage = () => {
     const { dashboardData } = usePage().props;
+    const [showBalance, setShowBalance] = useState(true);
+
     if (!dashboardData) return <div className="text-center p-8">Gagal memuat data dasbor.</div>;
+
+    const toggleBalanceVisibility = () => {
+        setShowBalance(!showBalance);
+    };
 
     const serviceMenus = [
         { icon: <Download />, label: 'Isi Saldo', path: '/topup' }, { icon: <Upload />, label: 'Tarik Saldo', path: '/withdrawal' },
@@ -47,7 +53,23 @@ const DashboardPage = () => {
             <div className="bg-bpn-blue text-white rounded-xl shadow-lg p-6 mb-6 relative overflow-hidden">
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full"></div>
                 <div className="absolute -bottom-12 -left-12 w-24 h-24 bg-white/10 rounded-full"></div>
-                <div><p className="text-white/80 text-sm">Saldo Anda</p><p className="text-3xl font-bold text-white my-2">{formatCurrency(dashboardData.balance)}</p></div>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="text-white/80 text-sm">Saldo Anda</p>
+                        <div className="flex items-center gap-3 my-2">
+                            <p className="text-3xl font-bold text-white">
+                                {showBalance ? formatCurrency(dashboardData.balance) : 'Rp ••••••••'}
+                            </p>
+                            <button
+                                onClick={toggleBalanceVisibility}
+                                className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+                                title={showBalance ? 'Sembunyikan saldo' : 'Tampilkan saldo'}
+                            >
+                                {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div className="flex justify-between items-center mt-4 border-t border-white/20 pt-4">
                     <div className="flex items-center text-white/90"><CreditCard size={16} className="mr-2" /><span className="font-mono text-sm">{dashboardData.account_number}</span></div>
                     <Link href="/topup"><Button className="py-1 px-3 text-xs bg-white/20 hover:bg-white/30 flex items-center gap-1"><Download size={14} />Isi Saldo</Button></Link>
@@ -67,7 +89,13 @@ const DashboardPage = () => {
                         <div key={tx.transaction_code} className="flex items-center">
                             <div className={`w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-4`}><TransactionIcon type={tx.transaction_type} flow={tx.flow} /></div>
                             <div className="flex-grow"><p className="font-semibold text-gray-800">{tx.description}</p><p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long' })}</p></div>
-                            <p className={`font-semibold ${tx.flow === 'KREDIT' ? 'text-green-600' : 'text-gray-800'}`}>{tx.flow === 'KREDIT' ? '+' : '-'}{formatCurrency(tx.amount)}</p>
+                            <p className={`font-semibold ${tx.flow === 'KREDIT' ? 'text-green-600' : 'text-gray-800'}`}>
+                                {showBalance ? (
+                                    `${tx.flow === 'KREDIT' ? '+' : '-'}${formatCurrency(tx.amount)}`
+                                ) : (
+                                    `${tx.flow === 'KREDIT' ? '+' : '-'}Rp ••••••`
+                                )}
+                            </p>
                         </div>
                     )) : (<p className="text-center text-sm text-gray-500 py-4">Belum ada transaksi.</p>)}
                 </div>

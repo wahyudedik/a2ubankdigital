@@ -137,6 +137,121 @@ class SecurityController extends Controller
     }
 
     /**
+     * Request OTP for PIN reset (authenticated user with password verification)
+     */
+    public function forgotPinRequestOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        $user = Auth::user();
+
+        // Verify password
+        if (!Hash::check($request->password, $user->password_hash)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Password yang Anda masukkan salah.'
+            ], 400);
+        }
+
+        // Generate OTP
+        $otpCode = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        UserOtp::create([
+            'user_id'    => $user->id,
+            'otp_code'   => $otpCode,
+            'expires_at' => now()->addMinutes(10),
+            'purpose'    => 'PIN_RESET',
+            'is_used'    => false,
+        ]);
+
+        // Send OTP via email
+        try {
+            $this->emailService->send(
+                $user->email,
+                $user->full_name,
+                'Reset PIN Transaksi - Kode Verifikasi',
+                'otp',
+                [
+                    'full_name'  => $user->full_name,
+                    'otp_code'   => $otpCode,
+                    'preheader'  => 'Kode verifikasi untuk reset PIN transaksi Anda.',
+                ]
+            );
+        } catch (\Exception $e) {
+            // Log error but don't fail the request
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Kode OTP telah dikirim ke email Anda.',
+        ]);
+    }
+
+    /**
+     * Reset PIN using OTP (authenticated user)
+     */
+    public function forgotPinReset(Request $request): JsonResponse
+    {
+        $request->validate([
+            'otp'        => 'required|string|size:6',
+            'new_pin'    => 'required|string|size:6',
+            'confirm_pin' => 'required|string|size:6|same:new_pin',
+        ]);
+
+        $user = Auth::user();
+
+        // Verify OTP
+        $otp = UserOtp::where('user_id', $user->id)
+            ->where('otp_code', $request->otp)
+            ->where('purpose', 'PIN_RESET')
+            ->where('is_used', false)
+            ->first();
+
+        if (!$otp) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Kode OTP tidak valid.',
+            ], 400);
+        }
+
+        if ($otp->expires_at->isPast()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Kode OTP sudah kadaluarsa. Silakan minta kode baru.',
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Mark OTP as used
+            $otp->update(['is_used' => true]);
+
+            // Update PIN
+            $user->update([
+                'pin_hash' => Hash::make($request->new_pin),
+            ]);
+
+            // Log audit
+            $this->logService->logAudit('PIN_RESET', 'users', $user->id);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'PIN transaksi berhasil direset.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal mereset PIN: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Reset PIN using OTP (public - no auth required)
      */
     public function resetPin(Request $request): JsonResponse

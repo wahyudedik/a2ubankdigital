@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link, usePage, router } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import useNavigate from '@/hooks/useNavigate';
+import useApi from '@/hooks/useApi';
 import { useModal } from '@/contexts/ModalContext.jsx';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,26 +13,40 @@ const OpenDepositPage = () => {
     const { products } = usePage().props;
     const modal = useModal();
     const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const { loading, error, callApi, setError } = useApi();
     const [selectedProductId, setSelectedProductId] = useState((products || [])[0]?.id || '');
     const [amount, setAmount] = useState('');
 
     const selectedProduct = (products || []).find(p => p.id.toString() === selectedProductId.toString());
 
-    const handleSubmit = (e) => {
-        e.preventDefault(); if (!selectedProduct) return;
-        const confirmed_promise = modal.showConfirmation({ title: "Konfirmasi Pembukaan Deposito", message: `Anda akan menempatkan dana sebesar ${formatCurrency(amount)} pada produk ${selectedProduct.product_name}. Dana akan diambil dari rekening tabungan Anda. Lanjutkan?`, confirmText: "Ya, Lanjutkan" });
-        confirmed_promise.then(confirmed => {
-            if (confirmed) {
-                setLoading(true); setError(null);
-                router.post('/deposits/create', { product_id: selectedProductId, amount }, {
-                    onSuccess: () => { modal.showAlert({ title: "Berhasil", message: "Deposito berhasil dibuka.", type: "success" }); navigate('/deposits'); },
-                    onError: (errors) => { setError(Object.values(errors).flat()[0] || 'Terjadi kesalahan.'); },
-                    onFinish: () => setLoading(false),
-                });
-            }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!selectedProduct) return;
+
+        const confirmed = await modal.showConfirmation({
+            title: "Konfirmasi Pembukaan Deposito",
+            message: `Anda akan menempatkan dana sebesar ${formatCurrency(amount)} pada produk ${selectedProduct.product_name}. Dana akan diambil dari rekening tabungan Anda. Lanjutkan?`,
+            confirmText: "Ya, Lanjutkan"
         });
+
+        if (confirmed) {
+            setError(null);
+            const result = await callApi('/user/deposits/create', 'POST', {
+                product_id: selectedProductId,
+                amount
+            });
+
+            if (result && result.status === 'success') {
+                await modal.showAlert({
+                    title: "Berhasil",
+                    message: "Deposito berhasil dibuka.",
+                    type: "success"
+                });
+                navigate('/deposits');
+            } else if (result && result.message) {
+                setError(result.message);
+            }
+        }
     };
 
     return (

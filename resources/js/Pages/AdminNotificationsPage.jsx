@@ -24,20 +24,44 @@ const AdminNotificationsPage = () => {
 
     useEffect(() => {
         if (hasUnread) {
-            callApi('user_mark_notification_read.php', 'PUT', {});
+            // Use web.php route, not ajax route
+            fetch('/admin/notifications/mark-all-read', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).catch(err => console.error('Failed to mark notifications as read:', err));
         }
     }, []);
 
     const markAllAsRead = async () => {
-        const result = await callApi('/admin/notifications/mark-all-read', 'PUT', {});
-        if (result && result.status === 'success') { router.reload(); }
+        try {
+            const response = await fetch('/admin/notifications/mark-all-read', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result && result.status === 'success') {
+                router.reload();
+            }
+        } catch (err) {
+            console.error('Failed to mark all notifications as read:', err);
+        }
     };
 
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Notifikasi Staf</h1>
-                <Button onClick={markAllAsRead} disabled={loading} className="py-2 px-4 text-sm"><Check size={16} className="mr-2" /> Tandai Semua Dibaca</Button>
+                <Button onClick={markAllAsRead} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 text-sm"><Check size={16} className="mr-2" /> Tandai Semua Dibaca</Button>
             </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="divide-y divide-gray-200">

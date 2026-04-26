@@ -77,14 +77,24 @@ class LoanController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, $id): JsonResponse
+    public function updateStatus(Request $request, $id = null): JsonResponse
     {
+        // Support both URL parameter and request body
+        $loanId = $id ?? $request->input('loan_id');
+        
+        if (!$loanId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Loan ID is required.'
+            ], 400);
+        }
+
         $request->validate([
             'status' => 'required|in:APPROVED,REJECTED',
             'rejection_reason' => 'nullable|required_if:status,REJECTED|string'
         ]);
 
-        $loan = Loan::with('user')->findOrFail($id);
+        $loan = Loan::with('user')->findOrFail($loanId);
 
         if ($loan->status !== 'SUBMITTED') {
             return response()->json([
@@ -157,9 +167,19 @@ class LoanController extends Controller
         ]);
     }
 
-    public function disburse(Request $request, $id): JsonResponse
+    public function disburse(Request $request, $id = null): JsonResponse
     {
-        $loan = Loan::with('user')->findOrFail($id);
+        // Support both URL parameter and request body
+        $loanId = $id ?? $request->input('loan_id');
+        
+        if (!$loanId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Loan ID is required.'
+            ], 400);
+        }
+
+        $loan = Loan::with('user')->findOrFail($loanId);
 
         if ($loan->status !== 'APPROVED') {
             return response()->json([

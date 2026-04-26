@@ -268,6 +268,7 @@ php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link
 php artisan vapid:generate   # generate VAPID keys untuk push notification
+php artisan qris:update
 ```
 
 ---

@@ -24,20 +24,36 @@ const NotificationsPage = () => {
 
     useEffect(() => {
         if (hasUnread) {
-            callApi('user_mark_notification_read.php', 'PUT', {});
+            const markAsReadOnView = async () => {
+                await callApi('/user/notifications/mark-all-read', 'PUT', {});
+                // Trigger custom event to update notification bell
+                window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+            };
+            markAsReadOnView();
         }
     }, []);
 
     const markAllAsRead = async () => {
-        const result = await callApi('user_mark_notification_read.php', 'PUT', {});
-        if (result && result.status === 'success') { router.reload(); }
+        const result = await callApi('/user/notifications/mark-all-read', 'PUT', {});
+        if (result && result.status === 'success') {
+            // Trigger custom event to update notification bell
+            window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+            router.reload();
+        }
     };
 
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <Link href="/dashboard" className="flex items-center gap-2 text-gray-600 hover:text-gray-900"><ArrowLeft size={20} /><h1 className="text-2xl font-bold text-gray-800">Notifikasi</h1></Link>
-                <Button onClick={markAllAsRead} disabled={loading || !hasUnread} className="py-2 px-4 text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 flex items-center gap-2"><Check size={16} /><span>Tandai Semua Dibaca</span></Button>
+                <Button
+                    onClick={markAllAsRead}
+                    disabled={loading || !hasUnread}
+                    className="py-2 px-4 text-sm bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:border-gray-300 flex items-center gap-2 font-medium"
+                >
+                    <Check size={16} />
+                    <span>Tandai Semua Dibaca</span>
+                </Button>
             </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="divide-y divide-gray-200">

@@ -349,9 +349,75 @@ class AdminPageController extends Controller
         return Inertia::render('AdminNotificationsPage', ['notifications' => $notifications]);
     }
     public function depositsAccounts(Request $request) {
-        $deposits = Account::where('account_type', 'DEPOSITO')->with(['user', 'depositProduct'])->get()
-            ->map(fn($a) => ['id' => $a->id, 'customer_name' => $a->user?->full_name, 'account_number' => $a->account_number, 'product_name' => $a->depositProduct?->product_name, 'balance' => (float)$a->balance, 'maturity_date' => $a->maturity_date, 'status' => $a->status]);
-        return Inertia::render('AdminDepositsListPage', ['deposits' => $deposits]);
+        $search = $request->input('search', '');
+        $status = $request->input('status', 'active');
+
+        $query = Account::where('account_type', 'DEPOSITO')
+            ->with(['user', 'depositProduct']);
+
+        // Apply search filter
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->whereHas('user', function($userQuery) use ($search) {
+                    $userQuery->where('full_name', 'like', "%{$search}%");
+                })->orWhere('account_number', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply status filter
+        if ($status === 'active') {
+            $query->where('status', 'ACTIVE');
+        } elseif ($status === 'matured') {
+            $query->where('status', 'ACTIVE')
+                  ->where('maturity_date', '<=', now());
+        } elseif ($status === 'near_maturity') {
+            $query->where('status', 'ACTIVE')
+                  ->whereBetween('maturity_date', [now(), now()->addDays(30)]);
+        }
+
+        $deposits = $query->get()->map(function($a) {
+            // Calculate interest earned
+            $principal = $a->balance;
+            $interestRate = $a->depositProduct?->interest_rate_pa ?? 0;
+            $months = $a->depositProduct?->tenor_months ?? 0;
+            $interestEarned = $principal * ($interestRate / 100) * ($months / 12);
+            
+            // Check if near maturity (within 30 days)
+            $isNearMaturity = $a->maturity_date && 
+                              $a->maturity_date->between(now(), now()->addDays(30));
+            
+            return [
+                'id' => $a->id,
+                'customer_name' => $a->user?->full_name,
+                'account_number' => $a->account_number,
+                'product_name' => $a->depositProduct?->product_name,
+                'balance' => (float)$a->balance,
+                'principal' => (float)$principal,
+                'interest_earned' => (float)$interestEarned,
+                'maturity_date' => $a->maturity_date,
+                'status' => $a->status,
+                'is_near_maturity' => $isNearMaturity
+            ];
+        });
+
+        // Calculate summary statistics
+        $allActiveDeposits = Account::where('account_type', 'DEPOSITO')
+            ->where('status', 'ACTIVE')
+            ->get();
+        
+        $summary = [
+            'totalActiveBalance' => $allActiveDeposits->sum('balance'),
+            'totalDeposits' => $allActiveDeposits->count(),
+            'maturingThisMonth' => $allActiveDeposits->filter(function($a) {
+                return $a->maturity_date && 
+                       $a->maturity_date->between(now()->startOfMonth(), now()->endOfMonth());
+            })->count()
+        ];
+
+        return Inertia::render('AdminDepositsListPage', [
+            'deposits' => $deposits,
+            'summary' => $summary
+        ]);
     }
     public function printReceipt($transactionId) { return Inertia::render('PrintableReceiptPage', ['routeParams' => ['transactionId' => $transactionId]]); }
     public function build() { return Inertia::render('AdminBuildPage'); }

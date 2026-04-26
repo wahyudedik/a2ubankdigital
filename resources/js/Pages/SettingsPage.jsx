@@ -28,7 +28,7 @@ const ChangePasswordForm = () => {
             return;
         }
 
-        const result = await callApi('/admin/security/update-password', 'POST', {
+        const result = await callApi('/user/security/update-password', 'POST', {
             current_password: formData.current_password,
             new_password: formData.new_password,
             new_password_confirmation: formData.confirm_password
@@ -124,7 +124,7 @@ const SystemSettingsForm = () => {
             ...settings, // Kirim semua state
             payment_bank_accounts: JSON.stringify(settings.payment_bank_accounts)
         };
-        const result = await callApi('/admin/system/settings', 'PUT', payload);
+        const result = await callApi('/admin/system/config/update', 'POST', payload);
         if (result && result.status === 'success') {
             modal.showAlert({ title: 'Berhasil', message: 'Pengaturan sistem telah berhasil disimpan.', type: 'success' });
         }

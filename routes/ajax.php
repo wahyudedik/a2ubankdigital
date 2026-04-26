@@ -18,6 +18,36 @@ use App\Http\Controllers\Api\AdminApiController;
 |--------------------------------------------------------------------------
 */
 
+// Public debug route (outside middleware)
+Route::get('/public-debug-audit', function() {
+    try {
+        $count = \App\Models\AuditLog::count();
+        $latest = \App\Models\AuditLog::latest()->first();
+        
+        return response()->json([
+            'status' => 'success',
+            'total_count' => $count,
+            'latest_log' => $latest ? [
+                'id' => $latest->id,
+                'action' => $latest->action,
+                'created_at' => $latest->created_at,
+                'user_id' => $latest->user_id
+            ] : null,
+            'message' => 'Debug endpoint working'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+});
+
+// Audit log route (needs admin role but outside admin prefix)
+Route::middleware(['web', 'auth:web', 'role:super_admin,admin', 'throttle:60,1'])->group(function () {
+    Route::get('/audit-log/data', [App\Http\Controllers\Api\AdminApiController::class, 'getAuditLog']);
+});
+
 // Shared routes - all authenticated users (notifications, push)
 // CSRF protection: active via 'web' middleware group (VerifyCsrfToken)
 Route::middleware(['web', 'auth:web', 'throttle:60,1'])->prefix('user')->group(function () {
@@ -101,6 +131,8 @@ Route::middleware(['web', 'auth:web', 'role:customer', 'throttle:120,1'])->prefi
     // Security
     Route::post('/security/update-password', [App\Http\Controllers\User\SecurityController::class, 'updatePassword']);
     Route::post('/security/update-pin', [App\Http\Controllers\User\SecurityController::class, 'updatePin']);
+    Route::post('/security/forgot-pin/request-otp', [App\Http\Controllers\User\SecurityController::class, 'forgotPinRequestOtp']);
+    Route::post('/security/forgot-pin/reset', [App\Http\Controllers\User\SecurityController::class, 'forgotPinReset']);
     // Withdrawal accounts
     Route::get('/withdrawal-accounts', [App\Http\Controllers\User\WithdrawalController::class, 'getAccounts']);
     Route::post('/withdrawal-accounts', [App\Http\Controllers\User\WithdrawalController::class, 'addAccount']);
@@ -229,6 +261,79 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
         ]]);
     });
     Route::post('/teller/pay-installment', [App\Http\Controllers\Admin\TellerController::class, 'payInstallment']);
+    // Alias route for loan payment by loan_id + amount (used by AdminTellerLoanPaymentPage)
+    Route::post('/teller/loan-payment', function(\Illuminate\Http\Request $request) {
+        $request->validate([
+            'loan_id' => 'required|integer|min:1',
+            'amount'  => 'required|numeric|min:1000',
+        ]);
+
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $loan = \App\Models\Loan::with('user')->find($request->loan_id);
+
+        if (!$loan) {
+            return response()->json(['status' => 'error', 'message' => 'Pinjaman tidak ditemukan.'], 404);
+        }
+        if (!in_array($loan->status, ['ACTIVE', 'DISBURSED'])) {
+            return response()->json(['status' => 'error', 'message' => 'Pinjaman tidak dalam status aktif.'], 422);
+        }
+
+        $amount = (float) $request->amount;
+
+        DB::beginTransaction();
+        try {
+            // Find the oldest pending/overdue installment
+            $installment = \App\Models\LoanInstallment::where('loan_id', $loan->id)
+                ->whereIn('status', ['PENDING', 'OVERDUE'])
+                ->orderBy('installment_number')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$installment) {
+                throw new \Exception("Tidak ada angsuran yang perlu dibayar.");
+            }
+
+            $totalDue = (float)$installment->total_amount + (float)($installment->late_fee ?? 0);
+
+            if ($amount < $totalDue) {
+                throw new \Exception("Jumlah pembayaran kurang dari total tagihan angsuran (Rp " . number_format($totalDue, 0, ',', '.') . ").");
+            }
+
+            $transactionCode = 'TRX-' . time() . '-' . rand(100000, 999999);
+            $transaction = \App\Models\Transaction::create([
+                'transaction_code'  => $transactionCode,
+                'transaction_type'  => 'LOAN_PAYMENT',
+                'amount'            => $totalDue,
+                'fee'               => 0,
+                'description'       => "Bayar Angsuran Pinjaman #" . $loan->id . " ke-" . $installment->installment_number . " via Teller #" . $user->id,
+                'status'            => 'SUCCESS',
+            ]);
+
+            $installment->update([
+                'status'      => 'PAID',
+                'paid_at'     => now(),
+                'paid_amount' => $totalDue,
+            ]);
+
+            // Check if all installments paid → close loan
+            $unpaidCount = \App\Models\LoanInstallment::where('loan_id', $loan->id)
+                ->whereIn('status', ['PENDING', 'OVERDUE'])->count();
+            if ($unpaidCount === 0) {
+                $loan->update(['status' => 'CLOSED']);
+            }
+
+            DB::commit();
+
+            return response()->json(['status' => 'success', 'message' => 'Pembayaran berhasil.', 'data' => [
+                'transaction_id'   => $transaction->id,
+                'transaction_code' => $transactionCode,
+                'amount'           => $totalDue,
+            ]]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    });
     Route::get('/teller/search-installments', function(Request $request) {
         $q = $request->input('q', '');
         if (strlen($q) < 3) return response()->json(['status' => 'success', 'data' => []]);
@@ -264,7 +369,9 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
     // Process topup/withdrawal
     Route::post('/processing/process-topup', [App\Http\Controllers\Admin\AdvancedProcessingController::class, 'processTopupRequest']);
     Route::post('/topup-requests/process', [App\Http\Controllers\Api\AdminApiController::class, 'processTopupRequest']);
+    Route::put('/withdrawal-requests/process', [App\Http\Controllers\Admin\WithdrawalRequestController::class, 'process']);
     Route::put('/withdrawal-requests/{id}/process', [App\Http\Controllers\Admin\WithdrawalRequestController::class, 'process']);
+    Route::post('/withdrawal-requests/disburse', [App\Http\Controllers\Admin\WithdrawalRequestController::class, 'disburse']);
     Route::post('/withdrawal-requests/{id}/disburse', [App\Http\Controllers\Admin\WithdrawalRequestController::class, 'disburse']);
     // Card requests
     Route::put('/card-requests/{id}/process', [App\Http\Controllers\Admin\CardRequestController::class, 'process']);
@@ -273,6 +380,34 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
     Route::post('/system/config/update', [App\Http\Controllers\Admin\SystemConfigController::class, 'updateConfig']);
     // Audit log
     Route::get('/reports/audit-logs', [App\Http\Controllers\Admin\ReportsController::class, 'getAuditLog']);
+    // Simple test route
+    Route::get('/audit-log/simple', function() {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Audit log endpoint is working',
+            'count' => \App\Models\AuditLog::count(),
+            'latest' => \App\Models\AuditLog::latest()->first()?->action
+        ]);
+    });
+
+    // Debug route without auth
+    Route::get('/debug/audit-logs', function() {
+        $logs = \App\Models\AuditLog::with('user')->orderBy('created_at', 'desc')->take(5)->get();
+        return response()->json([
+            'status' => 'success',
+            'total_in_db' => \App\Models\AuditLog::count(),
+            'data' => $logs->map(function($log) {
+                return [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'user_name' => $log->user?->full_name ?? 'System',
+                    'created_at' => $log->created_at,
+                    'table_name' => $log->table_name,
+                    'record_id' => $log->record_id
+                ];
+            })
+        ]);
+    });
     // Reports (for child components)
     Route::get('/reports/customer-growth', [App\Http\Controllers\Admin\ReportController::class, 'customerGrowth']);
     Route::get('/reports/daily', [App\Http\Controllers\Admin\ReportController::class, 'daily']);
@@ -298,12 +433,49 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
     Route::put('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'update']);
     Route::put('/customers/{id}/status', [App\Http\Controllers\Admin\CustomerController::class, 'updateStatus']);
     // Loans
+    Route::post('/loans/inquiry', function(\Illuminate\Http\Request $request) {
+        $request->validate(['loan_id' => 'required|integer|min:1']);
+        $loan = \App\Models\Loan::with(['user', 'loanProduct', 'installments' => function($q) {
+            $q->whereIn('status', ['PENDING', 'OVERDUE'])->orderBy('installment_number');
+        }])->find($request->loan_id);
+
+        if (!$loan) {
+            return response()->json(['status' => 'error', 'message' => 'Pinjaman tidak ditemukan.'], 404);
+        }
+        if (!in_array($loan->status, ['ACTIVE', 'DISBURSED'])) {
+            return response()->json(['status' => 'error', 'message' => 'Pinjaman tidak dalam status aktif.'], 422);
+        }
+
+        $paidAmount = $loan->installments()->where('status', 'PAID')->sum('total_amount');
+        $remainingBalance = $loan->total_repayment - $paidAmount;
+
+        return response()->json(['status' => 'success', 'data' => [
+            'loan_id'             => $loan->id,
+            'loan_code'           => $loan->loan_code ?? 'LOAN-' . $loan->id,
+            'customer_name'       => $loan->user->full_name,
+            'loan_amount'         => (float) $loan->loan_amount,
+            'remaining_balance'   => (float) $remainingBalance,
+            'monthly_installment' => (float) $loan->monthly_installment,
+            'status'              => $loan->status,
+            'pending_installments'=> $loan->installments->map(fn($i) => [
+                'id'                 => $i->id,
+                'installment_number' => $i->installment_number,
+                'due_date'           => $i->due_date,
+                'total_amount'       => (float) $i->total_amount,
+                'late_fee'           => (float) ($i->late_fee ?? 0),
+                'status'             => $i->status,
+            ]),
+        ]]);
+    });
     Route::get('/loans', [App\Http\Controllers\Admin\LoanController::class, 'index']);
     Route::get('/loans/{id}', [App\Http\Controllers\Admin\LoanController::class, 'show']);
     Route::put('/loans/{id}/status', [App\Http\Controllers\Admin\LoanController::class, 'updateStatus']);
     Route::post('/loans/{id}/disburse', [App\Http\Controllers\Admin\LoanController::class, 'disburse']);
     Route::post('/loans/{id}/force-pay-installment', [App\Http\Controllers\Admin\LoanController::class, 'forcePayInstallment']);
     Route::delete('/loans/{id}', [App\Http\Controllers\Admin\LoanController::class, 'destroy']);
+    // Loan Applications (alternative routes that accept ID in body)
+    Route::put('/loan-applications/status', [App\Http\Controllers\Admin\LoanController::class, 'updateStatus']);
+    Route::post('/loan-applications/disburse', [App\Http\Controllers\Admin\LoanController::class, 'disburse']);
     // Products
     Route::get('/loan-products', [App\Http\Controllers\Admin\ProductController::class, 'getLoanProducts']);
     Route::post('/loan-products', [App\Http\Controllers\Admin\ProductController::class, 'createLoanProduct']);

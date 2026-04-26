@@ -159,10 +159,11 @@ class WithdrawalRequestController extends Controller
     /**
      * Process withdrawal request (approve/reject)
      */
-    public function process(Request $request, $id)
+    public function process(Request $request, $id = null)
     {
         try {
             $validator = Validator::make($request->all(), [
+                'request_id' => 'required_without:id|integer',
                 'action' => 'required|in:APPROVE,REJECT',
                 'admin_notes' => 'nullable|string|max:500',
                 'fee_amount' => 'nullable|numeric|min:0'
@@ -176,10 +177,13 @@ class WithdrawalRequestController extends Controller
                 ], 422);
             }
 
+            // Get ID from URL parameter or request body
+            $requestId = $id ?? $request->input('request_id');
+
             $admin = Auth::user();
             
             // Get the withdrawal request
-            $withdrawalRequest = WithdrawalRequest::where('id', $id)
+            $withdrawalRequest = WithdrawalRequest::where('id', $requestId)
                 ->where('status', 'pending')
                 ->first();
 
@@ -249,7 +253,7 @@ class WithdrawalRequestController extends Controller
                 "Withdrawal request {$status} for user {$user->email}",
                 $admin->id,
                 [
-                    'request_id' => $id,
+                    'request_id' => $requestId,
                     'user_id' => $user->id,
                     'action' => $request->action,
                     'amount' => $withdrawalRequest->amount,
@@ -261,7 +265,7 @@ class WithdrawalRequestController extends Controller
                 'status' => 'success',
                 'message' => $message,
                 'data' => [
-                    'request_id' => $id,
+                    'request_id' => $requestId,
                     'status' => $status,
                     'processed_at' => now()->toISOString()
                 ]
@@ -281,10 +285,17 @@ class WithdrawalRequestController extends Controller
     /**
      * Disburse withdrawal (complete the withdrawal)
      */
-    public function disburse(Request $request, $id)
+    public function disburse(Request $request, $id = null)
     {
+        \Log::info("=== DISBURSE METHOD CALLED ===", [
+            'url_id' => $id,
+            'request_data' => $request->all(),
+            'user_id' => Auth::id()
+        ]);
+        
         try {
             $validator = Validator::make($request->all(), [
+                'request_id' => 'required_without:id|integer',
                 'transaction_reference' => 'nullable|string|max:100',
                 'admin_notes' => 'nullable|string|max:500'
             ]);
@@ -297,10 +308,13 @@ class WithdrawalRequestController extends Controller
                 ], 422);
             }
 
+            // Get ID from URL parameter or request body
+            $requestId = $id ?? $request->input('request_id');
+
             $admin = Auth::user();
             
             // Get the withdrawal request
-            $withdrawalRequest = WithdrawalRequest::where('id', $id)
+            $withdrawalRequest = WithdrawalRequest::where('id', $requestId)
                 ->where('status', 'approved')
                 ->first();
 
@@ -364,7 +378,7 @@ class WithdrawalRequestController extends Controller
                 'transaction_type' => 'WITHDRAWAL',
                 'amount' => $netAmount,
                 'fee' => 0,
-                'description' => "Withdrawal disbursement - Request #{$id}",
+                'description' => "Withdrawal disbursement - Request #{$requestId}",
                 'status' => 'SUCCESS',
                 'reference_number' => $request->transaction_reference ?? 'WD-' . time(),
                 'created_at' => now(),
@@ -372,9 +386,41 @@ class WithdrawalRequestController extends Controller
             ]);
 
             // Update account balance
-            DB::table('accounts')
-                ->where('id', $account->id)
-                ->decrement('balance', $netAmount);
+            $oldBalance = $account->balance;
+            
+            try {
+                $affected = DB::table('accounts')
+                    ->where('id', $account->id)
+                    ->decrement('balance', $netAmount);
+                
+                // Verify balance was updated
+                $updatedAccount = DB::table('accounts')->where('id', $account->id)->first();
+                $newBalance = $updatedAccount->balance;
+                
+                // Log balance change for debugging
+                \Log::info("Withdrawal disbursement - Balance update", [
+                    'account_id' => $account->id,
+                    'old_balance' => $oldBalance,
+                    'withdrawal_amount' => $netAmount,
+                    'new_balance' => $newBalance,
+                    'expected_balance' => $oldBalance - $netAmount,
+                    'affected_rows' => $affected,
+                    'request_id' => $requestId
+                ]);
+                
+                // Double check if balance was actually updated
+                if ($newBalance >= $oldBalance) {
+                    throw new \Exception("Balance was not decremented. Old: {$oldBalance}, New: {$newBalance}");
+                }
+            } catch (\Exception $e) {
+                DB::rollBack();
+                \Log::error("Failed to update account balance", [
+                    'error' => $e->getMessage(),
+                    'account_id' => $account->id,
+                    'amount' => $netAmount
+                ]);
+                throw $e;
+            }
 
             // Update withdrawal request
             $withdrawalRequest->update([
@@ -398,7 +444,7 @@ class WithdrawalRequestController extends Controller
                 "Withdrawal disbursed for user {$user->email}",
                 $admin->id,
                 [
-                    'request_id' => $id,
+                    'request_id' => $requestId,
                     'user_id' => $user->id,
                     'amount' => $netAmount,
                     'transaction_id' => $transactionId
@@ -409,7 +455,7 @@ class WithdrawalRequestController extends Controller
                 'status' => 'success',
                 'message' => 'Penarikan berhasil dicairkan.',
                 'data' => [
-                    'request_id' => $id,
+                    'request_id' => $requestId,
                     'transaction_id' => $transactionId,
                     'net_amount' => $netAmount,
                     'disbursed_at' => now()->toISOString()

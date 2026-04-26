@@ -168,14 +168,16 @@ const AdminAuditLogPage = () => {
     const [selectedLog, setSelectedLog] = useState(null);
 
     const fetchLogs = useCallback(async (currentPage, filter) => {
-        const result = await callApi(`/admin/audit-log/data?page=${currentPage}&action=${filter}`);
+        const result = await callApi(`/audit-log/data?page=${currentPage}&action=${filter}`);
         if (result && result.status === 'success') {
             setLogs(result.data);
             setPagination(result.pagination);
         }
     }, [callApi]);
 
-    useEffect(() => { fetchLogs(page, actionFilter); }, [page, actionFilter, fetchLogs]);
+    useEffect(() => {
+        fetchLogs(page, actionFilter);
+    }, [page, actionFilter, fetchLogs]);
 
     return (
         <>

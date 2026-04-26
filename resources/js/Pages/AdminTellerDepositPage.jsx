@@ -27,7 +27,7 @@ const AdminTellerDepositPage = () => {
 
     const handleInquiry = async (e) => {
         e.preventDefault();
-        const result = await callApi('/admin/teller/account-inquiry', 'POST', { account_number: accountNumber });
+        const result = await callApi('/admin/teller/account-inquiry', 'POST', { destination_account_number: accountNumber });
         if (result && result.status === 'success') {
             setCustomerInfo(result.data);
             setStep(2);

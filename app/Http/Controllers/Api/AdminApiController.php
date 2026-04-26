@@ -716,9 +716,16 @@ class AdminApiController extends Controller
 
             $logs = $query->paginate($perPage, ['*'], 'page', $page);
 
-            return response()->json([
+            // Transform data to include full_name
+            $transformedLogs = $logs->getCollection()->map(function ($log) {
+                $logArray = $log->toArray();
+                $logArray['full_name'] = $log->user?->full_name;
+                return $logArray;
+            });
+
+            $response = response()->json([
                 'status' => 'success',
-                'data' => $logs->items(),
+                'data' => $transformedLogs,
                 'pagination' => [
                     'current_page' => $logs->currentPage(),
                     'last_page' => $logs->lastPage(),
@@ -726,6 +733,13 @@ class AdminApiController extends Controller
                     'total' => $logs->total()
                 ]
             ]);
+
+            // Add cache-busting headers
+            $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            $response->headers->set('Pragma', 'no-cache');
+            $response->headers->set('Expires', '0');
+
+            return $response;
 
         } catch (\Exception $e) {
             return response()->json([

@@ -32,21 +32,27 @@ class SecurityHeaders
         $isDevelopment = config('app.env') === 'local' || config('app.debug');
         
         if ($isDevelopment) {
-            // Relaxed CSP for development - allow Vite dev server
-            $csp = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: http: ws:; " .
-                   "style-src 'self' 'unsafe-inline' https:; " .
-                   "img-src 'self' data: https: http:; " .
-                   "font-src 'self' data: https:; " .
-                   "connect-src 'self' http: ws: https:; " .
+            // Development: Very permissive CSP to allow Vite HMR
+            // CSP doesn't support IPv6 wildcards properly, so we use broader rules
+            $csp = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " .
+                   "script-src * 'unsafe-inline' 'unsafe-eval' blob:; " .
+                   "script-src-elem * 'unsafe-inline' blob:; " .
+                   "worker-src * blob:; " .
+                   "style-src * 'unsafe-inline'; " .
+                   "img-src * data: blob:; " .
+                   "font-src * data:; " .
+                   "connect-src * ws: wss:; " .
                    "frame-ancestors 'none';";
         } else {
             // Stricter CSP for production
             $csp = "default-src 'self'; " .
                    "script-src 'self' 'unsafe-inline'; " .
+                   "script-src-elem 'self' 'unsafe-inline'; " .
+                   "worker-src 'self' blob:; " .
                    "style-src 'self' 'unsafe-inline' https://fonts.bunny.net https://fonts.googleapis.com; " .
                    "img-src 'self' data: https:; " .
                    "font-src 'self' data: https://fonts.bunny.net https://fonts.gstatic.com; " .
-                   "connect-src 'self' https:; " .
+                   "connect-src 'self' https: wss:; " .
                    "frame-ancestors 'none';";
         }
         

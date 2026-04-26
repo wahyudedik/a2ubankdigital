@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import useApi from '@/hooks/useApi';
-import { ArrowLeft, Filter, ArrowDown, ArrowUp, Download, Landmark, Banknote, Wallet } from 'lucide-react';
+import { ArrowLeft, Filter, ArrowDown, ArrowUp, Download, Landmark, Banknote, Wallet, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TransactionDetailModal from '@/components/modals/TransactionDetailModal';
 
@@ -68,7 +68,12 @@ const HistoryPage = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [selectedTx, setSelectedTx] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showBalance, setShowBalance] = useState(true);
     const { callApi: callDetailApi } = useApi();
+
+    const toggleBalanceVisibility = () => {
+        setShowBalance(!showBalance);
+    };
 
     const handleFilterChange = (e) => { const { name, value } = e.target; setFilters(prev => ({ ...prev, [name]: value })); };
 
@@ -136,16 +141,25 @@ const HistoryPage = () => {
                         <Link href="/dashboard" className="text-gray-600 hover:text-gray-900"><ArrowLeft size={20} /></Link>
                         <h1 className="text-2xl font-bold text-gray-800">Riwayat</h1>
                     </div>
-                    {activeTab === 'transaksi' && (
-                        <div className="flex items-center gap-2">
-                            <button onClick={exportToCSV} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                <Download size={16} /> Ekspor
-                            </button>
-                            <button onClick={() => setShowFilters(!showFilters)} className="p-2 rounded-full hover:bg-gray-100">
-                                <Filter size={20} />
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={toggleBalanceVisibility}
+                            className="p-2 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+                            title={showBalance ? 'Sembunyikan saldo' : 'Tampilkan saldo'}
+                        >
+                            {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                        {activeTab === 'transaksi' && (
+                            <>
+                                <button onClick={exportToCSV} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    <Download size={16} /> Ekspor
+                                </button>
+                                <button onClick={() => setShowFilters(!showFilters)} className="p-2 rounded-full hover:bg-gray-100">
+                                    <Filter size={20} />
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Tabs */}
@@ -199,7 +213,11 @@ const HistoryPage = () => {
                                         <p className="text-xs text-gray-500">{formatDate(tx.created_at)}</p>
                                     </div>
                                     <p className={`font-bold ml-2 flex-shrink-0 ${tx.flow === 'Kredit' ? 'text-green-600' : 'text-red-500'}`}>
-                                        {tx.flow === 'Kredit' ? '+' : '-'}{formatCurrency(tx.amount)}
+                                        {showBalance ? (
+                                            `${tx.flow === 'Kredit' ? '+' : '-'}${formatCurrency(tx.amount)}`
+                                        ) : (
+                                            `${tx.flow === 'Kredit' ? '+' : '-'}Rp ••••••`
+                                        )}
                                     </p>
                                 </div>
                             ))}
@@ -232,7 +250,9 @@ const HistoryPage = () => {
                                         )}
                                     </div>
                                     <div className="text-right ml-3 flex-shrink-0">
-                                        <p className="font-bold text-green-600">+{formatCurrency(req.amount)}</p>
+                                        <p className="font-bold text-green-600">
+                                            {showBalance ? `+${formatCurrency(req.amount)}` : '+Rp ••••••'}
+                                        </p>
                                         <StatusBadge status={req.status} map={TOPUP_STATUS} />
                                     </div>
                                 </div>
@@ -261,7 +281,9 @@ const HistoryPage = () => {
                                         <p className="text-xs text-gray-400 mt-1">{formatDate(req.created_at)}</p>
                                     </div>
                                     <div className="text-right ml-3 flex-shrink-0">
-                                        <p className="font-bold text-red-500">-{formatCurrency(req.amount)}</p>
+                                        <p className="font-bold text-red-500">
+                                            {showBalance ? `-${formatCurrency(req.amount)}` : '-Rp ••••••'}
+                                        </p>
                                         <StatusBadge status={req.status} map={WITHDRAWAL_STATUS} />
                                     </div>
                                 </div>
@@ -284,7 +306,9 @@ const HistoryPage = () => {
                                 <div className="flex justify-between items-start">
                                     <div className="flex-grow min-w-0">
                                         <p className="font-semibold text-gray-800">{loan.product_name ?? 'Pinjaman'}</p>
-                                        <p className="text-sm text-gray-600">{formatCurrency(loan.loan_amount)}</p>
+                                        <p className="text-sm text-gray-600">
+                                            {showBalance ? formatCurrency(loan.loan_amount) : 'Rp ••••••'}
+                                        </p>
                                         <p className="text-xs text-gray-400 mt-1">{formatDate(loan.created_at)}</p>
                                     </div>
                                     <div className="ml-3 flex-shrink-0">

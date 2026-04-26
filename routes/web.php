@@ -19,7 +19,6 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthPageController::class, 'login']);
     Route::get('/register', [AuthPageController::class, 'registerPage']);
     Route::get('/forgot-password', [AuthPageController::class, 'forgotPasswordPage']);
-    Route::get('/forgot-pin', [AuthPageController::class, 'forgotPinPage']);
     Route::get('/reset-password', [AuthPageController::class, 'resetPasswordPage']);
 });
 
@@ -40,6 +39,7 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::post('/profile/info', [ActionController::class, 'updateProfile']);
     Route::get('/profile/change-pin', [UserPageController::class, 'changePin']);
     Route::post('/profile/change-pin', [ActionController::class, 'changePin']);
+    Route::get('/profile/forgot-pin', [UserPageController::class, 'forgotPin']);
     Route::get('/profile/change-password', [UserPageController::class, 'changePassword']);
     Route::post('/profile/change-password', [ActionController::class, 'changePassword']);
     Route::get('/profile/beneficiaries', [UserPageController::class, 'beneficiaries']);
@@ -197,11 +197,6 @@ Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,a
         Route::post('/loans/inquiry', [AdminApiController::class, 'loanInquiry']);
         Route::put('/loan-applications/status', [AdminApiController::class, 'updateLoanApplicationStatus']);
         Route::post('/loan-applications/disburse', [AdminApiController::class, 'disburseLoan']);
-    });
-
-    // Audit Log API
-    Route::middleware('role:super_admin,admin')->group(function () {
-        Route::get('/audit-log/data', [AdminApiController::class, 'getAuditLog']);
     });
 
     // System Settings API

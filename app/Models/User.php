@@ -28,6 +28,7 @@ class User extends Authenticatable
         'last_login_ip',
         'is_2fa_enabled',
         'two_factor_secret',
+        'profile_picture_path',
     ];
 
     protected $hidden = [

@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                     'roleId' => $request->user()->role_id,
                     'fullName' => $request->user()->full_name,
                     'email' => $request->user()->email,
+                    'profile_picture_path' => $request->user()->profile_picture_path,
                 ] : null,
             ],
             // Share CSRF token so frontend always has the latest token

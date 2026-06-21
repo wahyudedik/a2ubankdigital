@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================================================
-# Deploy Script - Laravel LMS
+# Deploy Script - Laravel a2u bank
 # =============================================================================
 # Gunakan script ini untuk deploy update di VPS
 # Usage: bash deploy.sh

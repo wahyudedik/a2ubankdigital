@@ -24,6 +24,7 @@ class ProfileResource extends JsonResource
             'address_domicile' => $this->customerProfile?->address_domicile,
             'occupation' => $this->customerProfile?->occupation,
             'kyc_status' => $this->customerProfile?->kyc_status,
+            'profile_picture_path' => $this->profile_picture_path,
         ];
     }
 }

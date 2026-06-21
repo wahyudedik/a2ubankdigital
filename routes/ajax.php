@@ -167,6 +167,7 @@ Route::middleware(['web', 'auth:web', 'role:customer', 'throttle:120,1'])->prefi
     // Profile
     Route::get('/profile', [App\Http\Controllers\User\ProfileController::class, 'show']);
     Route::put('/profile', [App\Http\Controllers\User\ProfileController::class, 'update']);
+    Route::post('/profile/picture', [App\Http\Controllers\User\ProfileController::class, 'updatePicture']);
     // Transactions
     Route::get('/transactions', [App\Http\Controllers\User\TransactionController::class, 'index']);
     Route::get('/transactions/{id}', [App\Http\Controllers\User\TransactionController::class, 'show']);

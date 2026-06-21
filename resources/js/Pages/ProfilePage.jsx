@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
-import { ChevronRight, User, KeyRound, Bell, LogOut, Users, CreditCard, Lock as LockIcon, Banknote, BellRing, BellOff, Loader2, AlertTriangle } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { ChevronRight, User, KeyRound, Bell, LogOut, Users, CreditCard, Lock as LockIcon, Banknote, BellRing, BellOff, Loader2, AlertTriangle, Camera } from 'lucide-react';
 import { useNotification } from '@/contexts/NotificationContext.jsx';
+import { useModal } from '@/contexts/ModalContext.jsx';
 import { AppConfig } from '@/config';
 
 const ProfilePage = () => {
-    const user = JSON.parse(localStorage.getItem('authUser') || '{}');
+    const { auth } = usePage().props;
+    const user = auth?.user || {};
+    const modal = useModal();
     const { notificationStatus, subscribeToNotifications } = useNotification();
     const [isSubscribing, setIsSubscribing] = useState(false);
 
@@ -20,6 +23,42 @@ const ProfilePage = () => {
     const handleLogout = () => {
         localStorage.removeItem('authUser');
         router.post('/logout');
+    };
+
+    const handlePictureChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            modal.showAlert({
+                title: "Gagal",
+                message: "Ukuran foto maksimal 2MB.",
+                type: "error"
+            });
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+
+        router.post('/ajax/user/profile/picture', formData, {
+            forceFormData: true,
+            onSuccess: () => {
+                modal.showAlert({
+                    title: "Berhasil",
+                    message: "Foto profil berhasil diperbarui.",
+                    type: "success"
+                });
+            },
+            onError: (errors) => {
+                modal.showAlert({
+                    title: "Gagal",
+                    message: errors.profile_picture || "Gagal memperbarui foto profil.",
+                    type: "error"
+                });
+            }
+        });
     };
 
     const menuItems = [
@@ -86,8 +125,27 @@ const ProfilePage = () => {
     return (
         <div className="p-4">
             <div className="flex flex-col items-center mb-8">
-                <div className={`w-24 h-24 rounded-full ${AppConfig.theme.bgPrimary} text-white flex items-center justify-center font-bold text-4xl mb-4`}>
-                    {user.fullName ? user.fullName.charAt(0) : '?'}
+                <div className="relative mb-4 group">
+                    {user.profile_picture_path ? (
+                        <img 
+                            src={user.profile_picture_path} 
+                            alt={user.fullName} 
+                            className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                        />
+                    ) : (
+                        <div className={`w-24 h-24 rounded-full ${AppConfig.theme.bgPrimary} text-white flex items-center justify-center font-bold text-4xl shadow-md`}>
+                            {user.fullName ? user.fullName.charAt(0) : '?'}
+                        </div>
+                    )}
+                    <label className="absolute bottom-0 right-0 bg-bpn-blue hover:bg-bpn-blue-dark text-white p-2 rounded-full cursor-pointer shadow-md hover:scale-110 transition-all duration-200">
+                        <Camera className="w-4 h-4" />
+                        <input 
+                            type="file" 
+                            accept="image/png, image/jpeg, image/jpg" 
+                            className="hidden" 
+                            onChange={handlePictureChange} 
+                        />
+                    </label>
                 </div>
                 <h1 className="text-2xl font-bold text-gray-800">{user.fullName}</h1>
                 <p className="text-gray-500">{user.email}</p>

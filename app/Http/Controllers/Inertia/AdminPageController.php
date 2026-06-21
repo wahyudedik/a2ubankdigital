@@ -201,9 +201,40 @@ class AdminPageController extends Controller
         $page = $request->input('page', 1);
         $limit = 15;
 
-        $query = Loan::with(['user', 'loanProduct'])->whereIn('status', ['DISBURSED', 'ACTIVE', 'COMPLETED', 'OVERDUE']);
-        if ($search) $query->whereHas('user', fn($q) => $q->where('full_name', 'like', "%{$search}%"));
-        if ($status) $query->where('status', strtoupper($status));
+        $query = Loan::with(['user', 'loanProduct'])->whereIn('status', ['DISBURSED', 'ACTIVE', 'COMPLETED', 'CLOSED', 'DEFAULTED']);
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->whereHas('user', fn($uq) => $uq->where('full_name', 'like', "%{$search}%"))
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status) {
+            $statusLower = strtolower($status);
+            if ($statusLower === 'overdue') {
+                $query->whereHas('installments', fn($q) => $q->where('status', 'OVERDUE'));
+            } elseif ($statusLower === 'completed') {
+                $query->where(function($q) {
+                    $q->whereIn('status', ['COMPLETED', 'CLOSED'])
+                      ->orWhere(function($subQ) {
+                          $subQ->whereIn('status', ['DISBURSED', 'ACTIVE'])
+                               ->whereDoesntHave('installments', fn($instQ) => $instQ->whereIn('status', ['PENDING', 'OVERDUE']));
+                      });
+                });
+            } elseif ($statusLower === 'disbursed' || $statusLower === 'active') {
+                $query->whereIn('status', ['DISBURSED', 'ACTIVE'])
+                      ->where(function($q) {
+                          $q->whereDoesntHave('installments')
+                            ->orWhere(function($sub) {
+                                $sub->whereHas('installments', fn($instQ) => $instQ->where('status', 'PENDING'))
+                                    ->whereDoesntHave('installments', fn($instQ) => $instQ->where('status', 'OVERDUE'));
+                            });
+                      });
+            } else {
+                $query->where('status', strtoupper($status));
+            }
+        }
 
         $total = $query->count();
         $loans = $query->orderBy('created_at', 'desc')->skip(($page - 1) * $limit)->take($limit)->get()
@@ -215,8 +246,10 @@ class AdminPageController extends Controller
                 'overdue_installments_count' => $l->installments()->where('status', 'OVERDUE')->count(),
             ]);
 
-        $activeLoansCount = Loan::whereIn('status', ['DISBURSED', 'ACTIVE'])->count();
-        $totalActiveLoans = (float)(Loan::whereIn('status', ['DISBURSED', 'ACTIVE'])->sum('loan_amount') ?? 0);
+        $activeLoansQuery = Loan::whereIn('status', ['DISBURSED', 'ACTIVE'])
+            ->whereHas('installments', fn($q) => $q->whereIn('status', ['PENDING', 'OVERDUE']));
+        $activeLoansCount = $activeLoansQuery->count();
+        $totalActiveLoans = (float)($activeLoansQuery->sum('loan_amount') ?? 0);
         $overdueLoansCount = Loan::whereHas('installments', fn($q) => $q->where('status', 'OVERDUE'))->count();
 
         return Inertia::render('AdminLoansListPage', [

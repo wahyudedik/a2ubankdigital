@@ -315,30 +315,34 @@ class LoanController extends Controller
     {
         $loan = Loan::findOrFail($id);
 
-        $deletableStatuses = ['SUBMITTED', 'REJECTED'];
-        $blockedStatuses = ['DISBURSED', 'ACTIVE', 'COMPLETED'];
+        $deletableStatuses = ['SUBMITTED', 'REJECTED', 'COMPLETED', 'CLOSED'];
+        $blockedStatuses = ['DISBURSED', 'ACTIVE', 'OVERDUE'];
 
         if (in_array($loan->status, $blockedStatuses)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Pinjaman dengan status ' . $loan->status . ' tidak dapat dihapus.'
-            ], 400);
-        }
-
-        if (!in_array($loan->status, $deletableStatuses)) {
+            $hasOutstanding = $loan->installments()->whereIn('status', ['PENDING', 'OVERDUE'])->exists();
+            if ($hasOutstanding) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pinjaman dengan status ' . $loan->status . ' tidak dapat dihapus karena belum lunas.'
+                ], 400);
+            }
+        } elseif (!in_array($loan->status, $deletableStatuses)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Status pinjaman tidak valid untuk dihapus.'
             ], 400);
         }
 
-        $loan->delete();
+        DB::transaction(function () use ($loan) {
+            $loan->installments()->delete();
+            $loan->delete();
+        });
 
         $this->logService->logAudit(
             'DELETE_LOAN',
             'loans', $id,
             ['status' => $loan->status],
-            null
+            []
         );
 
         return response()->json([

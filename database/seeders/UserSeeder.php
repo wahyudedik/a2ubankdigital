@@ -9,7 +9,7 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create users using Laravel User model (bawaan Laravel)
+        // Create users using Laravel User model (bawaan Laravel) 
         $users = [
             [
                 'id' => 78,
@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
                 'role_id' => 1, // Super Admin
                 'full_name' => 'Super Administrator',
                 'email' => 'admin@a2ubank.com',
-                'phone_number' => '089676000378',  
+                'phone_number' => '089676000378',
                 'password_hash' => bcrypt('admin123'),
                 'pin_hash' => null,
                 'status' => 'ACTIVE',

@@ -87,6 +87,7 @@ export const endpointMapping = {
     'admin_loan_application_update_status.php': 'admin/loan-applications/status',
     'admin_loan_disburse.php': 'admin/loan-applications/disburse',
     'admin_loan_inquiry.php': 'admin/loans/inquiry',
+    'admin_delete_loan.php': 'admin/loans',
 
     // Force pay installment
     'admin_force_pay_installment.php': 'admin/loans/force-pay-installment',
@@ -222,6 +223,8 @@ export const convertEndpoint = (oldEndpoint, method = 'GET', body = null) => {
                 mappedEndpoint = `admin/loan-products/${body.id}`;
             } else if (endpointPath === 'admin_loan_products_delete.php' && body.id) {
                 mappedEndpoint = `admin/loan-products/${body.id}`;
+            } else if (endpointPath === 'admin_delete_loan.php' && body.id) {
+                mappedEndpoint = `admin/loans/${body.id}`;
             } else if (endpointPath === 'admin_force_pay_installment.php') {
                 mappedEndpoint = `admin/loans/${body.loan_id || body.installment_id}/force-pay-installment`;
             } else if (endpointPath === 'user_pay_installment.php') {

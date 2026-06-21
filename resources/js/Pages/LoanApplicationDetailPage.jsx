@@ -1,6 +1,8 @@
 import React from 'react';
-import { Link, usePage } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, usePage, router } from '@inertiajs/react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import useApi from '@/hooks/useApi.js';
+import { useModal } from '@/contexts/ModalContext.jsx';
 
 const DetailItem = ({ label, value }) => (
     <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
@@ -17,16 +19,51 @@ const formatTenorUnit = (unit) => {
 const LoanApplicationDetailPage = () => {
     const { loan } = usePage().props;
     const detail = loan;
+    const { callApi } = useApi();
+    const modal = useModal();
     const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+    const hasOutstanding = detail?.installments && detail.installments.some(i => ['PENDING', 'OVERDUE'].includes(i.status));
+    const isCompleted = ['COMPLETED', 'CLOSED'].includes(detail?.status) || (detail?.installments && detail.installments.length > 0 && !hasOutstanding);
+    const isDeletable = isCompleted || ['REJECTED', 'SUBMITTED'].includes(detail?.status);
+
+    const handleDeleteLoan = async () => {
+        const confirmed = await modal.showConfirmation({
+            title: "Konfirmasi Hapus Pinjaman",
+            message: "Apakah Anda yakin ingin menghapus pinjaman ini? Semua data riwayat angsuran yang terkait dengan pinjaman ini juga akan dihapus secara permanen.",
+            confirmText: "Ya, Hapus"
+        });
+        if (confirmed) {
+            const result = await callApi('admin_delete_loan.php', 'DELETE', { id: detail.id });
+            if (result && result.status === 'success') {
+                await modal.showAlert({ title: "Berhasil", message: result.message, type: 'success' });
+                if (isCompleted) {
+                    router.visit('/admin/loan-accounts');
+                } else {
+                    router.visit('/admin/loan-applications');
+                }
+            } else {
+                await modal.showAlert({ title: "Gagal", message: result?.message || 'Terjadi kesalahan', type: 'warning' });
+            }
+        }
+    };
 
     if (!detail) return <p>Data tidak ditemukan.</p>;
 
     return (
         <div>
-            <Link href="/admin/loan-applications" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-                <ArrowLeft size={20} />
-                <h1 className="text-2xl font-bold text-gray-800">Detail Pengajuan Pinjaman</h1>
-            </Link>
+            <div className="flex justify-between items-center mb-6">
+                <Link href={isCompleted ? "/admin/loan-accounts" : "/admin/loan-applications"} className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+                    <ArrowLeft size={20} />
+                    <h1 className="text-2xl font-bold text-gray-800">Detail Pengajuan Pinjaman</h1>
+                </Link>
+                {isDeletable && (
+                    <button onClick={handleDeleteLoan} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold">
+                        <Trash2 size={16} />
+                        <span>Hapus Pinjaman</span>
+                    </button>
+                )}
+            </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="p-6 border-b">
                     <h3 className="text-lg font-medium text-gray-900">Informasi Nasabah</h3>

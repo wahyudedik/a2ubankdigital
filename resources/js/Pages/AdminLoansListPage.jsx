@@ -3,6 +3,8 @@ import { usePage, router, Link } from '@inertiajs/react';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { DollarSign, FileText, AlertTriangle, Search, User, Tag, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import useApi from '@/hooks/useApi.js';
+import { useModal } from '@/contexts/ModalContext.jsx';
 
 const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 const formatDate = (dateString) => dateString ? format(parseISO(dateString), 'dd MMM yyyy', { locale: id }) : '-';
@@ -10,7 +12,26 @@ const formatDate = (dateString) => dateString ? format(parseISO(dateString), 'dd
 const AdminLoansListPage = () => {
     const { loans, summary, pagination, filters } = usePage().props;
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
-    const [statusFilter, setStatusFilter] = useState(filters?.status || 'disbursed');
+    const [statusFilter, setStatusFilter] = useState(filters?.status || '');
+    const { callApi } = useApi();
+    const modal = useModal();
+
+    const handleDeleteLoan = async (loanId) => {
+        const confirmed = await modal.showConfirmation({
+            title: "Konfirmasi Hapus Pinjaman",
+            message: "Apakah Anda yakin ingin menghapus pinjaman ini? Semua data riwayat angsuran yang terkait dengan pinjaman ini juga akan dihapus secara permanen.",
+            confirmText: "Ya, Hapus"
+        });
+        if (confirmed) {
+            const result = await callApi('admin_delete_loan.php', 'DELETE', { id: loanId });
+            if (result && result.status === 'success') {
+                await modal.showAlert({ title: "Berhasil", message: result.message, type: 'success' });
+                router.reload();
+            } else {
+                await modal.showAlert({ title: "Gagal", message: result?.message || 'Terjadi kesalahan', type: 'warning' });
+            }
+        }
+    };
 
     const doSearch = (search, status, page = 1) => {
         router.get(window.location.pathname, { search, status, page }, { preserveState: true });
@@ -54,7 +75,10 @@ const AdminLoansListPage = () => {
                         <input type="text" placeholder="Cari nama nasabah atau ID pinjaman..." value={searchTerm} onChange={handleSearchChange} className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <select value={statusFilter} onChange={handleStatusChange} className="border rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="disbursed">Aktif</option><option value="overdue">Menunggak</option><option value="completed">Lunas</option>
+                        <option value="">Semua</option>
+                        <option value="disbursed">Aktif</option>
+                        <option value="overdue">Menunggak</option>
+                        <option value="completed">Lunas</option>
                     </select>
                 </div>
                 <div className="overflow-x-auto">
@@ -76,8 +100,23 @@ const AdminLoansListPage = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatCurrency(loan.loan_amount)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-800">{formatCurrency(loan.outstanding_principal)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><div className="flex items-center"><Clock size={14} className="mr-2 text-gray-400" />{formatDate(loan.next_due_date)}</div></td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-center">{loan.overdue_installments_count > 0 ? (<span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Menunggak</span>) : (<span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Lancar</span>)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm"><Link href={`/admin/loan-applications/${loan.id}`} className="text-indigo-600 hover:text-indigo-900 font-medium">Lihat Detail</Link></td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        {loan.status === 'COMPLETED' || loan.status === 'CLOSED' || loan.outstanding_principal === 0 ? (
+                                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Lunas</span>
+                                        ) : loan.overdue_installments_count > 0 ? (
+                                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Menunggak</span>
+                                        ) : (
+                                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Lancar</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                        <div className="flex items-center justify-end gap-3">
+                                            <Link href={`/admin/loan-applications/${loan.id}`} className="text-indigo-600 hover:text-indigo-900 font-medium">Lihat Detail</Link>
+                                            {(loan.status === 'COMPLETED' || loan.status === 'CLOSED' || loan.outstanding_principal === 0) && (
+                                                <button onClick={() => handleDeleteLoan(loan.id)} className="text-red-600 hover:text-red-900 font-medium">Hapus</button>
+                                            )}
+                                        </div>
+                                    </td>
                                 </tr>
                             )) : (<tr><td colSpan="7" className="p-8 text-center text-gray-500">Tidak ada data pinjaman yang cocok dengan filter.</td></tr>)}
                         </tbody>

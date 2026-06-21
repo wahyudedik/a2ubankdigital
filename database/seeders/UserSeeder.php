@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class UserSeeder extends Seeder 
+class UserSeeder extends Seeder
 {
     public function run(): void
     {
@@ -16,12 +16,12 @@ class UserSeeder extends Seeder
                 'bank_id' => 'NIP-1212230000421',
                 'role_id' => 1, // Super Admin
                 'full_name' => 'Super Administrator',
-                'email' => 'admin@a2ubank.com', 
-                'phone_number' => '089676000378', 
+                'email' => 'admin@a2ubank.com',
+                'phone_number' => '089676000378',  
                 'password_hash' => bcrypt('admin123'),
                 'pin_hash' => null,
                 'status' => 'ACTIVE',
-                'failed_login_attempts' => 0, 
+                'failed_login_attempts' => 0,
                 'last_login_at' => null,
                 'last_login_ip' => null,
                 'is_2fa_enabled' => false,

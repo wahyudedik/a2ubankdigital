@@ -639,4 +639,32 @@ class ActionController extends Controller
 
         return redirect('/my-loans')->with('success', 'Pengajuan pinjaman berhasil dikirim.');
     }
+
+    public function deleteCustomer($id)
+    {
+        $user = User::where('role_id', 9)->findOrFail($id);
+
+        // Check if customer has outstanding loans
+        $activeLoansCount = $user->loans()
+            ->whereIn('status', ['SUBMITTED', 'APPROVED', 'DISBURSED', 'ACTIVE', 'OVERDUE'])
+            ->count();
+
+        if ($activeLoansCount > 0) {
+            return back()->withErrors(['error' => 'Tidak dapat menghapus nasabah yang memiliki pinjaman aktif atau menunggak.']);
+        }
+
+        // Check if customer has active accounts with positive balance
+        $totalBalance = $user->accounts()->where('status', 'ACTIVE')->sum('balance');
+        if ($totalBalance > 0) {
+            return back()->withErrors(['error' => 'Tidak dapat menghapus nasabah yang masih memiliki saldo di rekening aktif.']);
+        }
+
+        // Soft delete the user
+        $user->delete();
+
+        // Close accounts
+        $user->accounts()->where('status', 'ACTIVE')->update(['status' => 'CLOSED']);
+
+        return redirect('/admin/customers')->with('success', 'Nasabah berhasil dihapus.');
+    }
 }

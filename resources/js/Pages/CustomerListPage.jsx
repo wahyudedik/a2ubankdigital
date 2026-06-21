@@ -1,13 +1,42 @@
 import React, { useState } from 'react';
 import { usePage, router, Link } from '@inertiajs/react';
-import { Search, ChevronLeft, ChevronRight, Eye, PlusCircle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Eye, PlusCircle, Trash2 } from 'lucide-react';
 import useNavigate from '@/hooks/useNavigate';
 import Button from '@/components/ui/Button';
+import { useModal } from '@/contexts/ModalContext.jsx';
 
 const CustomerListPage = () => {
     const { customers, pagination, filters } = usePage().props;
     const navigate = useNavigate();
+    const modal = useModal();
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+
+    const handleDelete = async (id, name) => {
+        const confirmed = await modal.showConfirmation({
+            title: "Hapus Nasabah?",
+            message: `Apakah Anda yakin ingin menghapus nasabah "${name}"? Tindakan ini tidak dapat dibatalkan.`,
+            confirmText: "Ya, Hapus"
+        });
+
+        if (confirmed) {
+            router.delete(`/admin/customers/${id}`, {
+                onSuccess: () => {
+                    modal.showAlert({
+                        title: "Berhasil",
+                        message: "Nasabah berhasil dihapus.",
+                        type: "success"
+                    });
+                },
+                onError: (errors) => {
+                    modal.showAlert({
+                        title: "Gagal",
+                        message: errors.error || "Gagal menghapus nasabah.",
+                        type: "error"
+                    });
+                }
+            });
+        }
+    };
 
     const handleSearchChange = (e) => {
         const value = e.target.value;
@@ -76,9 +105,16 @@ const CustomerListPage = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <div className="flex gap-2">
-                                                <Link href={`/admin/customers/${customer.id}`} className="text-gray-500 hover:text-bpn-blue-700">
+                                                <Link href={`/admin/customers/${customer.id}`} className="text-gray-500 hover:text-bpn-blue-700" title="Detail">
                                                     <Eye size={18} />
                                                 </Link>
+                                                <button 
+                                                    onClick={() => handleDelete(customer.id, customer.full_name)}
+                                                    className="text-red-500 hover:text-red-700 cursor-pointer"
+                                                    title="Hapus"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

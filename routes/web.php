@@ -102,6 +102,7 @@ Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,a
         Route::get('/customers/edit/{customerId}', [AdminPageController::class, 'customerEdit']);
         Route::put('/customers/{id}', [ActionController::class, 'updateCustomer']);
         Route::put('/customers/{id}/status', [ActionController::class, 'updateCustomerStatus']);
+        Route::delete('/customers/{id}', [ActionController::class, 'deleteCustomer']);
     });
 
     Route::get('/customers/{customerId}', [AdminPageController::class, 'customerDetail'])->where('customerId', '[0-9]+');

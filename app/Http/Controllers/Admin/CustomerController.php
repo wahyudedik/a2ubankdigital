@@ -208,6 +208,11 @@ class CustomerController extends Controller
                 'status' => 'ACTIVE'
             ]);
 
+            // Log audit
+            $this->logService->logAudit('CUSTOMER_CREATED', 'users', $user->id, [], [
+                'customer_name' => $user->full_name
+            ]);
+
             DB::commit();
 
             return response()->json([

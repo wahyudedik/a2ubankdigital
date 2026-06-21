@@ -20,9 +20,17 @@ const Header = ({ user }) => {
         <header className="sticky top-0 bg-gray-50/80 backdrop-blur-md z-10 p-4">
             <div className="flex justify-between items-center">
                 <Link href="/profile" className="flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-bpn-blue text-white flex items-center justify-center font-bold mr-3">
-                        {getInitials(user.fullName)}
-                    </div>
+                    {user.profile_picture_path ? (
+                        <img 
+                            src={user.profile_picture_path} 
+                            alt="Profile" 
+                            className="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200"
+                        />
+                    ) : (
+                        <div className="w-10 h-10 rounded-full bg-bpn-blue text-white flex items-center justify-center font-bold mr-3">
+                            {getInitials(user.fullName)}
+                        </div>
+                    )}
                     <div>
                         <p className="text-xs text-gray-500">Selamat Datang,</p>
                         <h2 className="font-bold text-gray-800 text-lg">{user.fullName || 'Pengguna'}</h2>

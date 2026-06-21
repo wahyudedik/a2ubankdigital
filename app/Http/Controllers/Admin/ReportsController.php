@@ -85,50 +85,21 @@ class ReportsController extends Controller
             $startDate = $request->input('start_date') ? Carbon::parse($request->start_date)->startOfDay() : now()->startOfMonth();
             $endDate = $request->input('end_date') ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfDay();
 
-            // Customer acquisition
-            $newCustomers = User::whereBetween('created_at', [$startDate, $endDate])
-                ->where('role_id', 9)
-                ->count();
-
-            $totalCustomers = User::where('role_id', 9)->count();
-
-            // New accounts
-            $newAccounts = Account::whereBetween('created_at', [$startDate, $endDate])->count();
-
-            // Transaction metrics
-            $totalTransactions = Transaction::whereBetween('created_at', [$startDate, $endDate])->count();
-            $transactionVolume = Transaction::whereBetween('created_at', [$startDate, $endDate])->sum('amount');
-
-            // Product adoption
-            $productAdoption = [
-                'loans' => Loan::whereBetween('created_at', [$startDate, $endDate])->count(),
-                'deposits' => Account::where('account_type', 'DEPOSITO')->whereBetween('created_at', [$startDate, $endDate])->count(),
-                'savings' => Account::where('account_type', 'TABUNGAN')->whereBetween('created_at', [$startDate, $endDate])->count(),
-            ];
-
-            // Transaction by type
-            $transactionByType = Transaction::whereBetween('created_at', [$startDate, $endDate])
-                ->select('transaction_type', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
-                ->groupBy('transaction_type')
+            $acquisitions = DB::table('users as u')
+                ->leftJoin('audit_logs as al', function($join) use ($startDate, $endDate) {
+                    $join->on('u.id', '=', 'al.user_id')
+                         ->where('al.action', '=', 'CUSTOMER_CREATED')
+                         ->whereBetween('al.created_at', [$startDate, $endDate]);
+                })
+                ->whereIn('u.role_id', [4, 6])
+                ->select('u.full_name as marketing_name', DB::raw('COUNT(al.id) as new_customers'))
+                ->groupBy('u.id', 'u.full_name')
+                ->orderBy('new_customers', 'desc')
                 ->get();
 
             return response()->json([
                 'status' => 'success',
-                'data' => [
-                    'period' => ['start_date' => $startDate->toDateString(), 'end_date' => $endDate->toDateString()],
-                    'acquisition_metrics' => [
-                        'new_customers' => $newCustomers,
-                        'total_customers' => $totalCustomers,
-                        'growth_rate' => $totalCustomers > 0 ? round(($newCustomers / $totalCustomers) * 100, 2) : 0,
-                        'new_accounts' => $newAccounts
-                    ],
-                    'engagement_metrics' => [
-                        'total_transactions' => $totalTransactions,
-                        'transaction_volume' => $transactionVolume,
-                    ],
-                    'product_adoption' => $productAdoption,
-                    'transaction_by_type' => $transactionByType,
-                ]
+                'data' => $acquisitions
             ]);
 
         } catch (\Exception $e) {

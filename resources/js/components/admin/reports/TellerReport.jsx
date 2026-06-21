@@ -16,7 +16,7 @@ const ReportCard = ({ icon, title, children }) => (
     </div>
 );
 
-const TellerReport = () => {
+const TellerReport = ({ dateFilter }) => {
     const { loading, error, callApi } = useApi();
     const modal = useModal();
     const [tellers, setTellers] = useState([]);
@@ -26,7 +26,7 @@ const TellerReport = () => {
     useEffect(() => {
         const fetchTellers = async () => {
             const result = await callApi('admin_get_staff_list.php');
-            if (result && result.status === 'success') setTellers(result.data.filter(s => [4, 6].includes(s.role_id)));
+            if (result && result.status === 'success') setTellers(result.data.filter(s => [5, 6].includes(s.role_id)));
         };
         fetchTellers();
     }, [callApi]);
@@ -34,12 +34,27 @@ const TellerReport = () => {
     const fetchReport = async () => {
         if (!selectedTeller) return;
         setReport(null);
-        const result = await callApi(`admin_get_teller_report.php?teller_id=${selectedTeller}`);
+        let url = `admin_get_teller_report.php?teller_id=${selectedTeller}`;
+        if (dateFilter) {
+            if (dateFilter.start_date) url += `&start_date=${dateFilter.start_date}`;
+            if (dateFilter.end_date) url += `&end_date=${dateFilter.end_date}`;
+        }
+        const result = await callApi(url);
         if (result && result.status === 'success') {
             setReport(result);
-            if (result.data.length === 0) modal.showAlert({ title: 'Informasi', message: 'Tidak ditemukan data transaksi untuk teller ini pada tanggal yang dipilih.', type: 'info' });
+            if (result.data.length === 0) {
+                modal.showAlert({
+                    title: 'Informasi',
+                    message: 'Tidak ditemukan data transaksi untuk teller ini pada tanggal yang dipilih.',
+                    type: 'info'
+                });
+            }
         }
     };
+
+    useEffect(() => {
+        setReport(null);
+    }, [selectedTeller, dateFilter]);
 
     return (
         <ReportCard icon={<UserCheck size={24} />} title="Kinerja Teller">

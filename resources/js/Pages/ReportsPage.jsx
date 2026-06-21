@@ -85,7 +85,7 @@ const ReportsPage = () => {
                 {activeTab === 'operational' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <DailyReport dateFilter={dateFilter} />
-                        <TellerReport />
+                        <TellerReport dateFilter={dateFilter} />
                         <ProductPerformanceReport />
                         <NplReport />
                     </div>

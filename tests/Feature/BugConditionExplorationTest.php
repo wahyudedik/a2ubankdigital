@@ -442,7 +442,7 @@ class BugConditionExplorationTest extends TestCase
     // -------------------------------------------------------------------------
     public function test_1_10_withdrawal_request_when_approved_one_exists_is_allowed_confirming_bug(): void
     {
-        $user = $this->createCustomer();
+        $user = $this->createCustomer(['pin_hash' => bcrypt('123456')]);
         $this->createSavingsAccount($user);
 
         // Create a withdrawal account
@@ -466,6 +466,7 @@ class BugConditionExplorationTest extends TestCase
             'withdrawal_account_id' => $withdrawalAccount->id,
             'amount'                => 200000,
             'purpose'               => 'Test duplicate',
+            'pin'                   => '123456',
         ]);
 
         // FIXED: WithdrawalController now checks for both 'pending' AND 'approved' statuses

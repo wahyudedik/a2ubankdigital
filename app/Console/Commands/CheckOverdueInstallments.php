@@ -23,7 +23,7 @@ class CheckOverdueInstallments extends Command
         $count = 0;
         foreach ($overdue as $installment) {
             // Calculate late fee
-            $daysOverdue = now()->diffInDays($installment->due_date);
+            $daysOverdue = (int) \Carbon\Carbon::parse($installment->due_date)->startOfDay()->diffInDays(now()->startOfDay(), true);
             $latePaymentFee = $installment->loan->loanProduct->late_payment_fee ?? 0;
             
             // Calculate late fee: daily fee * days overdue

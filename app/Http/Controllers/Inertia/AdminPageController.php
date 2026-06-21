@@ -122,7 +122,7 @@ class AdminPageController extends Controller
         
         $principal = (float)$account->balance;
         $annualRate = (float)$account->depositProduct->interest_rate_pa / 100;
-        $daysElapsed = now()->diffInDays($account->created_at);
+        $daysElapsed = (int) \Carbon\Carbon::parse($account->created_at)->startOfDay()->diffInDays(now()->startOfDay(), true);
         
         // Simple interest calculation: Principal * Rate * (Days/365)
         $interest = $principal * $annualRate * ($daysElapsed / 365);

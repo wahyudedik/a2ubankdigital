@@ -78,7 +78,7 @@ class GoalSavingsDetail extends Model
      */
     public function getDaysRemainingAttribute(): int
     {
-        return now()->diffInDays($this->target_date, false);
+        return (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($this->target_date)->startOfDay(), false);
     }
 
     /**

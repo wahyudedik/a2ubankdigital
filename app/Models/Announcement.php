@@ -79,6 +79,6 @@ class Announcement extends Model
      */
     public function getDaysRemainingAttribute(): int
     {
-        return now()->diffInDays($this->end_date, false);
+        return (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($this->end_date)->startOfDay(), false);
     }
 }

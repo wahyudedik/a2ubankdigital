@@ -545,7 +545,7 @@ class AdvancedProcessingController extends Controller
                 ->take($limit)
                 ->get()
                 ->map(function ($doc) {
-                    $age = now()->diffInDays($doc->created_at);
+                    $age = (int) \Carbon\Carbon::parse($doc->created_at)->startOfDay()->diffInDays(now()->startOfDay(), true);
                     $priority = $age > 3 ? 'high' : ($age > 1 ? 'medium' : 'low');
 
                     return [

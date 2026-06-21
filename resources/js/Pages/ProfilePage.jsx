@@ -4,6 +4,7 @@ import { ChevronRight, User, KeyRound, Bell, LogOut, Users, CreditCard, Lock as 
 import { useNotification } from '@/contexts/NotificationContext.jsx';
 import { useModal } from '@/contexts/ModalContext.jsx';
 import { AppConfig } from '@/config';
+import axios from 'axios';
 
 const ProfilePage = () => {
     const { auth } = usePage().props;
@@ -42,22 +43,36 @@ const ProfilePage = () => {
         const formData = new FormData();
         formData.append('profile_picture', file);
 
-        router.post('/ajax/user/profile/picture', formData, {
-            forceFormData: true,
-            onSuccess: () => {
+        axios.post('/ajax/user/profile/picture', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+        .then((response) => {
+            if (response.data && response.data.status === 'success') {
                 modal.showAlert({
                     title: "Berhasil",
                     message: "Foto profil berhasil diperbarui.",
                     type: "success"
                 });
-            },
-            onError: (errors) => {
+                router.reload({ only: ['auth'] });
+            } else {
                 modal.showAlert({
                     title: "Gagal",
-                    message: errors.profile_picture || "Gagal memperbarui foto profil.",
+                    message: response.data?.message || "Gagal memperbarui foto profil.",
                     type: "error"
                 });
             }
+        })
+        .catch((error) => {
+            const errorMsg = error.response?.data?.errors?.profile_picture?.[0]
+                || error.response?.data?.message 
+                || "Gagal memperbarui foto profil.";
+            modal.showAlert({
+                title: "Gagal",
+                message: errorMsg,
+                type: "error"
+            });
         });
     };
 

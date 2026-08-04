@@ -6,6 +6,7 @@ use App\Http\Controllers\Inertia\UserPageController;
 use App\Http\Controllers\Inertia\AdminPageController;
 use App\Http\Controllers\Inertia\ActionController;
 use App\Http\Controllers\Api\AdminApiController;
+use App\Http\Controllers\Auth\RegisterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +21,9 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [AuthPageController::class, 'registerPage']);
     Route::get('/forgot-password', [AuthPageController::class, 'forgotPasswordPage']);
     Route::get('/reset-password', [AuthPageController::class, 'resetPasswordPage']);
+    // Email verification link (accessed from email, no auth required)
+    Route::get('/verify-email', [RegisterController::class, 'verifyByLink']);
+    Route::get('/verify-email/success', [AuthPageController::class, 'verifyEmailSuccess']);
 });
 
 Route::post('/logout', [AuthPageController::class, 'logout'])->middleware('auth')->name('logout');

@@ -64,6 +64,9 @@ class UnitSeeder extends Seeder
             'unit_code' => 'JAK-002',
             'unit_type' => 'KANTOR_KAS',
             'parent_id' => $branchJakarta->id,
+            'latitude' => -6.2150,
+            'longitude' => 106.8500,
+            'address' => 'Jl. Sudirman Kav. 52-53, Jakarta',
             'status' => 'ACTIVE',
         ]);
 
@@ -72,6 +75,9 @@ class UnitSeeder extends Seeder
             'unit_code' => 'JAK-003',
             'unit_type' => 'KANTOR_KAS',
             'parent_id' => $branchJakarta->id,
+            'latitude' => -6.1850,
+            'longitude' => 106.8350,
+            'address' => 'Jl. Gatot Subroto No. 23, Jakarta',
             'status' => 'ACTIVE',
         ]);
 
@@ -81,6 +87,9 @@ class UnitSeeder extends Seeder
             'unit_code' => 'SBY-002',
             'unit_type' => 'KANTOR_KAS',
             'parent_id' => $branchSurabaya->id,
+            'latitude' => -7.2450,
+            'longitude' => 112.7400,
+            'address' => 'Jl. Basuki Rachmat No. 45, Surabaya',
             'status' => 'ACTIVE',
         ]);
 
@@ -89,6 +98,9 @@ class UnitSeeder extends Seeder
             'unit_code' => 'SBY-003',
             'unit_type' => 'KANTOR_KAS',
             'parent_id' => $branchSurabaya->id,
+            'latitude' => -7.2700,
+            'longitude' => 112.7650,
+            'address' => 'Jl. Dharmahusada No. 12, Surabaya',
             'status' => 'ACTIVE',
         ]);
 
@@ -98,6 +110,9 @@ class UnitSeeder extends Seeder
             'unit_code' => 'BDG-002',
             'unit_type' => 'KANTOR_KAS',
             'parent_id' => $branchBandung->id,
+            'latitude' => -6.9050,
+            'longitude' => 107.5950,
+            'address' => 'Jl. Asia Afrika No. 68, Bandung',
             'status' => 'ACTIVE',
         ]);
 
@@ -106,6 +121,9 @@ class UnitSeeder extends Seeder
             'unit_code' => 'BDG-003',
             'unit_type' => 'KANTOR_KAS',
             'parent_id' => $branchBandung->id,
+            'latitude' => -6.9300,
+            'longitude' => 107.6200,
+            'address' => 'Jl. Buah Batu No. 150, Bandung',
             'status' => 'ACTIVE',
         ]);
     }

@@ -106,4 +106,27 @@ class EmailService
             ]
         );
     }
+
+    /**
+     * Send email verification link
+     *
+     * @param string $email
+     * @param string $name
+     * @param string $verificationUrl
+     * @return bool
+     */
+    public function sendVerificationLink(string $email, string $name, string $verificationUrl): bool
+    {
+        return $this->send(
+            $email,
+            $name,
+            'Verifikasi Email Anda',
+            'verification_link',
+            [
+                'full_name' => $name,
+                'verification_url' => $verificationUrl,
+                'preheader' => 'Klik link untuk mengaktifkan akun Anda di A2U Bank Digital.'
+            ]
+        );
+    }
 }

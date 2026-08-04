@@ -13,17 +13,21 @@ const ResetPasswordPage = () => {
     const modal = useModal();
     const { loading, error, callApi } = useApi();
 
-    const [token, setToken] = useState(null);
+    const [email, setEmail] = useState(null);
+    const [otpCode, setOtpCode] = useState(null);
     const [formData, setFormData] = useState({ new_password: '', confirm_password: '' });
     const [isSuccess, setIsSuccess] = useState(false);
 
     useEffect(() => {
-        const urlToken = searchParams.get('token');
-        if (!urlToken) {
-            modal.showAlert({ title: 'Token Tidak Valid', message: 'Tautan reset password tidak valid atau telah kedaluwarsa.', type: 'warning' });
+        const urlEmail = searchParams.get('email');
+        const urlOtp = searchParams.get('otp_code');
+        if (!urlEmail || !urlOtp) {
+            modal.showAlert({ title: 'Link Tidak Valid', message: 'Tautan reset password tidak valid atau telah kedaluwarsa.', type: 'warning' });
             navigate('/login');
+            return;
         }
-        setToken(urlToken);
+        setEmail(urlEmail);
+        setOtpCode(urlOtp);
     }, [searchParams, navigate, modal]);
 
     const handleChange = (e) => {
@@ -39,7 +43,8 @@ const ResetPasswordPage = () => {
         }
 
         const result = await callApi('/auth/forgot-password/reset', 'POST', {
-            token: token,
+            email: email,
+            otp_code: otpCode,
             new_password: formData.new_password
         });
 
@@ -72,7 +77,7 @@ const ResetPasswordPage = () => {
                             </div>
                             {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
                             <div className="mt-6">
-                                <Button type="submit" fullWidth disabled={loading || !token}>
+                                <Button type="submit" fullWidth disabled={loading || !email || !otpCode}>
                                     {loading ? 'Menyimpan...' : 'Simpan Password Baru'}
                                 </Button>
                             </div>

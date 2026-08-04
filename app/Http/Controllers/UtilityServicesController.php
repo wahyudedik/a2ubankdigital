@@ -266,17 +266,17 @@ class UtilityServicesController extends Controller
                 ]);
             }
 
-            $radius = $request->input('radius', 100); // Default 100km
+            $radius = $request->input('radius', 500); // Default 500km
 
             // Calculate distance using Haversine formula
             $units = Unit::select([
                     '*',
                     DB::raw("
                         (6371 * acos(
-                            LEAST(1, cos(radians({$latitude})) * 
-                            cos(radians(latitude)) * 
-                            cos(radians(longitude) - radians({$longitude})) + 
-                            sin(radians({$latitude})) * 
+                            LEAST(1, cos(radians({$latitude})) *
+                            cos(radians(latitude)) *
+                            cos(radians(longitude) - radians({$longitude})) +
+                            sin(radians({$latitude})) *
                             sin(radians(latitude)))
                         )) AS distance
                     ")
@@ -439,7 +439,7 @@ class UtilityServicesController extends Controller
             if (Auth::check()) {
                 $this->logService->log('file_upload_error', $e->getMessage(), Auth::id());
             }
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload file'

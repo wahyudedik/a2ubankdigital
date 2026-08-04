@@ -17,6 +17,7 @@ class AuthPageController extends Controller
     public function forgotPasswordPage() { return Inertia::render('ForgotPasswordPage'); }
     public function forgotPinPage() { return Inertia::render('ForgotPinPage'); }
     public function resetPasswordPage() { return Inertia::render('ResetPasswordPage'); }
+    public function verifyEmailSuccess() { return Inertia::render('VerifyEmailSuccessPage'); }
 
     public function login(Request $request)
     {
@@ -30,7 +31,7 @@ class AuthPageController extends Controller
         }
 
         if ($user->status === 'BLOCKED') return back()->withErrors(['email' => 'Akun Anda diblokir. Silakan hubungi Customer Service.']);
-        if ($user->status === 'PENDING_VERIFICATION') return back()->withErrors(['email' => 'Akun Anda belum aktif. Silakan cek email Anda untuk verifikasi OTP.']);
+        if ($user->status === 'PENDING_VERIFICATION') return back()->withErrors(['email' => 'Akun Anda belum aktif. Silakan verifikasi email Anda terlebih dahulu.']);
         if ($user->status !== 'ACTIVE') return back()->withErrors(['email' => 'Akun Anda tidak aktif. Hubungi Customer Service.']);
 
         $user->update(['failed_login_attempts' => 0]);

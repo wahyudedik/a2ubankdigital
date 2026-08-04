@@ -69,6 +69,7 @@ Route::middleware(['web', 'auth:web', 'throttle:60,1'])->prefix('user')->group(f
 // Note: These are intentionally public (no auth required) but still CSRF-protected.
 Route::middleware(['web', 'throttle:10,1'])->prefix('auth')->group(function () {
     Route::post('/register/request-otp', [App\Http\Controllers\Auth\RegisterController::class, 'requestOtp']);
+    Route::post('/register/resend-verification', [App\Http\Controllers\Auth\RegisterController::class, 'resendVerification']);
     Route::post('/register/verify-otp', [App\Http\Controllers\Auth\RegisterController::class, 'verifyOtp']);
     Route::post('/forgot-password/request', [App\Http\Controllers\Auth\RegisterController::class, 'forgotPasswordRequest']);
     Route::post('/forgot-password/reset', [App\Http\Controllers\Auth\RegisterController::class, 'forgotPasswordReset']);

@@ -492,16 +492,9 @@ class AdminPageController extends Controller
             });
         }
 
-        $staffList = $staffQuery->get()
-            ->map(fn($s) => [
-                'id' => $s->id, 'full_name' => $s->full_name, 'email' => $s->email,
-                'role_name' => DB::table('roles')->where('id', $s->role_id)->value('role_name') ?? 'Staf',
-                'role_id' => $s->role_id, 'status' => $s->status, 'unit_id' => $s->unit_id ?? $s->customerProfile?->unit_id,
-                'branch_name' => '-', 'unit_name' => '-', 'can_edit' => true,
-            ]);
-
         $roles = DB::table('roles')->where('id', '!=', 9)->get();
 
+        // Load units data FIRST so we can resolve names for each staff
         if ($accessibleUnitIds !== null) {
             $branches = DB::table('units')->where('unit_type', 'KANTOR_CABANG')->whereIn('id', $accessibleUnitIds)->where('status', 'ACTIVE')->get();
             $allUnits = DB::table('units')->whereIn('id', $accessibleUnitIds)->where('status', 'ACTIVE')->get();
@@ -509,6 +502,38 @@ class AdminPageController extends Controller
             $branches = DB::table('units')->where('unit_type', 'KANTOR_CABANG')->where('status', 'ACTIVE')->get();
             $allUnits = DB::table('units')->where('status', 'ACTIVE')->get();
         }
+
+        // Build a lookup map: unit_id => unit object for fast access
+        $unitMap = $allUnits->keyBy('id');
+
+        $staffList = $staffQuery->get()
+            ->map(function($s) use ($unitMap) {
+                $staffUnitId = $s->unit_id ?? $s->customerProfile?->unit_id;
+                $unit = $staffUnitId ? $unitMap->get($staffUnitId) : null;
+
+                // Resolve branch_name and unit_name from unit data
+                $branchName = '-';
+                $unitName = '-';
+
+                if ($unit) {
+                    if ($unit->unit_type === 'KANTOR_CABANG') {
+                        // Staff is assigned directly to a branch (no sub-unit)
+                        $branchName = $unit->unit_name ?? '-';
+                    } else {
+                        // Staff is assigned to a sub-unit; resolve its parent as the branch
+                        $unitName = $unit->unit_name ?? '-';
+                        $parentUnit = $unit->parent_id ? $unitMap->get($unit->parent_id) : null;
+                        $branchName = $parentUnit?->unit_name ?? '-';
+                    }
+                }
+
+                return [
+                    'id' => $s->id, 'full_name' => $s->full_name, 'email' => $s->email,
+                    'role_name' => DB::table('roles')->where('id', $s->role_id)->value('role_name') ?? 'Staf',
+                    'role_id' => $s->role_id, 'status' => $s->status, 'unit_id' => $staffUnitId,
+                    'branch_name' => $branchName, 'unit_name' => $unitName, 'can_edit' => true,
+                ];
+            });
 
         $branchesWithUnits = $branches->map(function($b) use ($allUnits) {
             $b->units = $allUnits->where('unit_type', '!=', 'KANTOR_CABANG')->filter(fn($u) => str_starts_with($u->unit_code ?? '', explode('-', $b->unit_code ?? '')[0] . '-'))->values();

@@ -370,7 +370,7 @@ class ActionController extends Controller
         $bankId = 'NIP-' . now()->format('Ym') . '-' . rand(100000, 999999);
         User::create([
             'bank_id' => $bankId, 'role_id' => $request->role_id, 'full_name' => $request->full_name,
-            'email' => $request->email, 'phone_number' => $request->phone_number ?: null,
+            'email' => $request->email, 'phone_number' => $request->input('phone_number') ?: null,
             'password_hash' => bcrypt($tempPassword), 'status' => 'ACTIVE',
         ]);
         return back()->with('success', "Staf berhasil dibuat. Password sementara: {$tempPassword}");

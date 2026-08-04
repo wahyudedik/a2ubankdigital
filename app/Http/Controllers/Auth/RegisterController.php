@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Validasi dimensi minimum gambar KTP & selfie.
@@ -141,22 +142,41 @@ class RegisterController extends Controller
                 'kyc_status' => 'PENDING'
             ]);
 
-            // Generate OTP
-            $otpCode = rand(100000, 999999);
+            // Generate verification token
+            $verificationToken = Str::random(64);
             UserOtp::create([
                 'user_id' => $user->id,
-                'otp_code' => $otpCode,
-                'expires_at' => now()->addMinutes(10)
+                'otp_code' => $verificationToken,
+                'expires_at' => now()->addMinutes(10),
+                'purpose' => 'EMAIL_VERIFICATION'
             ]);
 
-            // Send email
-            $this->emailService->sendOtp($request->email, $request->full_name, $otpCode);
+            // Build verification URL
+            $verificationUrl = config('app.url') . '/verify-email?token=' . $verificationToken;
+
+            // Send verification email
+            $emailSent = $this->emailService->sendVerificationLink(
+                $request->email,
+                $request->full_name,
+                $verificationUrl
+            );
+
+            if (!$emailSent) {
+                DB::rollBack();
+                // Clean up uploaded files
+                if (isset($ktpPath)) Storage::disk('public')->delete($ktpPath);
+                if (isset($selfiePath)) Storage::disk('public')->delete($selfiePath);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Gagal mengirim email verifikasi. Silakan coba lagi.'
+                ], 500);
+            }
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'OTP telah dikirim ke email Anda.'
+                'message' => 'Link verifikasi telah dikirim ke email Anda.'
             ]);
 
         } catch (\Exception $e) {
@@ -173,11 +193,135 @@ class RegisterController extends Controller
         }
     }
 
+    /**
+     * Verify email by clicking link from email
+     * GET /verify-email?token=xxx
+     */
+    public function verifyByLink(Request $request)
+    {
+        $token = $request->query('token');
+
+        if (!$token) {
+            return redirect('/login')->with('error', 'Token verifikasi tidak valid.');
+        }
+
+        // Find OTP record by token
+        $otp = UserOtp::where('otp_code', $token)
+            ->where('purpose', 'EMAIL_VERIFICATION')
+            ->where('expires_at', '>', now())
+            ->where('is_used', false)
+            ->first();
+
+        if (!$otp) {
+            return redirect('/login')->with('error', 'Link verifikasi tidak valid atau sudah kedaluwarsa.');
+        }
+
+        $user = User::where('id', $otp->user_id)
+            ->where('status', 'PENDING_VERIFICATION')
+            ->first();
+
+        if (!$user) {
+            return redirect('/login')->with('error', 'User tidak ditemukan atau sudah terverifikasi.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Mark OTP as used
+            $otp->update(['is_used' => true]);
+
+            // Activate user
+            $user->update(['status' => 'ACTIVE']);
+
+            // Create savings account with unique account number
+            $accountNumber = '9' . str_pad($user->id, 11, '0', STR_PAD_LEFT);
+            while (Account::where('account_number', $accountNumber)->exists()) {
+                $accountNumber = '9' . str_pad(rand(10000000000, 99999999999), 11, '0', STR_PAD_LEFT);
+            }
+
+            Account::create([
+                'user_id' => $user->id,
+                'account_number' => $accountNumber,
+                'account_type' => 'TABUNGAN',
+                'balance' => 0,
+                'status' => 'ACTIVE'
+            ]);
+
+            DB::commit();
+
+            return redirect('/verify-email/success');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect('/login')->with('error', 'Terjadi kesalahan saat verifikasi. Silakan coba lagi.');
+        }
+    }
+
+    /**
+     * Resend verification link to email
+     * POST /ajax/auth/register/resend-verification
+     */
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $request->email)
+            ->where('status', 'PENDING_VERIFICATION')
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun tidak ditemukan atau sudah terverifikasi.'
+            ], 404);
+        }
+
+        // Invalidate old OTP tokens for this user
+        UserOtp::where('user_id', $user->id)
+            ->where('purpose', 'EMAIL_VERIFICATION')
+            ->delete();
+
+        // Generate new verification token
+        $verificationToken = Str::random(64);
+        UserOtp::create([
+            'user_id' => $user->id,
+            'otp_code' => $verificationToken,
+            'expires_at' => now()->addMinutes(10),
+            'purpose' => 'EMAIL_VERIFICATION'
+        ]);
+
+        // Build verification URL
+        $verificationUrl = config('app.url') . '/verify-email?token=' . $verificationToken;
+
+        // Send verification email
+        $emailSent = $this->emailService->sendVerificationLink(
+            $user->email,
+            $user->full_name,
+            $verificationUrl
+        );
+
+        if (!$emailSent) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengirim email verifikasi. Silakan coba lagi.'
+            ], 500);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Link verifikasi baru telah dikirim ke email Anda.'
+        ]);
+    }
+
+    /**
+     * Legacy OTP verification (kept as fallback)
+     */
     public function verifyOtp(Request $request): JsonResponse
     {
         $request->validate([
             'email' => 'required|email',
-            'otp_code' => 'required|string|size:6'
+            'otp_code' => 'required|string|max:64'
         ]);
 
         $user = User::where('email', $request->email)
@@ -193,6 +337,7 @@ class RegisterController extends Controller
 
         $otp = UserOtp::where('user_id', $user->id)
             ->where('otp_code', $request->otp_code)
+            ->where('purpose', 'EMAIL_VERIFICATION')
             ->where('expires_at', '>', now())
             ->where('is_used', false)
             ->first();
@@ -258,12 +403,13 @@ class RegisterController extends Controller
             ], 404);
         }
 
-        // Generate OTP
+        // Generate OTP for password reset
         $otpCode = rand(100000, 999999);
         UserOtp::create([
             'user_id' => $user->id,
             'otp_code' => $otpCode,
-            'expires_at' => now()->addMinutes(10)
+            'expires_at' => now()->addMinutes(10),
+            'purpose' => 'PASSWORD_RESET'
         ]);
 
         // Send email
@@ -294,6 +440,7 @@ class RegisterController extends Controller
 
         $otp = UserOtp::where('user_id', $user->id)
             ->where('otp_code', $request->otp_code)
+            ->where('purpose', 'PASSWORD_RESET')
             ->where('expires_at', '>', now())
             ->where('is_used', false)
             ->first();

@@ -67,11 +67,13 @@ const RegisterPage = () => {
     const { loading, error, callApi, setLoading, setError } = useApi();
     const [step, setStep] = useState(1);
     const [nearestLocations, setNearestLocations] = useState([]);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
 
     const [formData, setFormData] = useState({
         full_name: '', email: '', password: '', phone_number: '',
         nik: '', mother_maiden_name: '', pob: '', dob: '',
-        gender: 'L', address_ktp: '', unit_id: '', otp_code: ''
+        gender: 'L', address_ktp: '', unit_id: ''
     });
 
     const [ktpImage, setKtpImage] = useState(null);
@@ -172,12 +174,37 @@ const RegisterPage = () => {
         }
     };
 
-    const handleVerifyOtp = async (e) => {
-        e.preventDefault();
-        const result = await callApi('/auth/register/verify-otp', 'POST', { email: formData.email, otp_code: formData.otp_code });
-        if (result && result.status === 'success') {
-            await modal.showAlert({ title: 'Pendaftaran Berhasil', message: result.message, type: 'success' });
-            navigate('/login');
+    // Cooldown timer for resend button
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [cooldown]);
+
+    const handleResendEmail = async () => {
+        setResendLoading(true);
+        try {
+            const response = await fetch(`${AppConfig.api.baseUrl}/auth/register/resend-verification`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ email: formData.email }),
+            });
+            const result = await response.json();
+            if (!response.ok || result.status !== 'success') {
+                throw new Error(result.message || 'Gagal mengirim ulang email.');
+            }
+            setCooldown(60);
+            modal.showAlert({ title: 'Terkirim!', message: result.message, type: 'success' });
+        } catch (err) {
+            modal.showAlert({ title: 'Gagal', message: err.message, type: 'error' });
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -245,24 +272,74 @@ const RegisterPage = () => {
                             {error && <p className="text-bpn-red text-sm mt-4 text-center">{error}</p>}
                             <div className="mt-6">
                                 <Button type="submit" fullWidth disabled={loading}>
-                                    {loading ? 'Memproses...' : 'Lanjutkan & Kirim OTP'}
+                                    {loading ? 'Memproses...' : 'Lanjutkan & Kirim Data'}
                                 </Button>
                             </div>
                         </form>
                     )}
 
                     {step === 2 && (
-                        <form onSubmit={handleVerifyOtp}>
-                            <p className="text-center text-gray-600 mb-4">Kami telah mengirimkan kode 6 digit ke <strong>{formData.email}</strong>. Silakan masukkan di bawah ini.</p>
-                            <Input name="otp_code" label="Kode OTP" value={formData.otp_code} onChange={handleChange} required />
-                            {error && <p className="text-bpn-red text-sm mt-4 text-center">{error}</p>}
-                            <div className="mt-6">
-                                <Button type="submit" fullWidth disabled={loading}>
-                                    {loading ? 'Memverifikasi...' : 'Verifikasi & Buat Akun'}
-                                </Button>
+                        <div className="text-center py-4">
+                            {/* Email Icon */}
+                            <div className="w-20 h-20 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                <svg className="w-10 h-10 text-bpn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
                             </div>
-                            <button type="button" onClick={() => setStep(1)} className="text-sm text-center w-full mt-4 text-gray-500 hover:text-black">Kembali</button>
-                        </form>
+
+                            <h2 className="text-xl font-bold text-gray-800 mb-2">Cek Email Anda</h2>
+                            <p className="text-gray-600 mb-2">
+                                Kami telah mengirimkan link verifikasi ke:
+                            </p>
+                            <p className="text-gray-800 font-semibold mb-4">{formData.email}</p>
+                            <p className="text-gray-500 text-sm mb-6">
+                                Silakan buka email Anda dan klik tombol <strong>"Verifikasi Email Saya"</strong> untuk mengaktifkan akun.
+                            </p>
+
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                                <p className="text-yellow-700 text-sm">
+                                    ⚠️ Link verifikasi berlaku selama <strong>10 menit</strong>. Jika tidak menemukan email, cek folder <strong>Spam</strong> atau <strong>Promotions</strong>.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const emailDomain = formData.email.split('@')[1];
+                                    const webmailUrls = {
+                                        'gmail.com': 'https://mail.google.com',
+                                        'yahoo.com': 'https://mail.yahoo.com',
+                                        'outlook.com': 'https://outlook.live.com',
+                                        'hotmail.com': 'https://outlook.live.com',
+                                    };
+                                    window.open(webmailUrls[emailDomain] || `https://${emailDomain}`, '_blank');
+                                }}
+                                className="w-full bg-bpn-blue text-white font-semibold py-3 rounded-xl hover:bg-bpn-blue/90 transition-colors"
+                            >
+                                Buka Email
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleResendEmail}
+                                disabled={resendLoading || cooldown > 0}
+                                className={`w-full mt-4 py-3 rounded-xl font-semibold text-sm transition-colors border ${cooldown > 0
+                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'bg-white text-bpn-blue border-bpn-blue hover:bg-blue-50'
+                                    }`}
+                            >
+                                {resendLoading
+                                    ? 'Mengirim...'
+                                    : cooldown > 0
+                                        ? `Kirim Ulang dalam ${cooldown}s`
+                                        : 'Kirim Ulang Email'
+                                }
+                            </button>
+
+                            <button type="button" onClick={() => setStep(1)} className="text-sm text-center w-full mt-4 text-gray-500 hover:text-black">
+                                Kembali
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div className="text-center mt-6">

@@ -130,13 +130,15 @@ class StaffController extends Controller
 
         DB::beginTransaction();
         try {
+            $temporaryPassword = 'Staff' . rand(1000, 9999);
+
             $staff = User::create([
                 'bank_id' => date('Ymd') . str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT),
                 'role_id' => $request->role_id,
                 'full_name' => $request->full_name,
                 'email' => $request->email,
-                'password_hash' => Hash::make('password123'), // Default password
-                'phone_number' => $request->phone_number ?: null,
+                'phone_number' => $request->input('phone_number') ?: null,
+                'password_hash' => Hash::make($temporaryPassword),
                 'status' => 'ACTIVE'
             ]);
 
@@ -151,7 +153,10 @@ class StaffController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Staf berhasil dibuat.',
-                'data' => $staff->fresh(['role', 'unit'])
+                'data' => array_merge(
+                    $staff->fresh(['role', 'unit'])->toArray(),
+                    ['temporary_password' => $temporaryPassword]
+                )
             ], 201);
 
         } catch (\Exception $e) {

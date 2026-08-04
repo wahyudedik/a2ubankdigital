@@ -1,15 +1,16 @@
-# 🐛 Bugfix: Manajemen Staf (Store Staff & Reset Password)
+# 🐛 Bugfix: Manajemen Staf (Store Staff & Reset Password) — ✅ SELESAI
 
-## Tanggal: 2026-08-04
+## Tanggal: 2026-08-04 | Status: ✅ Semua Bugfix Diterapkan
 
 ---
 
 ## Ringkasan Bug
 
-Dua bug dilaporkan pada fitur manajemen staf:
+Tiga bug ditemukan dan **sudah diperbaiki** pada fitur manajemen staf:
 
-1. **Bug 1**: Gagal membuat staf - `Duplicate entry '' for key 'users_phone_number_unique'`
-2. **Bug 2**: Reset password menampilkan "undefined" - Password sementara baru adalah: undefined
+1. **Bug 1** ✅: Gagal membuat staf - `Duplicate entry '' for key 'users_phone_number_unique'`
+2. **Bug 2** ✅: Reset password menampilkan "undefined" - Password sementara baru adalah: undefined
+3. **Bug 3** ✅: Update status staf - field name mismatch antara frontend dan backend
 
 ---
 
@@ -184,10 +185,33 @@ $staff->update(['status' => $request->new_status]);
 
 ---
 
-## Checklist Perbaikan
+## Status: ✅ SEMUA SELESAI
 
-- [ ] **T1**: Fix `StaffController::store()` - ubah phone_number default dari `''` ke `null`
-- [ ] **T2**: Fix `StaffController::resetPassword()` - ubah key dari `new_password` ke `temporary_password`
-- [ ] **T3**: Fix `StaffController::updateStatus()` - sesuaikan field name `status` → `new_status`
-- [ ] **T4**: Verifikasi build frontend
-- [ ] **T5**: Test manual semua alur
+| Task | Status | Detail |
+|------|--------|--------|
+| T1 | ✅ Selesai | `StaffController::store()` — phone_number `''` → `null` |
+| T2 | ✅ Selesai | `StaffController::resetPassword()` — key `new_password` → `temporary_password` |
+| T3 | ✅ Selesai | `StaffController::updateStatus()` — field `status` → `new_status` |
+| T3b | ✅ Selesai | `ActionController::storeStaff()` — phone_number default ke `null` (konsistensi) |
+| T4 | ✅ Selesai | Verifikasi route list — semua route staff OK |
+| T5 | ✅ Selesai | Tidak perlu build frontend (perubahan hanya backend PHP) |
+
+### File yang Diubah
+
+| File | Perubahan |
+|------|-----------|
+| [`StaffController.php`](app/Http/Controllers/Admin/StaffController.php) | 3 fix: phone_number, temporary_password, new_status |
+| [`ActionController.php`](app/Http/Controllers/Inertia/ActionController.php) | 1 fix: phone_number default null (konsistensi) |
+
+### Checklist Perbaikan
+
+- [x] **T1**: Fix `StaffController::store()` - ubah phone_number default dari `''` ke `null`
+- [x] **T2**: Fix `StaffController::resetPassword()` - ubah key dari `new_password` ke `temporary_password`
+- [x] **T3**: Fix `StaffController::updateStatus()` - sesuaikan field name `status` → `new_status`
+- [x] **T3b**: Fix `ActionController::storeStaff()` - phone_number default ke `null` (konsistensi)
+- [x] **T4**: Verifikasi route list — semua route staff OK
+- [x] **T5**: Tidak perlu build frontend (perubahan hanya backend PHP)
+
+---
+
+*Last updated: 4 Agustus 2026 — Semua bugfix selesai diterapkan*

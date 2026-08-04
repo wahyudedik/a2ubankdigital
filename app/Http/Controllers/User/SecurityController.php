@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SecurityController extends Controller
 {
@@ -118,7 +119,7 @@ class SecurityController extends Controller
             'is_used'    => false,
         ]);
 
-        $this->emailService->send(
+        $emailSent = $this->emailService->send(
             $user->email,
             $user->full_name,
             'Reset PIN Transaksi - Kode Verifikasi',
@@ -129,6 +130,13 @@ class SecurityController extends Controller
                 'preheader'  => 'Kode verifikasi untuk reset PIN transaksi Anda.',
             ]
         );
+
+        if (!$emailSent) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal mengirim email. Silakan coba lagi.',
+            ], 500);
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -244,9 +252,10 @@ class SecurityController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('PIN reset failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Gagal mereset PIN: ' . $e->getMessage(),
+                'message' => 'Gagal mereset PIN. Silakan coba lagi.',
             ], 500);
         }
     }
@@ -330,7 +339,7 @@ class SecurityController extends Controller
         if ($request->enable) {
             // Generate OTP for 2FA setup
             $otpCode = rand(100000, 999999);
-            
+
             UserOtp::create([
                 'user_id' => $user->id,
                 'otp_code' => $otpCode,

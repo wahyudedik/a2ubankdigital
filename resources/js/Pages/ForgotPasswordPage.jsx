@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import useNavigate from '@/hooks/useNavigate';
 import useApi from '@/hooks/useApi';
@@ -13,23 +13,53 @@ const ForgotPasswordPage = () => {
     const [otpCode, setOtpCode] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const { loading, error, callApi } = useApi();
+    const { loading, error, callApi, setError } = useApi();
     const modal = useModal();
     const navigate = useNavigate();
     const [step, setStep] = useState(1); // 1=email, 2=otp+password
+    const [resendLoading, setResendLoading] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
+
+    // Cooldown timer
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [cooldown]);
 
     const handleRequestOtp = async (e) => {
         e.preventDefault();
+        setError(null);
         const result = await callApi('auth_forgot_password_request.php', 'POST', { email });
         if (result && result.status === 'success') {
             setStep(2);
+            setCooldown(60);
         } else {
             modal.showAlert({ title: 'Error', message: error || 'Terjadi kesalahan.', type: 'warning' });
         }
     };
 
+    const handleResendOtp = async () => {
+        setResendLoading(true);
+        setError(null);
+        try {
+            const result = await callApi('auth_forgot_password_request.php', 'POST', { email });
+            if (result && result.status === 'success') {
+                setCooldown(60);
+                modal.showAlert({ title: 'Terkirim!', message: 'Kode verifikasi baru telah dikirim ke email Anda.', type: 'success' });
+            } else {
+                modal.showAlert({ title: 'Gagal', message: error || 'Gagal mengirim ulang kode.', type: 'warning' });
+            }
+        } catch {
+            modal.showAlert({ title: 'Gagal', message: 'Terjadi kesalahan saat mengirim ulang.', type: 'warning' });
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
     const handleResetPassword = async (e) => {
         e.preventDefault();
+        setError(null);
         if (newPassword !== confirmPassword) {
             modal.showAlert({ title: 'Error', message: 'Password baru dan konfirmasi tidak cocok.', type: 'warning' });
             return;
@@ -84,8 +114,18 @@ const ForgotPasswordPage = () => {
                                     {loading ? 'Menyimpan...' : 'Reset Password'}
                                 </Button>
                             </div>
-                            <button type="button" onClick={() => setStep(1)} className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 text-center">
-                                Kirim ulang kode
+                            <button
+                                type="button"
+                                onClick={handleResendOtp}
+                                disabled={resendLoading || cooldown > 0}
+                                className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 text-center disabled:text-gray-300 disabled:cursor-not-allowed"
+                            >
+                                {resendLoading
+                                    ? 'Mengirim ulang...'
+                                    : cooldown > 0
+                                        ? `Kirim ulang kode dalam ${cooldown}s`
+                                        : 'Kirim ulang kode'
+                                }
                             </button>
                         </form>
                     )}

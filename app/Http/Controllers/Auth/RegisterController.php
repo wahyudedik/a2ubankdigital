@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -381,9 +382,10 @@ class RegisterController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('OTP verification failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal memverifikasi OTP: ' . $e->getMessage()
+                'message' => 'Gagal memverifikasi. Silakan coba lagi.'
             ], 500);
         }
     }
@@ -413,7 +415,14 @@ class RegisterController extends Controller
         ]);
 
         // Send email
-        $this->emailService->sendPasswordReset($request->email, $user->full_name, $otpCode);
+        $emailSent = $this->emailService->sendPasswordReset($request->email, $user->full_name, $otpCode);
+
+        if (!$emailSent) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengirim email. Silakan coba lagi.'
+            ], 500);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -471,9 +480,10 @@ class RegisterController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Password reset failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal mereset password: ' . $e->getMessage()
+                'message' => 'Gagal mereset password. Silakan coba lagi.'
             ], 500);
         }
     }

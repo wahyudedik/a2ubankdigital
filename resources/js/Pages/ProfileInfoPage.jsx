@@ -3,7 +3,7 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { useModal } from '@/contexts/ModalContext.jsx';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, XCircle } from 'lucide-react';
 
 const DetailItem = ({ label, value }) => (
     <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
@@ -46,6 +46,34 @@ const ProfileInfoPage = () => {
                             <DetailItem label="Tanggal Lahir" value={profile.dob ? new Date(profile.dob).toLocaleDateString('id-ID') : '-'} />
                         </dl>
                     ) : <p>Gagal memuat data.</p>}
+                </div>
+            </div>
+
+            {/* KYC Status */}
+            <div className="bg-white rounded-lg shadow-md mb-6">
+                <div className="p-4 border-b"><h3 className="text-lg font-medium">Status Verifikasi KYC</h3></div>
+                <div className="p-4">
+                    {(() => {
+                        const status = profile?.kyc_status || 'PENDING';
+                        const statusMap = {
+                            PENDING: { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200', label: 'Menunggu Verifikasi' },
+                            VERIFIED: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 border-green-200', label: 'Terverifikasi' },
+                            REJECTED: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', label: 'Ditolak' },
+                        };
+                        const s = statusMap[status] || statusMap.PENDING;
+                        const Icon = s.icon;
+                        return (
+                            <div className="flex items-center justify-between">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${s.bg} ${s.color}`}>
+                                    <Icon className="w-4 h-4" />
+                                    {s.label}
+                                </span>
+                                <a href="/kyc-documents" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                                    {status === 'VERIFIED' ? 'Ganti Foto →' : 'Lihat Detail →'}
+                                </a>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
             <div className="bg-white rounded-lg shadow-md">

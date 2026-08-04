@@ -23,7 +23,7 @@ Route::get('/public-debug-audit', function() {
     try {
         $count = \App\Models\AuditLog::count();
         $latest = \App\Models\AuditLog::latest()->first();
-        
+
         return response()->json([
             'status' => 'success',
             'total_count' => $count,
@@ -168,6 +168,8 @@ Route::middleware(['web', 'auth:web', 'role:customer', 'throttle:120,1'])->prefi
     Route::get('/profile', [App\Http\Controllers\User\ProfileController::class, 'show']);
     Route::put('/profile', [App\Http\Controllers\User\ProfileController::class, 'update']);
     Route::post('/profile/picture', [App\Http\Controllers\User\ProfileController::class, 'updatePicture']);
+    // KYC Documents
+    Route::post('/kyc/update', [App\Http\Controllers\User\ProfileController::class, 'updateKycDocuments']);
     // Transactions
     Route::get('/transactions', [App\Http\Controllers\User\TransactionController::class, 'index']);
     Route::get('/transactions/{id}', [App\Http\Controllers\User\TransactionController::class, 'show']);
@@ -345,12 +347,12 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
             ->whereIn('li.status', ['PENDING', 'OVERDUE'])
             ->where(fn($query) => $query->where('u.full_name', 'like', "%{$q}%")->orWhere('u.bank_id', 'like', "%{$q}%"))
             ->select([
-                'li.id as installment_id', 
-                'u.full_name as customer_name', 
-                'lp.product_name', 
-                'li.installment_number', 
-                'li.due_date', 
-                'li.total_amount as amount_due', 
+                'li.id as installment_id',
+                'u.full_name as customer_name',
+                'lp.product_name',
+                'li.installment_number',
+                'li.due_date',
+                'li.total_amount as amount_due',
                 'li.late_fee as penalty_amount'
             ])
             ->limit(20)->get();
@@ -433,6 +435,9 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
     Route::post('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'store']);
     Route::put('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'update']);
     Route::put('/customers/{id}/status', [App\Http\Controllers\Admin\CustomerController::class, 'updateStatus']);
+    // KYC
+    Route::post('/customers/{id}/kyc', [App\Http\Controllers\Admin\CustomerController::class, 'updateKycDocuments']);
+    Route::put('/customers/{id}/kyc/review', [App\Http\Controllers\Admin\CustomerController::class, 'reviewKyc']);
     // Loans
     Route::post('/loans/inquiry', function(\Illuminate\Http\Request $request) {
         $request->validate(['loan_id' => 'required|integer|min:1']);
@@ -587,4 +592,31 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
             ->map(fn($a) => ['id' => $a->id, 'customer_name' => $a->user?->full_name, 'account_number' => $a->account_number, 'product_name' => $a->depositProduct?->product_name, 'balance' => (float)$a->balance, 'maturity_date' => $a->maturity_date, 'status' => $a->status]);
         return response()->json(['status' => 'success', 'data' => ['deposits' => $deposits, 'summary' => ['totalActiveBalance' => $deposits->sum('balance'), 'totalDeposits' => $deposits->count()]]]);
     });
+});
+
+// ==========================================
+// Personal Budgeting Routes - Customer Only
+// ==========================================
+Route::middleware(['web', 'auth:web', 'role:customer', 'throttle:120,1'])->prefix('user/expense')->group(function () {
+    // Categories
+    Route::get('/categories', [App\Http\Controllers\User\ExpenseController::class, 'getCategories']);
+    Route::post('/categories', [App\Http\Controllers\User\ExpenseController::class, 'createCategory']);
+    Route::put('/categories/{id}', [App\Http\Controllers\User\ExpenseController::class, 'updateCategory']);
+    Route::delete('/categories/{id}', [App\Http\Controllers\User\ExpenseController::class, 'deleteCategory']);
+
+    // Expense Records
+    Route::get('/records', [App\Http\Controllers\User\ExpenseController::class, 'getRecords']);
+    Route::post('/records', [App\Http\Controllers\User\ExpenseController::class, 'createRecord']);
+    Route::put('/records/{id}', [App\Http\Controllers\User\ExpenseController::class, 'updateRecord']);
+    Route::delete('/records/{id}', [App\Http\Controllers\User\ExpenseController::class, 'deleteRecord']);
+
+    // Budgets
+    Route::get('/budgets', [App\Http\Controllers\User\ExpenseController::class, 'getBudgets']);
+    Route::post('/budgets', [App\Http\Controllers\User\ExpenseController::class, 'setBudget']);
+    Route::delete('/budgets/{id}', [App\Http\Controllers\User\ExpenseController::class, 'deleteBudget']);
+
+    // Analytics
+    Route::get('/summary', [App\Http\Controllers\User\ExpenseController::class, 'getSummary']);
+    Route::get('/trend', [App\Http\Controllers\User\ExpenseController::class, 'getTrend']);
+    Route::get('/insights', [App\Http\Controllers\User\ExpenseController::class, 'getInsights']);
 });

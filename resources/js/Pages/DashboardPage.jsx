@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { CreditCard, Send, QrCode, Database, PiggyBank, Briefcase, Download, Upload, Receipt, ArrowDown, ArrowUp, TrendingUp, Eye, EyeOff } from 'lucide-react';
+import { CreditCard, Send, QrCode, Database, PiggyBank, Briefcase, Download, Upload, Receipt, ArrowDown, ArrowUp, TrendingUp, Eye, EyeOff, Wallet } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import Button from '@/components/ui/Button';
@@ -36,7 +36,8 @@ const DashboardPage = () => {
         { icon: <Download />, label: 'Isi Saldo', path: '/topup' }, { icon: <Upload />, label: 'Tarik Saldo', path: '/withdrawal' },
         { icon: <Send />, label: 'Transfer', path: '/transfer' }, { icon: <QrCode />, label: 'Bayar QR', path: '/payment' },
         { icon: <Receipt />, label: 'Bayar Tagihan', path: '/bills' }, { icon: <Database />, label: 'Deposito', path: '/deposits' },
-        { icon: <PiggyBank />, label: 'Pinjaman', path: '/my-loans' }, { icon: <TrendingUp />, label: 'Investasi', path: '/investments' }
+        { icon: <PiggyBank />, label: 'Pinjaman', path: '/my-loans' }, { icon: <TrendingUp />, label: 'Investasi', path: '/investments' },
+        { icon: <Wallet />, label: 'Budgeting', path: '/budgeting' }
     ];
 
     const chartData = {

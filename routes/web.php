@@ -80,6 +80,13 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/goal-savings', [UserPageController::class, 'goalSavings']);
     Route::get('/account-closure', [UserPageController::class, 'accountClosure']);
     Route::get('/ewallet', [UserPageController::class, 'ewallet']);
+    Route::get('/kyc-documents', [UserPageController::class, 'kycDocuments']);
+
+    // Personal Budgeting
+    Route::get('/budgeting', [UserPageController::class, 'budgeting']);
+    Route::get('/expense/records', [UserPageController::class, 'expenseRecords']);
+    Route::get('/expense/budgets', [UserPageController::class, 'budgetSetup']);
+    Route::get('/expense/analytics', [UserPageController::class, 'expenseAnalytics']);
 });
 
 /*

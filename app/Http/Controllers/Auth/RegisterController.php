@@ -14,6 +14,29 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Validasi dimensi minimum gambar KTP & selfie.
+ * KTP: minimum 600x400 px (agar NIK terbaca)
+ * Selfie: minimum 400x400 px (agar wajah terlihat)
+ */
+const KTP_MIN_WIDTH = 600;
+const KTP_MIN_HEIGHT = 400;
+const SELFIE_MIN_WIDTH = 400;
+const SELFIE_MIN_HEIGHT = 400;
+
+function validateImageDimensions(string $filePath, int $minWidth, int $minHeight, string $label): ?string
+{
+    $imageInfo = @getimagesize($filePath);
+    if ($imageInfo === false) {
+        return "File {$label} bukan gambar yang valid atau corrupt.";
+    }
+    [$width, $height] = $imageInfo;
+    if ($width < $minWidth || $height < $minHeight) {
+        return "Dimensi {$label} terlalu kecil. Minimal {$minWidth}x{$minHeight} px, saat ini {$width}x{$height} px.";
+    }
+    return null; // valid
+}
+
 class RegisterController extends Controller
 {
     protected $emailService;
@@ -49,6 +72,19 @@ class RegisterController extends Controller
             'ktp_image.max' => 'Ukuran foto KTP maksimal 2MB.',
             'selfie_image.max' => 'Ukuran foto selfie maksimal 2MB.',
         ]);
+
+        // Validasi dimensi gambar KTP & selfie
+        $ktpTempPath = $request->file('ktp_image')->getRealPath();
+        $selfieTempPath = $request->file('selfie_image')->getRealPath();
+
+        $ktpDimError = validateImageDimensions($ktpTempPath, KTP_MIN_WIDTH, KTP_MIN_HEIGHT, 'KTP');
+        if ($ktpDimError) {
+            return response()->json(['status' => 'error', 'message' => $ktpDimError], 422);
+        }
+        $selfieDimError = validateImageDimensions($selfieTempPath, SELFIE_MIN_WIDTH, SELFIE_MIN_HEIGHT, 'Selfie');
+        if ($selfieDimError) {
+            return response()->json(['status' => 'error', 'message' => $selfieDimError], 422);
+        }
 
         // Check duplicate NIK
         $existingProfile = CustomerProfile::where('nik', $request->nik)->first();
@@ -102,7 +138,7 @@ class RegisterController extends Controller
                 'address_ktp' => $request->address_ktp,
                 'ktp_image_path' => '/storage/' . $ktpPath,
                 'selfie_image_path' => '/storage/' . $selfiePath,
-                'kyc_status' => 'VERIFIED'
+                'kyc_status' => 'PENDING'
             ]);
 
             // Generate OTP
@@ -125,7 +161,7 @@ class RegisterController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             // Clean up uploaded files
             if (isset($ktpPath)) Storage::disk('public')->delete($ktpPath);
             if (isset($selfiePath)) Storage::disk('public')->delete($selfiePath);

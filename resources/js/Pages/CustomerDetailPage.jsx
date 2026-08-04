@@ -3,7 +3,8 @@ import { Link, usePage, router } from '@inertiajs/react';
 import useApi from '@/hooks/useApi.js';
 import { useModal } from '@/contexts/ModalContext.jsx';
 import { AppConfig } from '@/config/index.js';
-import { ArrowLeft, Edit, Landmark, PiggyBank, User, FileText, ChevronDown, Check, Clock, Camera, ShieldAlert, Scissors } from 'lucide-react';
+import axios from 'axios';
+import { ArrowLeft, Edit, Landmark, PiggyBank, User, FileText, ChevronDown, Check, Clock, Camera, ShieldAlert, Scissors, UploadCloud, CheckCircle, XCircle } from 'lucide-react';
 
 const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 const formatDate = (dateString) => {
@@ -107,6 +108,180 @@ const StatusActionCard = ({ customer, onStatusChange }) => {
     );
 };
 
+const KycReviewCard = ({ customer, onReviewComplete }) => {
+    const { loading: reviewLoading, callApi } = useApi();
+    const modal = useModal();
+    const [ktpFile, setKtpFile] = useState(null);
+    const [selfieFile, setSelfieFile] = useState(null);
+    const [reviewNotes, setReviewNotes] = useState('');
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const loading = reviewLoading || uploading;
+
+    const kycStatus = customer.kyc_status || 'PENDING';
+    const statusConfig = {
+        PENDING: { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200', label: 'Menunggu Verifikasi' },
+        VERIFIED: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 border-green-200', label: 'Terverifikasi' },
+        REJECTED: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', label: 'Ditolak' },
+    };
+    const sc = statusConfig[kycStatus] || statusConfig.PENDING;
+    const StatusIcon = sc.icon;
+
+    const handleReplacePhotos = async () => {
+        if (!ktpFile && !selfieFile) {
+            modal.showAlert({ title: 'Tidak Ada Perubahan', message: 'Pilih minimal satu foto untuk diganti.', type: 'warning' });
+            return;
+        }
+        const confirmed = await modal.showConfirmation({
+            title: 'Ganti Foto KYC?',
+            message: 'Foto yang dipilih akan mengganti foto KYC nasabah. Status akan berubah menjadi "Menunggu Verifikasi".',
+            confirmText: 'Ya, Ganti',
+        });
+        if (!confirmed) return;
+
+        setUploading(true);
+        try {
+            const formData = new FormData();
+            if (ktpFile) formData.append('ktp_image', ktpFile);
+            if (selfieFile) formData.append('selfie_image', selfieFile);
+
+            const response = await axios.post(`/ajax/admin/customers/${customer.id}/kyc`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+
+            if (response.data.status === 'success') {
+                modal.showAlert({ title: 'Berhasil', message: response.data.message, type: 'success' });
+                setKtpFile(null);
+                setSelfieFile(null);
+                onReviewComplete();
+            }
+        } catch (error) {
+            const message = error.response?.data?.message || 'Gagal mengganti foto KYC.';
+            modal.showAlert({ title: 'Gagal', message, type: 'error' });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleReview = async (status) => {
+        const actionText = status === 'VERIFIED' ? 'Setujui' : 'Tolak';
+        const confirmed = await modal.showConfirmation({
+            title: `${actionText} Verifikasi KYC?`,
+            message: `Anda akan ${actionText.toLowerCase()} dokumen KYC nasabah ${customer.full_name}.`,
+            confirmText: `Ya, ${actionText}`,
+        });
+        if (!confirmed) return;
+
+        const result = await callApi(`/admin/customers/${customer.id}/kyc/review`, 'PUT', {
+            kyc_status: status,
+            kyc_notes: reviewNotes || undefined,
+        });
+        if (result && result.status === 'success') {
+            modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' });
+            setShowReviewForm(false);
+            setReviewNotes('');
+            onReviewComplete();
+        } else {
+            modal.showAlert({ title: 'Gagal', message: result?.message || 'Gagal memproses review.', type: 'error' });
+        }
+    };
+
+    return (
+        <InfoCard title="Dokumen KYC" icon={<Camera size={20} />}>
+            <div className="space-y-4">
+                {/* Status Badge */}
+                <div className="flex items-center justify-between">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${sc.bg} ${sc.color}`}>
+                        <StatusIcon className="w-4 h-4" />
+                        {sc.label}
+                    </span>
+                    {customer.kyc_notes && kycStatus === 'REJECTED' && (
+                        <span className="text-xs text-red-600 max-w-[200px] truncate" title={customer.kyc_notes}>
+                            {customer.kyc_notes}
+                        </span>
+                    )}
+                </div>
+
+                {/* Current Photos */}
+                <KycImage label="Foto KTP" path={customer.ktp_image_path} />
+                <KycImage label="Foto Selfie" path={customer.selfie_image_path} />
+
+                {/* Admin: Replace Photos */}
+                <div className="border-t pt-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Ganti Foto (Admin)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <input ref={el => { if (el) el._onchange = (e) => setKtpFile(e.target.files?.[0] || null); }}
+                                type="file" accept="image/png, image/jpeg" className="hidden" id="admin-ktp-replace"
+                                onChange={(e) => setKtpFile(e.target.files?.[0] || null)} />
+                            <label htmlFor="admin-ktp-replace" className="cursor-pointer flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                                <UploadCloud className="w-4 h-4" />
+                                {ktpFile ? 'KTP Dipilih ✓' : 'Ganti KTP'}
+                            </label>
+                        </div>
+                        <div>
+                            <input type="file" accept="image/png, image/jpeg" className="hidden" id="admin-selfie-replace"
+                                onChange={(e) => setSelfieFile(e.target.files?.[0] || null)} />
+                            <label htmlFor="admin-selfie-replace" className="cursor-pointer flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                                <UploadCloud className="w-4 h-4" />
+                                {selfieFile ? 'Selfie Dipilih ✓' : 'Ganti Selfie'}
+                            </label>
+                        </div>
+                    </div>
+                    {(ktpFile || selfieFile) && (
+                        <button onClick={handleReplacePhotos} disabled={loading}
+                            className="mt-2 w-full py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                            {loading ? 'Mengirim...' : 'Simpan Foto Baru'}
+                        </button>
+                    )}
+                </div>
+
+                {/* Admin: Review KYC */}
+                {kycStatus === 'PENDING' && (
+                    <div className="border-t pt-4">
+                        {!showReviewForm ? (
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowReviewForm(true)}
+                                    className="flex-1 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 flex items-center justify-center gap-1">
+                                    <CheckCircle className="w-4 h-4" /> Setujui
+                                </button>
+                                <button onClick={() => { setShowReviewForm(true); setReviewNotes(''); }}
+                                    className="flex-1 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 flex items-center justify-center gap-1">
+                                    <XCircle className="w-4 h-4" /> Tolak
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <textarea
+                                    value={reviewNotes}
+                                    onChange={(e) => setReviewNotes(e.target.value)}
+                                    placeholder="Catatan review (opsional untuk setuju, wajib untuk tolak)..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    rows={3}
+                                />
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleReview('VERIFIED')} disabled={loading}
+                                        className="flex-1 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50">
+                                        {loading ? 'Memproses...' : 'Setujui'}
+                                    </button>
+                                    <button onClick={() => handleReview('REJECTED')} disabled={loading}
+                                        className="flex-1 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50">
+                                        {loading ? 'Memproses...' : 'Tolak'}
+                                    </button>
+                                    <button onClick={() => setShowReviewForm(false)}
+                                        className="py-2 px-4 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">
+                                        Batal
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </InfoCard>
+    );
+};
+
 function CustomerDetailPage() {
     const { customer: initialCustomer } = usePage().props;
     const { loading, callApi } = useApi();
@@ -187,12 +362,7 @@ function CustomerDetailPage() {
                         </dl>
                     </InfoCard>
 
-                    <InfoCard title="Dokumen KYC" icon={<Camera size={20} />}>
-                        <div className="space-y-4">
-                            <KycImage label="Foto KTP" path={customer.ktp_image_path} />
-                            <KycImage label="Foto Selfie" path={customer.selfie_image_path} />
-                        </div>
-                    </InfoCard>
+                    <KycReviewCard customer={customer} onReviewComplete={refreshCustomer} />
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">

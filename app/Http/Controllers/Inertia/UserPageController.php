@@ -134,6 +134,7 @@ class UserPageController extends Controller
                 'nik' => $user->customerProfile?->nik, 'mother_maiden_name' => $user->customerProfile?->mother_maiden_name,
                 'dob' => $user->customerProfile?->dob, 'address_domicile' => $user->customerProfile?->address_domicile,
                 'occupation' => $user->customerProfile?->occupation,
+                'kyc_status' => $user->customerProfile?->kyc_status ?? 'PENDING',
             ],
         ]);
     }
@@ -158,7 +159,7 @@ class UserPageController extends Controller
         $loan = Loan::where('user_id', Auth::id())->with(['loanProduct', 'installments'])->findOrFail($loanId);
         return Inertia::render('MyLoanDetailPage', [
             'loan' => [
-                'id' => $loan->id, 'product_name' => $loan->loanProduct?->product_name, 
+                'id' => $loan->id, 'product_name' => $loan->loanProduct?->product_name,
                 'loan_amount' => (float)$loan->loan_amount,
                 'monthly_installment' => (float)$loan->monthly_installment,
                 'total_interest' => (float)$loan->total_interest,
@@ -167,8 +168,8 @@ class UserPageController extends Controller
                 'disbursed_at' => $loan->disbursed_at,
                 'installments' => $loan->installments->map(fn($i) => [
                     'id' => $i->id, 'installment_number' => $i->installment_number, 'due_date' => $i->due_date,
-                    'amount_due' => (float)$i->total_amount, 
-                    'penalty_amount' => (float)$i->late_fee, 
+                    'amount_due' => (float)$i->total_amount,
+                    'penalty_amount' => (float)$i->late_fee,
                     'status' => $i->status,
                     'paid_at' => $i->paid_at,
                 ]),
@@ -281,4 +282,17 @@ class UserPageController extends Controller
     public function goalSavings() { return Inertia::render('GoalSavingsPage'); }
     public function accountClosure() { return Inertia::render('AccountClosurePage'); }
     public function ewallet() { return Inertia::render('EWalletPage'); }
+    public function kycDocuments()
+    {
+        $user = Auth::user()->load('customerProfile');
+        return Inertia::render('KycDocumentPage', [
+            'customerProfile' => $user->customerProfile,
+        ]);
+    }
+
+    // Personal Budgeting
+    public function budgeting() { return Inertia::render('BudgetingPage'); }
+    public function expenseRecords() { return Inertia::render('ExpenseListPage'); }
+    public function budgetSetup() { return Inertia::render('BudgetSetupPage'); }
+    public function expenseAnalytics() { return Inertia::render('ExpenseAnalyticsPage'); }
 }

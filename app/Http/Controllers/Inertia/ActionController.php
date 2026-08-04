@@ -19,6 +19,27 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Validasi dimensi minimum gambar KTP & selfie.
+ */
+const KTP_MIN_WIDTH = 600;
+const KTP_MIN_HEIGHT = 400;
+const SELFIE_MIN_WIDTH = 400;
+const SELFIE_MIN_HEIGHT = 400;
+
+function validateImageDimensions(string $filePath, int $minWidth, int $minHeight, string $label): ?string
+{
+    $imageInfo = @getimagesize($filePath);
+    if ($imageInfo === false) {
+        return "File {$label} bukan gambar yang valid atau corrupt.";
+    }
+    [$width, $height] = $imageInfo;
+    if ($width < $minWidth || $height < $minHeight) {
+        return "Dimensi {$label} terlalu kecil. Minimal {$minWidth}x{$minHeight} px, saat ini {$width}x{$height} px.";
+    }
+    return null;
+}
+
 class ActionController extends Controller
 {
     protected $notificationService;
@@ -48,6 +69,19 @@ class ActionController extends Controller
             'ktp_image.max'      => 'Ukuran foto KTP maksimal 2MB.',
             'selfie_image.max'   => 'Ukuran foto selfie maksimal 2MB.',
         ]);
+
+        // Validasi dimensi gambar KTP & selfie
+        $ktpTempPath = $request->file('ktp_image')->getRealPath();
+        $selfieTempPath = $request->file('selfie_image')->getRealPath();
+
+        $ktpDimError = validateImageDimensions($ktpTempPath, KTP_MIN_WIDTH, KTP_MIN_HEIGHT, 'KTP');
+        if ($ktpDimError) {
+            return back()->withErrors(['ktp_image' => $ktpDimError]);
+        }
+        $selfieDimError = validateImageDimensions($selfieTempPath, SELFIE_MIN_WIDTH, SELFIE_MIN_HEIGHT, 'Selfie');
+        if ($selfieDimError) {
+            return back()->withErrors(['selfie_image' => $selfieDimError]);
+        }
 
         // Check duplicate NIK
         if (CustomerProfile::where('nik', $request->nik)->exists()) {
@@ -95,7 +129,7 @@ class ActionController extends Controller
                 'address_ktp'        => $request->address_ktp,
                 'ktp_image_path'     => '/storage/' . $ktpPath,
                 'selfie_image_path'  => '/storage/' . $selfiePath,
-                'kyc_status'         => 'VERIFIED',
+                'kyc_status'         => 'PENDING',
             ]);
 
             // Generate unique account number
@@ -146,7 +180,7 @@ class ActionController extends Controller
         if ($request->status === 'REJECTED' && $request->rejection_reason) {
             $loan->update(['rejection_reason' => $request->rejection_reason]);
         }
-        
+
         // Send notification to customer
         if ($request->status === 'APPROVED') {
             $this->notificationService->notifyUser(
@@ -161,7 +195,7 @@ class ActionController extends Controller
                 'Pengajuan pinjaman Anda ditolak. Alasan: ' . ($request->rejection_reason ?? 'Tidak memenuhi syarat.')
             );
         }
-        
+
         return back()->with('success', 'Status pinjaman berhasil diperbarui.');
     }
 
@@ -187,14 +221,14 @@ class ActionController extends Controller
             if ($loan->installments()->count() === 0) {
                 $this->generateInstallments($loan);
             }
-            
+
             // Send notification to customer
             $this->notificationService->notifyUser(
                 $loan->user_id,
                 'Pinjaman Dicairkan',
                 'Dana pinjaman sebesar Rp ' . number_format($loan->loan_amount, 0, ',', '.') . ' telah dicairkan ke rekening Anda.'
             );
-            
+
             DB::commit();
             return back()->with('success', 'Pinjaman berhasil dicairkan.');
         } catch (\Exception $e) {
@@ -336,7 +370,7 @@ class ActionController extends Controller
         $bankId = 'NIP-' . now()->format('Ym') . '-' . rand(100000, 999999);
         User::create([
             'bank_id' => $bankId, 'role_id' => $request->role_id, 'full_name' => $request->full_name,
-            'email' => $request->email, 'phone_number' => $request->phone_number ?? '0000000000',
+            'email' => $request->email, 'phone_number' => $request->phone_number ?: null,
             'password_hash' => bcrypt($tempPassword), 'status' => 'ACTIVE',
         ]);
         return back()->with('success', "Staf berhasil dibuat. Password sementara: {$tempPassword}");
@@ -368,12 +402,12 @@ class ActionController extends Controller
             'unit_type' => 'required|in:KANTOR_CABANG,KANTOR_KAS',
             'parent_id' => 'nullable|exists:units,id',
         ]);
-        
+
         // Validate unit type rules
         if ($request->unit_type === 'KANTOR_KAS' && empty($request->parent_id)) {
             return back()->withErrors(['parent_id' => 'Kantor Kas harus berada di bawah sebuah Kantor Cabang.']);
         }
-        
+
         DB::table('units')->insert([
             'unit_name' => $request->unit_name,
             'unit_code' => strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $request->unit_name), 0, 5)) . '-' . rand(10, 99),
@@ -403,12 +437,12 @@ class ActionController extends Controller
     public function deleteUnit($id)
     {
         $user = Auth::user();
-        
+
         // Only Super Admin can delete units
         if ($user->role_id !== 1) {
             return back()->withErrors(['error' => 'Akses ditolak.']);
         }
-        
+
         DB::table('units')->where('id', $id)->delete();
         return back()->with('success', 'Unit berhasil dihapus.');
     }

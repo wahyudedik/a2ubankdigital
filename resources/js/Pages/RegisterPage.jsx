@@ -6,9 +6,30 @@ import { useModal } from '@/contexts/ModalContext.jsx';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { AppConfig } from '@/config';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, Info } from 'lucide-react';
 
-const ImageUpload = ({ label, name, required, onChange, previewSrc }) => (
+const KTP_MIN_WIDTH = 600;
+const KTP_MIN_HEIGHT = 400;
+const SELFIE_MIN_WIDTH = 400;
+const SELFIE_MIN_HEIGHT = 400;
+
+const validateImageDimensions = (file, minWidth, minHeight) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(img.width >= minWidth && img.height >= minHeight);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(false);
+        };
+        img.src = url;
+    });
+};
+
+const ImageUpload = ({ label, name, required, onChange, previewSrc, guide = [] }) => (
     <div className="md:col-span-2">
         <label className="block mb-2 text-sm font-medium text-gray-700">{label} {required && <span className="text-red-500">*</span>}</label>
         <div className="mt-1 flex items-center gap-4">
@@ -24,7 +45,19 @@ const ImageUpload = ({ label, name, required, onChange, previewSrc }) => (
                 <input id={name} name={name} type="file" className="sr-only" onChange={onChange} accept="image/png, image/jpeg" required={required} />
             </label>
         </div>
-        <p className="text-xs text-gray-500 mt-1">PNG atau JPG, maks 2MB.</p>
+        <p className="text-xs text-gray-500 mt-1">PNG atau JPG, maks 2MB, minimal resolusi {name === 'ktp_image' ? '600×400' : '400×400'} px.</p>
+        {guide.length > 0 && (
+            <div className="mt-2 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-blue-800 space-y-0.5">
+                        {guide.map((tip, i) => (
+                            <p key={i}>• {tip}</p>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
 );
 
@@ -73,18 +106,35 @@ const RegisterPage = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFileChange = (e, fileType) => {
+    const handleFileChange = async (e, fileType) => {
         const file = e.target.files[0];
-        if (file && file.size < 2097152) { // 2MB
-            if (fileType === 'ktp') {
-                setKtpImage(file);
-                setKtpPreview(URL.createObjectURL(file));
-            } else {
-                setSelfieImage(file);
-                setSelfiePreview(URL.createObjectURL(file));
-            }
-        } else if (file) {
+        if (!file) return;
+
+        if (file.size >= 2097152) { // 2MB
             modal.showAlert({ title: 'Ukuran File Terlalu Besar', message: 'Ukuran file maksimal adalah 2MB.', type: 'warning' });
+            return;
+        }
+
+        const minWidth = fileType === 'ktp' ? KTP_MIN_WIDTH : SELFIE_MIN_WIDTH;
+        const minHeight = fileType === 'ktp' ? KTP_MIN_HEIGHT : SELFIE_MIN_HEIGHT;
+        const label = fileType === 'ktp' ? 'KTP' : 'Swafoto';
+
+        const valid = await validateImageDimensions(file, minWidth, minHeight);
+        if (!valid) {
+            modal.showAlert({
+                title: 'Resolusi Terlalu Rendah',
+                message: `Dimensi foto ${label} minimal ${minWidth}×${minHeight} px. Pastikan foto diambil dengan resolusi tinggi dan tidak terpotong.`,
+                type: 'error'
+            });
+            return;
+        }
+
+        if (fileType === 'ktp') {
+            setKtpImage(file);
+            setKtpPreview(URL.createObjectURL(file));
+        } else {
+            setSelfieImage(file);
+            setSelfiePreview(URL.createObjectURL(file));
         }
     };
 
@@ -163,8 +213,22 @@ const RegisterPage = () => {
                                     <Input name="address_ktp" label="Alamat Sesuai KTP" value={formData.address_ktp} onChange={handleChange} required />
                                 </div>
 
-                                <ImageUpload name="ktp_image" label="Foto KTP" required onChange={(e) => handleFileChange(e, 'ktp')} previewSrc={ktpPreview} />
-                                <ImageUpload name="selfie_image" label="Foto Selfie dengan KTP" required onChange={(e) => handleFileChange(e, 'selfie')} previewSrc={selfiePreview} />
+                                <ImageUpload name="ktp_image" label="Foto KTP" required onChange={(e) => handleFileChange(e, 'ktp')} previewSrc={ktpPreview}
+                                    guide={[
+                                        'Foto KTP harus jelas dan terbaca',
+                                        'Seluruh KTP terlihat dalam satu frame',
+                                        'Minimal 600×400 px, format JPG/PNG, maks 2MB',
+                                        'Tidak buram, tidak terpotong, pencahayaan cukup',
+                                    ]}
+                                />
+                                <ImageUpload name="selfie_image" label="Foto Selfie dengan KTP" required onChange={(e) => handleFileChange(e, 'selfie')} previewSrc={selfiePreview}
+                                    guide={[
+                                        'Wajah dan KTP terlihat jelas dalam satu frame',
+                                        'Wajah menghadap kamera, tidak blur',
+                                        'Minimal 400×400 px, format JPG/PNG, maks 2MB',
+                                        'Pencahayaan cukup, tidak gelap',
+                                    ]}
+                                />
 
                                 <div className="md:col-span-2">
                                     <label htmlFor="unit_id" className="block mb-2 text-sm font-medium text-gray-700">Pilih Unit/Cabang Terdekat</label>

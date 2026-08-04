@@ -48,36 +48,37 @@ const ProfilePage = () => {
                 'Content-Type': 'multipart/form-data'
             }
         })
-        .then((response) => {
-            if (response.data && response.data.status === 'success') {
-                modal.showAlert({
-                    title: "Berhasil",
-                    message: "Foto profil berhasil diperbarui.",
-                    type: "success"
-                });
-                router.reload({ only: ['auth'] });
-            } else {
+            .then((response) => {
+                if (response.data && response.data.status === 'success') {
+                    modal.showAlert({
+                        title: "Berhasil",
+                        message: "Foto profil berhasil diperbarui.",
+                        type: "success"
+                    });
+                    router.reload({ only: ['auth'] });
+                } else {
+                    modal.showAlert({
+                        title: "Gagal",
+                        message: response.data?.message || "Gagal memperbarui foto profil.",
+                        type: "error"
+                    });
+                }
+            })
+            .catch((error) => {
+                const errorMsg = error.response?.data?.errors?.profile_picture?.[0]
+                    || error.response?.data?.message
+                    || "Gagal memperbarui foto profil.";
                 modal.showAlert({
                     title: "Gagal",
-                    message: response.data?.message || "Gagal memperbarui foto profil.",
+                    message: errorMsg,
                     type: "error"
                 });
-            }
-        })
-        .catch((error) => {
-            const errorMsg = error.response?.data?.errors?.profile_picture?.[0]
-                || error.response?.data?.message 
-                || "Gagal memperbarui foto profil.";
-            modal.showAlert({
-                title: "Gagal",
-                message: errorMsg,
-                type: "error"
             });
-        });
     };
 
     const menuItems = [
         { icon: <User />, text: 'Informasi Pribadi', path: '/profile/info' },
+        { icon: <Camera />, text: 'Dokumen KYC', path: '/kyc-documents' },
         { icon: <CreditCard />, text: 'Manajemen Kartu', path: '/profile/cards' },
         { icon: <Banknote />, text: 'Rekening Penarikan', path: '/profile/withdrawal-accounts' },
         { icon: <Users />, text: 'Daftar Penerima', path: '/profile/beneficiaries' },
@@ -142,9 +143,9 @@ const ProfilePage = () => {
             <div className="flex flex-col items-center mb-8">
                 <div className="relative mb-4 group">
                     {user.profile_picture_path ? (
-                        <img 
-                            src={user.profile_picture_path} 
-                            alt={user.fullName} 
+                        <img
+                            src={user.profile_picture_path}
+                            alt={user.fullName}
                             className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                         />
                     ) : (
@@ -154,11 +155,11 @@ const ProfilePage = () => {
                     )}
                     <label className="absolute bottom-0 right-0 bg-bpn-blue hover:bg-bpn-blue-dark text-white p-2 rounded-full cursor-pointer shadow-md hover:scale-110 transition-all duration-200">
                         <Camera className="w-4 h-4" />
-                        <input 
-                            type="file" 
-                            accept="image/png, image/jpeg, image/jpg" 
-                            className="hidden" 
-                            onChange={handlePictureChange} 
+                        <input
+                            type="file"
+                            accept="image/png, image/jpeg, image/jpg"
+                            className="hidden"
+                            onChange={handlePictureChange}
                         />
                     </label>
                 </div>

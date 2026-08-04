@@ -7,6 +7,7 @@ use App\Models\Card;
 use App\Models\Transaction;
 use App\Models\Account;
 use App\Services\EmailService;
+use App\Services\ExpenseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +16,12 @@ use Illuminate\Support\Facades\DB;
 class TransactionController extends Controller
 {
     protected $emailService;
+    protected $expenseService;
 
-    public function __construct(EmailService $emailService)
+    public function __construct(EmailService $emailService, ExpenseService $expenseService)
     {
         $this->emailService = $emailService;
+        $this->expenseService = $expenseService;
     }
 
     public function index(Request $request): JsonResponse
@@ -237,6 +240,14 @@ class TransactionController extends Controller
             $destinationAccount->increment('balance', $amount);
 
             DB::commit();
+
+            // Auto-import as expense record for budgeting
+            try {
+                $this->expenseService->autoImportTransaction($transaction);
+            } catch (\Exception $e) {
+                // Silently fail - budgeting is optional
+                report($e);
+            }
 
             // Send email notifications (non-blocking)
             try {

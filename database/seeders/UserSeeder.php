@@ -9,12 +9,13 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create users using Laravel User model (bawaan Laravel) 
+        // Create users using Laravel User model (bawaan Laravel)
         $users = [
             [
                 'id' => 78,
                 'bank_id' => 'NIP-1212230000421',
                 'role_id' => 1, // Super Admin
+                'unit_id' => null, // Super Admin: bypass semua filter unit
                 'full_name' => 'Super Administrator',
                 'email' => 'admin@a2ubank.com',
                 'phone_number' => '089676000378',
@@ -31,6 +32,7 @@ class UserSeeder extends Seeder
                 'id' => 79,
                 'bank_id' => 'NIP-202602-973726',
                 'role_id' => 5, // Teller
+                'unit_id' => 3, // Unit Layanan Jakarta 1
                 'full_name' => 'Novita Anisa',
                 'email' => 'teller@a2ubank.com',
                 'phone_number' => '081234567890',
@@ -47,6 +49,7 @@ class UserSeeder extends Seeder
                 'id' => 80,
                 'bank_id' => 'NIP-202603-100002',
                 'role_id' => 2, // Kepala Cabang
+                'unit_id' => 2, // Cabang Jakarta (bisa akses cabang + semua sub-unit)
                 'full_name' => 'Budi Santoso',
                 'email' => 'kacab@a2ubank.com',
                 'phone_number' => '081200000002',
@@ -63,6 +66,7 @@ class UserSeeder extends Seeder
                 'id' => 81,
                 'bank_id' => 'NIP-202603-100003',
                 'role_id' => 3, // Kepala Unit
+                'unit_id' => 3, // Unit Layanan Jakarta 1
                 'full_name' => 'Siti Rahayu',
                 'email' => 'kaunit@a2ubank.com',
                 'phone_number' => '081200000003',
@@ -79,6 +83,7 @@ class UserSeeder extends Seeder
                 'id' => 82,
                 'bank_id' => 'NIP-202603-100004',
                 'role_id' => 4, // Marketing
+                'unit_id' => 3, // Unit Layanan Jakarta 1
                 'full_name' => 'Dian Permata',
                 'email' => 'marketing@a2ubank.com',
                 'phone_number' => '081200000004',
@@ -95,6 +100,7 @@ class UserSeeder extends Seeder
                 'id' => 83,
                 'bank_id' => 'NIP-202603-100006',
                 'role_id' => 6, // Customer Service
+                'unit_id' => 3, // Unit Layanan Jakarta 1
                 'full_name' => 'Rina Wulandari',
                 'email' => 'cs@a2ubank.com',
                 'phone_number' => '081200000006',
@@ -111,6 +117,7 @@ class UserSeeder extends Seeder
                 'id' => 84,
                 'bank_id' => 'NIP-202603-100007',
                 'role_id' => 7, // Analis Kredit
+                'unit_id' => 3, // Unit Layanan Jakarta 1
                 'full_name' => 'Hendra Wijaya',
                 'email' => 'analis@a2ubank.com',
                 'phone_number' => '081200000007',
@@ -127,6 +134,7 @@ class UserSeeder extends Seeder
                 'id' => 76,
                 'bank_id' => 'NIP-202603-100008',
                 'role_id' => 8, // Debt Collector
+                'unit_id' => 3, // Unit Layanan Jakarta 1
                 'full_name' => 'Agus Firmansyah',
                 'email' => 'collector@a2ubank.com',
                 'phone_number' => '081200000008',

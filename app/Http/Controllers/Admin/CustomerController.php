@@ -6,17 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\CustomerProfile;
 use App\Models\Account;
+use App\Models\Role;
 use App\Models\Transaction;
 use App\Services\LogService;
 use App\Services\NotificationService;
+use App\Traits\UnitAccessTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
+    use UnitAccessTrait;
+
     protected $logService;
     protected $notificationService;
 
@@ -28,7 +33,7 @@ class CustomerController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
+
         // Only staff can access
         if ($user->role_id == 9) {
             return response()->json([
@@ -53,21 +58,21 @@ class CustomerController extends Controller
             ->where('role_id', 9); // Only customers
 
         // Data scoping - filter by accessible units
-        if ($user->role_id !== 1) { // Not super admin
-            $accessibleUnitIds = $this->getAccessibleUnitIds($user);
-            
-            if (empty($accessibleUnitIds)) {
-                return response()->json([
-                    'status' => 'success',
-                    'data' => [],
-                    'pagination' => [
-                        'current_page' => 1,
-                        'total_pages' => 0,
-                        'total_records' => 0
-                    ]
-                ]);
-            }
+        $accessibleUnitIds = $this->getAccessibleUnitIds($user);
 
+        if ($accessibleUnitIds === null) {
+            // Super Admin - no filter
+        } elseif (empty($accessibleUnitIds)) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'total_pages' => 0,
+                    'total_records' => 0
+                ]
+            ]);
+        } else {
             $query->whereHas('customerProfile', function($q) use ($accessibleUnitIds) {
                 $q->whereIn('unit_id', $accessibleUnitIds);
             });
@@ -106,6 +111,16 @@ class CustomerController extends Controller
 
     public function show($id): JsonResponse
     {
+        $user = Auth::user();
+
+        // Unit access check
+        if (!$this->canAccessCustomer($user, (int) $id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+            ], 403);
+        }
+
         $customer = User::with(['customerProfile', 'accounts', 'loans'])
             ->where('role_id', 9)
             ->findOrFail($id);
@@ -142,8 +157,8 @@ class CustomerController extends Controller
 
         // Check unit accessibility for non-super-admin
         $adminUser = Auth::user();
-        if ($adminUser->role_id !== 1) {
-            $accessibleUnitIds = $this->getAccessibleUnitIds($adminUser);
+        $accessibleUnitIds = $this->getAccessibleUnitIds($adminUser);
+        if ($accessibleUnitIds !== null) {
             if (!in_array($request->unit_id, $accessibleUnitIds)) {
                 return response()->json([
                     'status' => 'error',
@@ -165,7 +180,7 @@ class CustomerController extends Controller
         try {
             // Generate unique bank_id (NIP format)
             $bankId = $this->generateBankId();
-            
+
             // Create user with default password
             $user = User::create([
                 'bank_id' => $bankId,
@@ -192,14 +207,14 @@ class CustomerController extends Controller
                 'dob' => $request->dob,
                 'gender' => $gender,
                 'address_ktp' => $request->address_ktp,
-                'kyc_status' => 'VERIFIED'
+                'kyc_status' => 'PENDING'
             ]);
 
             // Create savings account with unique account number
             do {
                 $accountNumber = '1100' . str_pad($user->id, 6, '0', STR_PAD_LEFT) . rand(100, 999);
             } while (Account::where('account_number', $accountNumber)->exists());
-            
+
             Account::create([
                 'user_id' => $user->id,
                 'account_number' => $accountNumber,
@@ -232,6 +247,16 @@ class CustomerController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $user = Auth::user();
+
+        // Unit access check
+        if (!$this->canAccessCustomer($user, (int) $id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+            ], 403);
+        }
+
         $request->validate([
             'full_name' => 'sometimes|string|max:255',
             'phone_number' => 'sometimes|string',
@@ -271,6 +296,16 @@ class CustomerController extends Controller
 
     public function updateStatus(Request $request, $id): JsonResponse
     {
+        $user = Auth::user();
+
+        // Unit access check
+        if (!$this->canAccessCustomer($user, (int) $id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+            ], 403);
+        }
+
         $request->validate([
             'status' => 'required|in:ACTIVE,BLOCKED,SUSPENDED'
         ]);
@@ -302,39 +337,6 @@ class CustomerController extends Controller
         ]);
     }
 
-    private function getAccessibleUnitIds($user): array
-    {
-        if (!$user->unit_id) {
-            return [];
-        }
-
-        // Start with the user's own unit
-        $unitIds = [$user->unit_id];
-
-        // Recursively collect all descendant unit IDs
-        $this->collectChildUnitIds($user->unit_id, $unitIds);
-
-        return $unitIds;
-    }
-
-    /**
-     * Recursively collect all child unit IDs for a given parent unit ID.
-     */
-    private function collectChildUnitIds(int $parentUnitId, array &$unitIds): void
-    {
-        $childIds = \DB::table('units')
-            ->where('parent_id', $parentUnitId)
-            ->pluck('id')
-            ->toArray();
-
-        foreach ($childIds as $childId) {
-            if (!in_array($childId, $unitIds)) {
-                $unitIds[] = $childId;
-                $this->collectChildUnitIds($childId, $unitIds);
-            }
-        }
-    }
-
     /**
      * Process account closure request
      */
@@ -348,7 +350,7 @@ class CustomerController extends Controller
             ]);
 
             $admin = Auth::user();
-            
+
             // Get closure request
             $closureRequest = DB::table('account_closure_requests')
                 ->where('id', $requestId)
@@ -362,13 +364,23 @@ class CustomerController extends Controller
                 ], 404);
             }
 
-            $user = User::find($closureRequest->user_id);
-            if (!$user) {
+            $customerUser = User::find($closureRequest->user_id);
+            if (!$customerUser) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
+
+            // Unit access check
+            if (!$this->canAccessCustomer($admin, $closureRequest->user_id)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+                ], 403);
+            }
+
+            $user = $customerUser;
 
             DB::beginTransaction();
 
@@ -414,7 +426,7 @@ class CustomerController extends Controller
 
                 $status = 'approved';
                 $message = 'Account closure approved and processed successfully';
-                
+
                 // Notify user
                 $this->notificationService->notify(
                     $user->id,
@@ -427,7 +439,7 @@ class CustomerController extends Controller
                 // Reject closure request
                 $status = 'rejected';
                 $message = 'Account closure request rejected';
-                
+
                 // Notify user
                 $this->notificationService->notify(
                     $user->id,
@@ -475,7 +487,7 @@ class CustomerController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             $this->logService->log(
                 'account_closure_process_failed',
                 'Account closure processing failed: ' . $e->getMessage(),
@@ -503,7 +515,7 @@ class CustomerController extends Controller
             ]);
 
             $admin = Auth::user();
-            
+
             // Get credit limit request
             $limitRequest = DB::table('credit_limit_requests')
                 ->where('id', $requestId)
@@ -517,13 +529,23 @@ class CustomerController extends Controller
                 ], 404);
             }
 
-            $user = User::find($limitRequest->user_id);
-            if (!$user) {
+            $customerUser = User::find($limitRequest->user_id);
+            if (!$customerUser) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'User not found'
                 ], 404);
             }
+
+            // Unit access check
+            if (!$this->canAccessCustomer($admin, $limitRequest->user_id)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+                ], 403);
+            }
+
+            $user = $customerUser;
 
             DB::beginTransaction();
 
@@ -545,7 +567,7 @@ class CustomerController extends Controller
 
                 $status = 'approved';
                 $message = 'Credit limit increase approved successfully';
-                
+
                 // Notify user
                 $this->notificationService->notify(
                     $user->id,
@@ -558,7 +580,7 @@ class CustomerController extends Controller
                 // Reject request
                 $status = 'rejected';
                 $message = 'Credit limit request rejected';
-                
+
                 // Notify user
                 $this->notificationService->notify(
                     $user->id,
@@ -610,7 +632,7 @@ class CustomerController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             $this->logService->log(
                 'credit_limit_process_failed',
                 'Credit limit processing failed: ' . $e->getMessage(),
@@ -630,17 +652,29 @@ class CustomerController extends Controller
     public function getPendingAccountClosures()
     {
         try {
-            $requests = DB::table('account_closure_requests')
+            $user = Auth::user();
+            $accessibleUnitIds = $this->getAccessibleUnitIds($user);
+
+            $query = DB::table('account_closure_requests')
                 ->join('users', 'account_closure_requests.user_id', '=', 'users.id')
+                ->join('customer_profiles', 'users.id', '=', 'customer_profiles.user_id')
                 ->select(
                     'account_closure_requests.*',
                     'users.full_name as user_name',
                     'users.email as user_email',
                     'users.phone_number as user_phone'
                 )
-                ->where('account_closure_requests.status', 'pending')
-                ->orderBy('account_closure_requests.created_at', 'desc')
-                ->get();
+                ->where('account_closure_requests.status', 'pending');
+
+            // Unit filtering
+            if ($accessibleUnitIds !== null) {
+                if (empty($accessibleUnitIds)) {
+                    return response()->json(['status' => 'success', 'data' => []]);
+                }
+                $query->whereIn('customer_profiles.unit_id', $accessibleUnitIds);
+            }
+
+            $requests = $query->orderBy('account_closure_requests.created_at', 'desc')->get();
 
             return response()->json([
                 'status' => 'success',
@@ -661,18 +695,30 @@ class CustomerController extends Controller
     public function getPendingCreditLimitRequests()
     {
         try {
-            $requests = DB::table('credit_limit_requests')
+            $user = Auth::user();
+            $accessibleUnitIds = $this->getAccessibleUnitIds($user);
+
+            $query = DB::table('credit_limit_requests')
                 ->join('users', 'credit_limit_requests.user_id', '=', 'users.id')
                 ->join('accounts', 'users.id', '=', 'accounts.user_id')
+                ->join('customer_profiles', 'users.id', '=', 'customer_profiles.user_id')
                 ->select(
                     'credit_limit_requests.*',
                     'users.full_name as user_name',
                     'users.email as user_email',
                     'accounts.balance as current_balance'
                 )
-                ->where('credit_limit_requests.status', 'pending')
-                ->orderBy('credit_limit_requests.created_at', 'desc')
-                ->get();
+                ->where('credit_limit_requests.status', 'pending');
+
+            // Unit filtering
+            if ($accessibleUnitIds !== null) {
+                if (empty($accessibleUnitIds)) {
+                    return response()->json(['status' => 'success', 'data' => []]);
+                }
+                $query->whereIn('customer_profiles.unit_id', $accessibleUnitIds);
+            }
+
+            $requests = $query->orderBy('credit_limit_requests.created_at', 'desc')->get();
 
             return response()->json([
                 'status' => 'success',
@@ -695,11 +741,226 @@ class CustomerController extends Controller
         do {
             // Format: YYYYMMDD + 4 random digits
             $bankId = date('Ymd') . str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-            
+
             // Check if already exists
             $exists = User::where('bank_id', $bankId)->exists();
         } while ($exists);
 
         return $bankId;
+    }
+
+    /**
+     * Admin mengganti dokumen KYC nasabah (KTP & Selfie).
+     */
+    public function updateKycDocuments(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'ktp_image' => 'required_without:selfie_image|image|mimes:jpg,jpeg,png|max:2048',
+            'selfie_image' => 'required_without:ktp_image|image|mimes:jpg,jpeg,png|max:2048',
+            'kyc_status' => 'sometimes|in:VERIFIED,REJECTED,PENDING',
+            'kyc_notes' => 'sometimes|nullable|string|max:500',
+        ], [
+            'ktp_image.required_without' => 'Minimal satu dokumen (KTP atau Selfie) harus diupload.',
+            'selfie_image.required_without' => 'Minimal satu dokumen (KTP atau Selfie) harus diupload.',
+            'ktp_image.max' => 'Ukuran foto KTP maksimal 2MB.',
+            'selfie_image.max' => 'Ukuran foto selfie maksimal 2MB.',
+            'kyc_status.in' => 'Status KYC tidak valid.',
+        ]);
+
+        $user = Auth::user();
+
+        // Unit access check
+        if (!$this->canAccessCustomer($user, (int) $id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+            ], 403);
+        }
+
+        $customer = User::where('role_id', 9)->with('customerProfile')->findOrFail($id);
+        $profile = $customer->customerProfile;
+
+        if (!$profile) {
+            return response()->json(['status' => 'error', 'message' => 'Profil nasabah tidak ditemukan.'], 404);
+        }
+
+        // Validasi dimensi gambar
+        if ($request->hasFile('ktp_image')) {
+            $ktpTempPath = $request->file('ktp_image')->getRealPath();
+            $imageInfo = @getimagesize($ktpTempPath);
+            if ($imageInfo === false) {
+                return response()->json(['status' => 'error', 'message' => 'File KTP bukan gambar yang valid atau corrupt.'], 422);
+            }
+            [$width, $height] = $imageInfo;
+            if ($width < 600 || $height < 400) {
+                return response()->json(['status' => 'error', 'message' => "Dimensi KTP terlalu kecil. Minimal 600x400 px, saat ini {$width}x{$height} px."], 422);
+            }
+        }
+
+        if ($request->hasFile('selfie_image')) {
+            $selfieTempPath = $request->file('selfie_image')->getRealPath();
+            $imageInfo = @getimagesize($selfieTempPath);
+            if ($imageInfo === false) {
+                return response()->json(['status' => 'error', 'message' => 'File Selfie bukan gambar yang valid atau corrupt.'], 422);
+            }
+            [$width, $height] = $imageInfo;
+            if ($width < 400 || $height < 400) {
+                return response()->json(['status' => 'error', 'message' => "Dimensi Selfie terlalu kecil. Minimal 400x400 px, saat ini {$width}x{$height} px."], 422);
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            $nikSanitized = preg_replace('/[^a-zA-Z0-9]/', '', $profile->nik);
+
+            // Upload KTP baru jika ada
+            if ($request->hasFile('ktp_image')) {
+                if ($profile->ktp_image_path) {
+                    Storage::disk('public')->delete(str_replace('/storage/', '', $profile->ktp_image_path));
+                }
+                $ktpPath = $request->file('ktp_image')->storeAs(
+                    'documents',
+                    $nikSanitized . '_ktp_image_' . time() . '.' . $request->file('ktp_image')->extension(),
+                    'public'
+                );
+                $profile->ktp_image_path = '/storage/' . $ktpPath;
+            }
+
+            // Upload Selfie baru jika ada
+            if ($request->hasFile('selfie_image')) {
+                if ($profile->selfie_image_path) {
+                    Storage::disk('public')->delete(str_replace('/storage/', '', $profile->selfie_image_path));
+                }
+                $selfiePath = $request->file('selfie_image')->storeAs(
+                    'documents',
+                    $nikSanitized . '_selfie_image_' . time() . '.' . $request->file('selfie_image')->extension(),
+                    'public'
+                );
+                $profile->selfie_image_path = '/storage/' . $selfiePath;
+            }
+
+            // Update status KYC jika disediakan
+            if ($request->filled('kyc_status')) {
+                $profile->kyc_status = $request->kyc_status;
+                if ($request->kyc_status === 'VERIFIED') {
+                    $profile->kyc_verified_at = now();
+                    $profile->kyc_verified_by = Auth::id();
+                }
+            }
+            if ($request->has('kyc_notes')) {
+                $profile->kyc_notes = $request->kyc_notes;
+            }
+
+            $profile->save();
+
+            // Notifikasi ke nasabah
+            $statusMessages = [
+                'VERIFIED' => 'Dokumen KYC Anda telah diverifikasi. Terima kasih.',
+                'REJECTED' => 'Dokumen KYC Anda ditolak. Alasan: ' . ($request->kyc_notes ?: 'Tidak memenuhi syarat.') . '. Silakan upload ulang.',
+                'PENDING' => 'Dokumen KYC Anda sedang dalam proses review.',
+            ];
+            $this->notificationService->notifyUser(
+                $customer->id,
+                'Status Dokumen KYC',
+                $statusMessages[$request->kyc_status] ?? 'Dokumen KYC Anda telah diperbarui oleh admin.'
+            );
+
+            // Log audit
+            $this->logService->logAudit('KYC_DOCUMENTS_UPDATED_BY_ADMIN', 'customer_profiles', $customer->id, [], [
+                'customer_name' => $customer->full_name,
+                'kyc_status' => $profile->kyc_status,
+                'updated_by' => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Dokumen KYC nasabah berhasil diperbarui.',
+                'data' => [
+                    'kyc_status' => $profile->kyc_status,
+                    'ktp_image_path' => $profile->ktp_image_path,
+                    'selfie_image_path' => $profile->selfie_image_path,
+                    'kyc_notes' => $profile->kyc_notes,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memperbarui dokumen KYC: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin approve/reject dokumen KYC nasabah.
+     */
+    public function reviewKyc(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'kyc_status' => 'required|in:VERIFIED,REJECTED',
+            'kyc_notes' => 'sometimes|nullable|string|max:500',
+        ], [
+            'kyc_status.required' => 'Status KYC wajib diisi.',
+            'kyc_status.in' => 'Status KYC harus VERIFIED atau REJECTED.',
+        ]);
+
+        $user = Auth::user();
+
+        // Unit access check
+        if (!$this->canAccessCustomer($user, (int) $id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses ke data nasabah ini.'
+            ], 403);
+        }
+
+        $customer = User::where('role_id', 9)->with('customerProfile')->findOrFail($id);
+        $profile = $customer->customerProfile;
+
+        if (!$profile) {
+            return response()->json(['status' => 'error', 'message' => 'Profil nasabah tidak ditemukan.'], 404);
+        }
+
+        $profile->kyc_status = $request->kyc_status;
+        $profile->kyc_notes = $request->kyc_notes;
+        if ($request->kyc_status === 'VERIFIED') {
+            $profile->kyc_verified_at = now();
+            $profile->kyc_verified_by = Auth::id();
+        } else {
+            $profile->kyc_verified_at = null;
+            $profile->kyc_verified_by = null;
+        }
+        $profile->save();
+
+        // Notifikasi ke nasabah
+        $statusMessages = [
+            'VERIFIED' => 'Selamat! Dokumen KYC Anda telah disetujui. Akun Anda sudah terverifikasi penuh.',
+            'REJECTED' => 'Dokumen KYC Anda ditolak. Alasan: ' . ($request->kyc_notes ?: 'Tidak memenuhi syarat.') . '. Silakan upload ulang dokumen yang benar.',
+        ];
+        $this->notificationService->notifyUser(
+            $customer->id,
+            'Verifikasi Dokumen KYC',
+            $statusMessages[$request->kyc_status]
+        );
+
+        // Log audit
+        $this->logService->logAudit('KYC_REVIEWED', 'customer_profiles', $customer->id, [], [
+            'customer_name' => $customer->full_name,
+            'kyc_status' => $request->kyc_status,
+            'kyc_notes' => $request->kyc_notes,
+            'reviewed_by' => Auth::id(),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Status KYC nasabah berhasil diperbarui.',
+            'data' => [
+                'kyc_status' => $profile->kyc_status,
+                'kyc_notes' => $profile->kyc_notes,
+            ]
+        ]);
     }
 }

@@ -30,7 +30,7 @@ class StaffController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
+
         // Only Super Admin, Branch Head, Unit Head can access
         if (!in_array($user->role_id, [1, 2, 3])) {
             return response()->json([
@@ -68,7 +68,7 @@ class StaffController extends Controller
         // Add can_edit flag
         $staff->each(function ($staffMember) use ($user) {
             $canEdit = false;
-            
+
             if ($user->role_id === 1 && $staffMember->role_id > 1) {
                 $canEdit = true;
             } elseif ($user->role_id === 2 && $staffMember->role_id > 2) {
@@ -76,7 +76,7 @@ class StaffController extends Controller
             } elseif ($user->role_id === 3 && $staffMember->role_id > 3) {
                 $canEdit = true;
             }
-            
+
             $staffMember->can_edit = $canEdit;
         });
 
@@ -136,7 +136,7 @@ class StaffController extends Controller
                 'full_name' => $request->full_name,
                 'email' => $request->email,
                 'password_hash' => Hash::make('password123'), // Default password
-                'phone_number' => $request->phone_number ?? '',
+                'phone_number' => $request->phone_number ?: null,
                 'status' => 'ACTIVE'
             ]);
 
@@ -209,7 +209,7 @@ class StaffController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:ACTIVE,BLOCKED,SUSPENDED'
+            'new_status' => 'required|in:ACTIVE,BLOCKED,SUSPENDED'
         ]);
 
         $staff = User::where('role_id', '!=', 9)->findOrFail($id);
@@ -224,20 +224,20 @@ class StaffController extends Controller
         }
 
         $oldStatus = $staff->status;
-        $staff->update(['status' => $request->status]);
+        $staff->update(['status' => $request->new_status]);
 
         // Log status change
-        $this->logService->logAudit('STAFF_STATUS_CHANGED', 'users', $staff->id, 
-            ['status' => $oldStatus], 
-            ['status' => $request->status]
+        $this->logService->logAudit('STAFF_STATUS_CHANGED', 'users', $staff->id,
+            ['status' => $oldStatus],
+            ['status' => $request->new_status]
         );
 
         // Notify staff if status changed to blocked/suspended
-        if (in_array($request->status, ['BLOCKED', 'SUSPENDED'])) {
+        if (in_array($request->new_status, ['BLOCKED', 'SUSPENDED'])) {
             $this->notificationService->notifyUser(
                 $staff->id,
                 'Status Akun Diperbarui',
-                'Status akun Anda telah diubah menjadi ' . $request->status . '.'
+                'Status akun Anda telah diubah menjadi ' . $request->new_status . '.'
             );
         }
 
@@ -281,7 +281,7 @@ class StaffController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Password staf berhasil direset.',
-            'data' => ['new_password' => $newPassword]
+            'data' => ['temporary_password' => $newPassword]
         ]);
     }
 
@@ -291,14 +291,14 @@ class StaffController extends Controller
     public function getRoles(): JsonResponse
     {
         $user = Auth::user();
-        
+
         $query = Role::query();
-        
+
         // Filter roles based on user's role
         if ($user->role_id !== 1) {
             $query->where('id', '>', $user->role_id);
         }
-        
+
         $roles = $query->orderBy('id')->get();
 
         return response()->json([
@@ -331,8 +331,8 @@ class StaffController extends Controller
         $staff->update(['unit_id' => $request->unit_id]);
 
         // Log assignment change
-        $this->logService->logAudit('STAFF_ASSIGNMENT_CHANGED', 'users', $staff->id, 
-            ['unit_id' => $oldUnitId], 
+        $this->logService->logAudit('STAFF_ASSIGNMENT_CHANGED', 'users', $staff->id,
+            ['unit_id' => $oldUnitId],
             ['unit_id' => $request->unit_id]
         );
 

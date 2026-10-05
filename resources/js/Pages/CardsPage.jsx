@@ -90,8 +90,8 @@ const CardsPage = () => {
             <div className="space-y-8">
                 {cards.map(card => (
                     <div key={card.id} className="max-w-sm mx-auto">
-                        <DebitCard card={card} />
-                        <div className="bg-white -mt-2 rounded-b-xl shadow-lg border-t">
+                        <DebitCard card={card} revealedNumber={revealCardId === card.id ? revealedNumber : null} />
+                        <div className="bg-white -mt-2 rounded-b-2xl shadow-lg border-t">
                             {/* Baris 1: Limit, Lihat Nomor */}
                             <div className="flex justify-around items-center border-b">
                                 <ActionButton onClick={() => openLimitModal(card)} icon={<Edit size={16} />} className="text-gray-600 hover:bg-gray-100">Limit</ActionButton>
@@ -179,7 +179,7 @@ const CardsPage = () => {
                                     <p className="text-xl font-mono font-bold tracking-widest text-gray-800">{revealedNumber}</p>
                                 </div>
                                 <p className="text-xs text-gray-400 mt-2 text-center">Jangan bagikan nomor kartu kepada siapapun.</p>
-                                <Button onClick={() => setRevealModalOpen(false)} fullWidth className="mt-4">Tutup</Button>
+                                <Button onClick={() => { setRevealModalOpen(false); setRevealedNumber(null); }} fullWidth className="mt-4">Tutup</Button>
                             </>
                         )}
                     </div>

@@ -15,7 +15,7 @@ const CardRequestsPage = () => {
         if (confirmed) {
             const result = await callApi(`/admin/card-requests/${cardId}/process`, 'PUT', { action: 'APPROVE' });
             if (result && result.status === 'success') { modal.showAlert({ title: 'Berhasil', message: result.message, type: 'success' }); router.reload(); }
-            else { modal.showAlert({ title: 'Gagal', message: error || result?.message, type: 'warning' }); }
+            else { modal.showAlert({ title: 'Gagal', message: result?.message || error || 'Permintaan gagal diproses. Pastikan permintaan masih berstatus PENDING lalu muat ulang halaman.', type: 'warning' }); }
         }
     };
 
@@ -35,7 +35,13 @@ const CardRequestsPage = () => {
                                 <td className="p-4 text-sm text-gray-600">{req.account_number}</td>
                                 <td className="p-4 text-sm text-gray-600">{new Date(req.requested_at).toLocaleString('id-ID')}</td>
                                 <td className="p-4"><span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">{req.status}</span></td>
-                                <td className="p-4"><Button onClick={() => handleApprove(req.id)} className="text-sm py-1 px-3"><CheckCircle size={16} className="inline mr-1" /> Aktifkan</Button></td>
+                                <td className="p-4">
+                                    {req.status === 'PENDING' ? (
+                                        <Button onClick={() => handleApprove(req.id)} className="text-sm py-1 px-3"><CheckCircle size={16} className="inline mr-1" /> Aktifkan</Button>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">Selesai</span>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

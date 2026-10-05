@@ -84,8 +84,8 @@ const ImageUploadCard = ({ label, icon: Icon, currentPath, preview, onChange, in
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 className={`w-full py-2.5 px-4 rounded-lg border-2 border-dashed text-sm font-medium transition-colors ${currentPath
-                        ? 'border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100'
-                        : 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    ? 'border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100'
+                    : 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100'
                     }`}
             >
                 <UploadCloud className="w-4 h-4 inline mr-2" />
@@ -232,7 +232,7 @@ const KycDocumentPage = () => {
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-1 rounded-lg hover:bg-gray-100">
+                    <button onClick={() => router.visit('/profile')} className="p-1 rounded-lg hover:bg-gray-100">
                         <ChevronLeft className="w-5 h-5 text-gray-700" />
                     </button>
                     <div>

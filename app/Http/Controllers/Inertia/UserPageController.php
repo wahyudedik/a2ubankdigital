@@ -11,6 +11,7 @@ use App\Models\DepositProduct;
 use App\Models\Notification;
 use App\Models\Card;
 use App\Models\Transaction;
+use App\Models\Banner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,14 @@ class UserPageController extends Controller
         $user = Auth::user();
         $account = $user->accounts()->where('account_type', 'TABUNGAN')->where('status', 'ACTIVE')->first();
 
+        // Banner slider aktif untuk dashboard customer
+        $banners = Banner::active()->orderBy('sort_order')->get();
+
         if (!$account) {
-            return Inertia::render('DashboardPage', ['dashboardData' => ['balance' => 0, 'account_number' => '-', 'recent_transactions' => [], 'weekly_summary' => ['labels' => [], 'pemasukan' => [], 'pengeluaran' => []]]]);
+            return Inertia::render('DashboardPage', [
+                'dashboardData' => ['balance' => 0, 'account_number' => '-', 'recent_transactions' => [], 'weekly_summary' => ['labels' => [], 'pemasukan' => [], 'pengeluaran' => []]],
+                'banners' => $banners,
+            ]);
         }
 
         $transactions = DB::table('transactions as t')
@@ -57,6 +64,7 @@ class UserPageController extends Controller
                 'recent_transactions' => $transactions,
                 'weekly_summary' => compact('labels', 'pemasukan', 'pengeluaran'),
             ],
+            'banners' => $banners,
         ]);
     }
 

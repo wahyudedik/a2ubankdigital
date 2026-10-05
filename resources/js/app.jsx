@@ -32,7 +32,7 @@ const adminPages = [
     'AdminLoansListPage', 'AdminUnitsPage', 'SettingsPage', 'StaffListPage', 'StaffEditPage',
     'CardRequestsPage', 'ReportsPage', 'AdminNotificationsPage', 'AdminTopUpRequestsPage',
     'AdminWithdrawalRequestsPage', 'AdminAuditLogPage', 'AdminTellerDepositPage',
-    'AdminTellerLoanPaymentPage'
+    'AdminTellerLoanPaymentPage', 'AdminBannerSliderPage'
 ];
 
 createInertiaApp({

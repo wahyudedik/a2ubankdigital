@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Users, Landmark, LogOut, BarChart, Settings, Database,
-    FolderClock, X, ChevronDown, Building, PiggyBank, ShieldCheck, CreditCard
+    FolderClock, X, ChevronDown, Building, PiggyBank, ShieldCheck, CreditCard, Megaphone
 } from 'lucide-react';
 import { AppConfig } from '@/config';
 
@@ -114,14 +114,21 @@ const Sidebar = ({ isOpen, setIsOpen, onLogout, user }) => {
                     { text: 'Manajemen Staf', path: '/admin/staff' },
                 ]
             },
+            promotions: {
+                type: 'group', icon: <Megaphone size={20} />, text: 'Promosi',
+                activePaths: ['/admin/promo/banner-slider'],
+                subLinks: [
+                    { text: 'Banner Slider', path: '/admin/promo/banner-slider' },
+                ]
+            },
             reports: { type: 'link', icon: <BarChart size={20} />, text: 'Laporan', path: '/admin/reports' },
             auditLog: { type: 'link', icon: <ShieldCheck size={20} />, text: 'Log Audit', path: '/admin/audit-log' }
         };
 
         // Role permissions matching routes/web.php exactly
         const rolesConfig = {
-            // Super Admin - semua
-            1: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmtFull, allLinks.depositMgmt, allLinks.orgStructure, allLinks.reports, allLinks.auditLog],
+            // Super Admin - semua (termasuk Promosi: Banner Slider)
+            1: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmtFull, allLinks.depositMgmt, allLinks.orgStructure, allLinks.promotions, allLinks.reports, allLinks.auditLog],
             // Kepala Cabang - semua
             2: [allLinks.dashboard, allLinks.customers, allLinks.teller_ops, allLinks.requests, allLinks.transactions, allLinks.loanMgmtFull, allLinks.depositMgmt, allLinks.orgStructure, allLinks.reports, allLinks.auditLog],
             // Kepala Unit - tanpa org structure & audit

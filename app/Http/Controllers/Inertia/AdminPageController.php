@@ -15,6 +15,7 @@ use App\Models\Card;
 use App\Models\CardRequest;
 use App\Models\LoanInstallment;
 use App\Models\Role;
+use App\Models\Banner;
 use App\Traits\UnitAccessTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -663,6 +664,12 @@ class AdminPageController extends Controller
     public function settings() { return Inertia::render('SettingsPage'); }
     public function auditLog() { return Inertia::render('AdminAuditLogPage'); }
     public function tellerDeposit() { return Inertia::render('AdminTellerDepositPage'); }
+    public function bannerSlider()
+    {
+        $banners = Banner::orderBy('sort_order')->orderBy('created_at', 'desc')->get();
+
+        return Inertia::render('AdminBannerSliderPage', ['banners' => $banners]);
+    }
     public function tellerLoanPayment() { return Inertia::render('AdminTellerLoanPaymentPage'); }
     public function notifications() {
         $notifications = Notification::where('user_id', Auth::id())->orderBy('created_at', 'desc')->get();

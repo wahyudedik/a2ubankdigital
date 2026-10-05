@@ -182,6 +182,11 @@ Route::middleware(['auth', 'role:super_admin,admin,manager,marketing,teller,cs,a
         Route::get('/build', [AdminPageController::class, 'build']);
     });
 
+    // Promosi - super admin saja
+    Route::middleware('role:super_admin')->group(function () {
+        Route::get('/promo/banner-slider', [AdminPageController::class, 'bannerSlider']);
+    });
+
     // ===== API ENDPOINTS =====
     // Notifications API
     Route::put('/notifications/mark-all-read', [AdminApiController::class, 'markAllNotificationsRead']);

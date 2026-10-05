@@ -7,3 +7,13 @@ body {
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Inter', sans-serif;
 }
+
+/* Sembunyikan scrollbar visual pada horizontal scroll container */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}

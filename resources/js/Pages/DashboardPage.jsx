@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { CreditCard, Send, QrCode, Database, PiggyBank, Briefcase, Download, Upload, Receipt, ArrowDown, ArrowUp, TrendingUp, Eye, EyeOff, Wallet } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
@@ -6,6 +6,55 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import Button from '@/components/ui/Button';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+
+const BannerSlider = ({ banners }) => {
+    const [current, setCurrent] = useState(0);
+
+    useEffect(() => {
+        if (!banners || banners.length <= 1) return;
+        const timer = setInterval(() => {
+            setCurrent((prev) => (prev + 1) % banners.length);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [banners]);
+
+    if (!banners || banners.length === 0) return null;
+
+    const goTo = (index) => setCurrent(index);
+
+    return (
+        <div className="relative rounded-xl overflow-hidden shadow-md mb-6 bg-white">
+            <div className="relative w-full" style={{ aspectRatio: '3 / 1' }}>
+                {banners.map((banner, index) => (
+                    <div
+                        key={banner.id}
+                        className={`absolute inset-0 transition-opacity duration-500 ${index === current ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                    >
+                        {banner.link_url ? (
+                            <a href={banner.link_url} className="block w-full h-full">
+                                <img src={banner.image_url} alt={banner.title || 'Banner'} className="w-full h-full object-cover" />
+                            </a>
+                        ) : (
+                            <img src={banner.image_url} alt={banner.title || 'Banner'} className="w-full h-full object-cover" />
+                        )}
+                    </div>
+                ))}
+            </div>
+            {banners.length > 1 && (
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
+                    {banners.map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => goTo(index)}
+                            className={`h-2 rounded-full transition-all ${index === current ? 'w-6 bg-white' : 'w-2 bg-white/60'}`}
+                            aria-label={`Banner ${index + 1}`}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'Rp 0';
@@ -23,10 +72,12 @@ const TransactionIcon = ({ type, flow }) => {
 };
 
 const DashboardPage = () => {
-    const { dashboardData } = usePage().props;
+    const { dashboardData, banners } = usePage().props;
     const [showBalance, setShowBalance] = useState(true);
 
     if (!dashboardData) return <div className="text-center p-8">Gagal memuat data dasbor.</div>;
+
+    const bannerList = Array.isArray(banners) ? banners : [];
 
     const toggleBalanceVisibility = () => {
         setShowBalance(!showBalance);
@@ -78,10 +129,11 @@ const DashboardPage = () => {
             </div>
             <div className="bg-white rounded-xl shadow-md p-4 mb-6">
                 <h3 className="font-semibold text-gray-800 mb-4 px-2">Layanan & Fitur</h3>
-                <div className="grid grid-cols-4 gap-2 text-center">
-                    {serviceMenus.map(item => (<Link href={item.path} key={item.label} className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-colors"><div className="w-14 h-14 rounded-full bg-gray-100 text-bpn-blue flex items-center justify-center mb-2 shadow-sm">{item.icon}</div><span className="text-xs text-gray-700 font-medium">{item.label}</span></Link>))}
+                <div className="flex flex-nowrap gap-2 text-center overflow-x-auto pb-2 scrollbar-hide">
+                    {serviceMenus.map(item => (<Link href={item.path} key={item.label} className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"><div className="w-14 h-14 rounded-full bg-gray-100 text-bpn-blue flex items-center justify-center mb-2 shadow-sm">{item.icon}</div><span className="text-xs text-gray-700 font-medium">{item.label}</span></Link>))}
                 </div>
             </div>
+            <BannerSlider banners={bannerList} />
             <div className="bg-white rounded-xl shadow-md p-4 mb-6"><h3 className="font-semibold text-gray-800 mb-4">Ringkasan Keuangan</h3><div className="h-48"><Line data={chartData} options={chartOptions} /></div></div>
             <div className="bg-white rounded-xl shadow-md p-4">
                 <div className="flex justify-between items-center mb-4"><h3 className="font-semibold text-gray-800">Aktivitas Terkini</h3><Link href="/history" className="text-sm font-semibold text-bpn-blue">Lihat Semua</Link></div>

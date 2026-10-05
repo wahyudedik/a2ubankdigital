@@ -596,6 +596,16 @@ Route::middleware(['web', 'auth:web', 'role:super_admin,admin,manager,marketing,
 });
 
 // ==========================================
+// Banner Slider (Promosi) - Super Admin Only
+// ==========================================
+Route::middleware(['web', 'auth:web', 'role:super_admin', 'throttle:60,1'])->prefix('admin/banners')->group(function () {
+    Route::get('/', [App\Http\Controllers\Admin\BannerController::class, 'index']);
+    Route::post('/', [App\Http\Controllers\Admin\BannerController::class, 'store']);
+    Route::put('/{id}/toggle', [App\Http\Controllers\Admin\BannerController::class, 'toggle']);
+    Route::delete('/{id}', [App\Http\Controllers\Admin\BannerController::class, 'destroy']);
+});
+
+// ==========================================
 // Personal Budgeting Routes - Customer Only
 // ==========================================
 Route::middleware(['web', 'auth:web', 'role:customer', 'throttle:120,1'])->prefix('user/expense')->group(function () {
